@@ -1,0 +1,62 @@
+/* Header */
+.header {
+    color: rgb(0, 0, 0);
+    text-align: center;
+    padding: 15px;
+    font-size: 2rem;
+  }
+  
+  /* Container */
+  .container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  /* Custom Positioning για κάθε Category */
+  .categories {
+    position: relative;
+    width: 100%;
+    height: 600px; /* Αύξησε το ύψος αν χρειάζεται */
+  }
+  
+  .category {
+    position: absolute;
+    width: 500px ; /* Ρύθμισε το μέγεθος */
+    height: auto ;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+  }
+  
+  /* Θέσεις των κατηγοριών */
+  .category-1 { top: 0px; left: 0%;}
+  .category-2 { top: 0px; left: 36%; }
+  .category-3 { top: 0px; left: 72%; }
+  .category-4 { top: 350px; left: 0%; }
+  .category-5 { top: 350px; left: 72%; }
+  
+  /* Τίτλοι */
+  .category-title {
+    color: #2f6ace;
+    font-weight: bold;
+    font-size: 2rem;
+    margin-bottom: 10px;
+  }
+  
+  .category p {
+    font-size: 1.5rem; /* Αλλαγή μεγέθους κειμένου */
+    color: #333; /* Εξασφάλιση καλής ορατότητας */
+    line-height: 1.4; /* Αύξηση ευκολίας ανάγνωσης */
+  }
+  
