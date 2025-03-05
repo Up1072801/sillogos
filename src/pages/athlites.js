@@ -1,8 +1,13 @@
 import "./App.css";
 
-
 function Athlites() {
-    return <h1>Αθλητές του συλλόγου</h1>; 
-  }
-  
-  export default Athlites;
+  return (
+    <div className="container">
+      <div className="header-container">
+        <h2 className="header">Αθλητές του συλλόγου</h2>
+      </div>
+    </div>
+  );
+}
+
+export default Athlites;

@@ -29,9 +29,11 @@ const detailFields = [
 
 export default function Epafes() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", marginTop: "50px", width: "100%", alignItems: "flex-start", padding: "0 20px" }}>
-      <h2 style={{ marginBottom: "20px", textAlign: "left" }}>Διαχείριση Επαφών</h2>
-      <div style={{ width: "100%" }}>
+    <div className="container">
+      <div className="header-container">
+        <h2 className="header">Διαχείριση Επαφών</h2>
+      </div>
+      <div className="table-container">
         <DataTable 
           data={fakeEpafes || []} // ✅ Περνάμε τα αρχικά δεδομένα, αποφεύγοντας undefined errors
           columns={columns} 

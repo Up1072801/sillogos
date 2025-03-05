@@ -166,7 +166,7 @@ export default function DataTable({ data = [], columns, extraColumns = [], detai
   ];
 
   return (
-    <Box sx={{ padding: 2 }}>
+    <Box sx={{ padding: 2, overflowX: "auto" }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
         <Button variant="contained" startIcon={<Add />} onClick={handleAddClick}>
           Προσθήκη Νέου
@@ -197,6 +197,18 @@ export default function DataTable({ data = [], columns, extraColumns = [], detai
           columnVisibility: {
             arithmosmitroou: false,
             katastasisindromis: false,
+          },
+        }}
+        muiTableBodyCellProps={{
+          sx: {
+            fontSize: '0.75rem', // Μείωση μεγέθους γραμμάτων
+            padding: '0.25rem', // Μείωση του padding
+          },
+        }}
+        muiTableHeadCellProps={{
+          sx: {
+            fontSize: '0.75rem', // Μείωση μεγέθους γραμμάτων
+            padding: '0.25rem', // Μείωση του padding
           },
         }}
         renderDetailPanel={({ row }) => (
@@ -313,14 +325,14 @@ export default function DataTable({ data = [], columns, extraColumns = [], detai
                 fullWidth
                 margin="dense"
                 type={column.accessorKey.includes("date") ? "date" : "text"}
-                InputLabelProps={{ shrink: true }}
-                inputProps={
-                  column.accessorKey === "firstName" || column.accessorKey === "lastName" || column.accessorKey === "fathersname"
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  htmlInput: column.accessorKey === "firstName" || column.accessorKey === "lastName" || column.accessorKey === "fathersname"
                     ? { pattern: "[A-Za-zΑ-Ωα-ωά-ώΆ-Ώ ]*" }
                     : column.accessorKey === "phone"
                     ? { inputMode: "numeric", pattern: "[0-9]*" }
                     : {}
-                }
+                }}
               />
             )
           ))}

@@ -13,6 +13,8 @@ const columns = [
   { accessorKey: "vathmos", header: "Βαθμός Δυσκολίας" },
   { accessorKey: "arithmosmitroou", header: "Αριθμός Μητρώου", enableHiding: true, isVisible: false },
   { accessorKey: "katastasisindromis", header: "Κατάσταση Συνδρομής", enableHiding: true, isVisible: false },
+  { accessorKey: "datepliromis", header: "Ημερομηνία Πληρωμής Συνδρομής" },
+  { accessorKey: "dategrafis", header: "Ημερομηνία Εγγραφής" },
 ];
 
 const extraColumns = [

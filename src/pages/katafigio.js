@@ -21,16 +21,20 @@ const detailFields = [
 
 export default function Katafigio() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", marginTop: "50px", width: "100%", alignItems: "flex-start", padding: "0 20px" }}>
-      <h2 style={{ marginBottom: "20px", textAlign: "left" }}>Διαχείριση Κρατήσεων Καταφυγίου</h2>
-      <div style={{ width: "100%" }}>
+    <div className="container">
+      <div className="header-container">
+        <h2 className="header">Διαχείριση Κρατήσεων Καταφυγίου</h2>
+      </div>
+      <div className="table-container">
         <DataTable 
           data={fakeBookings || []} // ✅ Περνάμε τα αρχικά δεδομένα
           columns={columns} 
           detailFields={detailFields} 
         />
       </div>
-      <CustomCalendar bookings={fakeBookings || []} /> {/* ✅ Το ημερολόγιο ενημερώνεται αυτόματα */}
+      <div style={{ alignSelf: "flex-start" }}>
+        <CustomCalendar bookings={fakeBookings || []} /> {/* ✅ Το ημερολόγιο ενημερώνεται αυτόματα */}
+      </div>
     </div>
   );
 }

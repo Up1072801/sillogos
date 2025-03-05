@@ -9,29 +9,22 @@ import {
   List,
   Typography,
   Divider,
-  IconButton,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Collapse,
 } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import {
   ExpandLess,
   ExpandMore,
-  Menu as MenuIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
   Home as HomeIcon,
   DirectionsWalk as HikeIcon,
   Inventory as EquipmentIcon,
   Cabin as CabinIcon,
   School as SchoolIcon,
   Person as MemberIcon,
-  PersonAdd as AddMemberIcon,
-  GroupAdd as GroupMemberIcon,
-  Badge as BadgeIcon,
 } from "@mui/icons-material";
 
 const drawerWidth = 240;
@@ -53,7 +46,7 @@ const AppBar = styled(MuiAppBar, { shouldForwardProp: (prop) => prop !== "open" 
   })
 );
 
-export default function Navbar({ open, handleDrawerOpen, handleDrawerClose }) {
+export default function Navbar() {
   const theme = useTheme();
   const [membersOpen, setMembersOpen] = React.useState(false);
 
@@ -64,12 +57,9 @@ export default function Navbar({ open, handleDrawerOpen, handleDrawerClose }) {
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
-      <AppBar position="fixed" open={open}>
+      <AppBar position="fixed" open={true}>
         <Toolbar>
-          <IconButton color="inherit" aria-label="open drawer" onClick={handleDrawerOpen} edge="start" sx={{ mr: 2, ...(open && { display: "none" }) }}>
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component={Link} to="/" sx={{ color: 'inherit', textDecoration: 'none' }}>
+          <Typography variant="h6" noWrap component={RouterLink} to="/" sx={{ color: 'inherit', textDecoration: 'none' }}>
             Ορειβατικός Σύλλογος
           </Typography>
         </Toolbar>
@@ -83,20 +73,15 @@ export default function Navbar({ open, handleDrawerOpen, handleDrawerClose }) {
             boxSizing: "border-box",
           },
         }}
-        variant="temporary"
+        variant="persistent"
         anchor="left"
-        open={open}
-        onClose={handleDrawerClose}
+        open={true}
       >
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "8px 16px" }}>
-          <IconButton onClick={handleDrawerClose}>
-            {theme.direction === "ltr" ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-          </IconButton>
-        </Box>
+        <Toolbar />
         <Divider sx={{ margin: 1, width: "100%", height: "2px" }} />
         <List>
           <ListItem disablePadding>
-            <ListItemButton component={Link} to="/" onClick={handleDrawerClose}>
+            <ListItemButton component={RouterLink} to="/">
               <ListItemIcon>
                 <HomeIcon />
               </ListItemIcon>
@@ -113,23 +98,23 @@ export default function Navbar({ open, handleDrawerOpen, handleDrawerClose }) {
           </ListItemButton>
           <Collapse in={membersOpen} timeout="auto" unmountOnExit>
             <List component="div" disablePadding>
-              <ListItemButton sx={{ pl: 4 }} component={Link} to="/melitousillogou" onClick={handleDrawerClose}>
+              <ListItemButton sx={{ pl: 4 }} component={RouterLink} to="/melitousillogou">
                 <ListItemText primary="Μέλη του συλλόγου" />
               </ListItemButton>
-              <ListItemButton sx={{ pl: 4 }} component={Link} to="/athlites" onClick={handleDrawerClose}>
+              <ListItemButton sx={{ pl: 4 }} component={RouterLink} to="/athlites">
                 <ListItemText primary="Αθλητές" />
               </ListItemButton>
-              <ListItemButton sx={{ pl: 4 }} component={Link} to="/meliallwnsillogwn" onClick={handleDrawerClose}>
+              <ListItemButton sx={{ pl: 4 }} component={RouterLink} to="/meliallwnsillogwn">
                 <ListItemText primary="Μέλοι άλλων συλλόγων" />
               </ListItemButton>
-              <ListItemButton sx={{ pl: 4 }} component={Link} to="/epafes" onClick={handleDrawerClose}>
+              <ListItemButton sx={{ pl: 4 }} component={RouterLink} to="/epafes">
                 <ListItemText primary="Επαφές" />
               </ListItemButton>
             </List>
           </Collapse>
 
           <ListItem disablePadding>
-            <ListItemButton component={Link} to="/eksormiseis" onClick={handleDrawerClose}>
+            <ListItemButton component={RouterLink} to="/eksormiseis">
               <ListItemIcon>
                 <HikeIcon />
               </ListItemIcon>
@@ -138,7 +123,7 @@ export default function Navbar({ open, handleDrawerOpen, handleDrawerClose }) {
           </ListItem>
 
           <ListItem disablePadding>
-            <ListItemButton component={Link} to="/eksoplismos" onClick={handleDrawerClose}>
+            <ListItemButton component={RouterLink} to="/eksoplismos">
               <ListItemIcon>
                 <EquipmentIcon />
               </ListItemIcon>
@@ -147,7 +132,7 @@ export default function Navbar({ open, handleDrawerOpen, handleDrawerClose }) {
           </ListItem>
 
           <ListItem disablePadding>
-            <ListItemButton component={Link} to="/katafigio" onClick={handleDrawerClose}>
+            <ListItemButton component={RouterLink} to="/katafigio">
               <ListItemIcon>
                 <CabinIcon />
               </ListItemIcon>
@@ -156,7 +141,7 @@ export default function Navbar({ open, handleDrawerOpen, handleDrawerClose }) {
           </ListItem>
 
           <ListItem disablePadding>
-            <ListItemButton component={Link} to="/sxoles" onClick={handleDrawerClose}>
+            <ListItemButton component={RouterLink} to="/sxoles">
               <ListItemIcon>
                 <SchoolIcon />
               </ListItemIcon>

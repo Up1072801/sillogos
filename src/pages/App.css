@@ -1,17 +1,41 @@
+/* Global Styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px; /* Βασικό μέγεθος γραμματοσειράς */
+}
+
+body {
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+  background-color: #f9f9f9;
+  color: #333;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Αποφυγή οριζόντιας κύλισης */
+}
+
 /* Header */
 .header {
   color: rgb(0, 0, 0);
   text-align: center;
-  padding: 15px;
-  font-size: 2rem;
+  padding: 1rem;
+  font-size: 1.5rem;
 }
 
 /* Container */
 .container {
-  max-width: 100%;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
-  background-color: #ffffff; /* Αλλαγή του background-color σε λευκό */
+  padding: 1rem;
+  background-color: #ffffff;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -21,61 +45,148 @@
 /* Header Container */
 .header-container {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 0.5rem;
 }
 
 /* Record Count */
 .record-count {
   background-color: #f0f0f0;
-  padding: 5px 10px;
-  border-radius: 5px;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
   font-size: 1rem;
   color: #333;
 }
 
 /* Custom Positioning για κάθε Category */
 .categories {
-  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
   width: 100%;
-  height: 600px; /* Αύξησε το ύψος αν χρειάζεται */
 }
 
 .table-container {
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .category {
-  position: absolute;
-  width: 500px; /* Ρύθμισε το μέγεθος */
-  height: auto;
+  flex: 1 1 calc(33.333% - 1rem);
   background: rgba(0, 0, 0, 0.05);
-  padding: 20px;
-  border-radius: 8px;
+  padding: 1rem;
+  border-radius: 0.5rem;
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   justify-content: center;
   text-align: center;
+  min-width: 250px;
 }
 
 /* Θέσεις των κατηγοριών */
-.category-1 { top: 0px; left: 0%; }
-.category-2 { top: 0px; left: 36%; }
-.category-3 { top: 0px; left: 72%; }
-.category-4 { top: 350px; left: 0%; }
-.category-5 { top: 350px; left: 72%; }
+.category-1 { order: 1; }
+.category-2 { order: 2; }
+.category-3 { order: 3; }
+.category-4 { order: 4; }
+.category-5 { order: 5; }
 
 /* Τίτλοι */
 .category-title {
   color: #2f6ace;
   font-weight: bold;
-  font-size: 2rem;
-  margin-bottom: 10px;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .category p {
-  font-size: 1.5rem; /* Αλλαγή μεγέθους κειμένου */
-  color: #333; /* Εξασφάλιση καλής ορατότητας */
-  line-height: 1.4; /* Αύξηση ευκολίας ανάγνωσης */
+  font-size: 1rem;
+  color: #333;
+  line-height: 1.4;
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+/* DataTable */
+.data-table {
+  width: 100%;
+  overflow-x: auto;
+  font-size: 0.75rem; /* Μείωση μεγέθους γραμμάτων */
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.25rem; /* Μείωση του padding */
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  white-space: nowrap; /* Αποφυγή αναδίπλωσης κειμένου */
+}
+
+.data-table th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+.data-table td {
+  background-color: #fff;
+}
+/* Dialog */
+.dialog {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.dialog-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.dialog-content {
+  padding: 1rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem;
+}
+
+.dialog-button {
+  margin-left: 0.5rem;
+}
+
+/* Media Queries */
+@media (max-width: 1200px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .category {
+    flex: 1 1 calc(50% - 1rem);
+  }
+}
+
+@media (max-width: 768px) {
+  .category {
+    flex: 1 1 100%;
+  }
+
+  .header {
+    font-size: 1.25rem;
+  }
+
+  .category-title {
+    font-size: 1.25rem;
+  }
+
+  .category p {
+    font-size: 0.875rem;
+  }
 }
