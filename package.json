@@ -58,6 +58,7 @@
     "@babel/plugin-transform-object-rest-spread": "^7.25.9",
     "@babel/plugin-transform-optional-catch-binding": "^7.25.9",
     "@babel/plugin-transform-private-methods": "^7.25.9",
-    "@babel/plugin-transform-unicode-property-regex": "^7.25.9"
+    "@babel/plugin-transform-unicode-property-regex": "^7.25.9",
+    "typescript": "^4.9.5"
   }
 }
