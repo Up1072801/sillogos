@@ -35,8 +35,8 @@ const CustomCalendar = ({ bookings }) => {
   return (
     <div className={styles.calendarContainer}>
       <div className={styles.selector}>
-        <label>Μήνας:</label>
-        <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+        <label htmlFor="month-select">Μήνας:</label>
+        <select id="month-select" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
           {Array.from({ length: 12 }, (_, i) => (
             <option key={i + 1} value={i + 1}>
               {new Date(0, i).toLocaleString("el-GR", { month: "long" })}
@@ -44,8 +44,8 @@ const CustomCalendar = ({ bookings }) => {
           ))}
         </select>
 
-        <label>Έτος:</label>
-        <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+        <label htmlFor="year-select">Έτος:</label>
+        <select id="year-select" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
           {years.map((year) => (
             <option key={year} value={year}>
               {year}

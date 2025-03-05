@@ -23,7 +23,7 @@ export default function Katafigio() {
   return (
     <div className="container">
       <div className="header-container">
-        <h2 className="header">Διαχείριση Κρατήσεων Καταφυγίου</h2>
+        <h2 className="header" role="heading" aria-level="2">Διαχείριση Κρατήσεων Καταφυγίου</h2>
       </div>
       <div className="table-container">
         <DataTable 

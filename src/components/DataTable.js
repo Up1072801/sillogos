@@ -279,8 +279,8 @@ export default function DataTable({ data = [], columns, extraColumns = [], detai
         )}
       />
       {editingRow && (
-        <Dialog open={true} onClose={() => setEditingRow(null)}>
-          <DialogTitle>Επεξεργασία Εγγραφής</DialogTitle>
+        <Dialog open={true} onClose={() => setEditingRow(null)} aria-labelledby="edit-dialog-title" role="dialog">
+          <DialogTitle id="edit-dialog-title">Επεξεργασία Εγγραφής</DialogTitle>
           <DialogContent>
             {uniqueFields(columns.concat(detailFields)).map((column) => (
               column.accessorKey !== "actions" && (
@@ -311,8 +311,8 @@ export default function DataTable({ data = [], columns, extraColumns = [], detai
           </DialogActions>
         </Dialog>
       )}
-      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)}>
-        <DialogTitle>Προσθήκη Νέου Ατόμου</DialogTitle>
+      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} aria-labelledby="add-dialog-title" role="dialog">
+        <DialogTitle id="add-dialog-title">Προσθήκη Νέου Ατόμου</DialogTitle>
         <DialogContent>
           {uniqueFields(columns.concat(detailFields)).map((column) => (
             column.accessorKey !== "actions" && (

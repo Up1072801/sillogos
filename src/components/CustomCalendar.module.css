@@ -72,3 +72,22 @@
 .full.legendItem {
   background-color: #d32f2f;
 }
+
+/* Προσθήκη στυλ για βελτίωση της προσβασιμότητας */
+.selector label {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.selector select:focus {
+  outline: 2px solid #1976d2;
+}
+
+.dayCell:focus {
+  outline: 2px solid #1976d2;
+}
+
+.legendItem {
+  font-size: 14px;
+  font-weight: bold;
+}

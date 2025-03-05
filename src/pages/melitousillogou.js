@@ -40,12 +40,12 @@ const detailFields = [
   { accessorKey: "dategrafis", header: "Ημερομηνία Εγγραφής" },
 ];
 
-export default function melitousillogou() {
+export default function Melitousillogou() {
   return (
     <div className="container">
       <div className="header-container">
-        <h2 className="header">Μέλη του Συλλόγου</h2>
-        <div className="record-count">{fakeMeli.length} </div>
+        <h2 className="header" role="heading" aria-level="2">Μέλη του Συλλόγου</h2>
+        <div className="record-count">{fakeMeli.length}</div>
       </div>
       <div className="table-container">
         <DataTable 

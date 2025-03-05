@@ -31,7 +31,7 @@ export default function Epafes() {
   return (
     <div className="container">
       <div className="header-container">
-        <h2 className="header">Διαχείριση Επαφών</h2>
+        <h2 className="header" role="heading" aria-level="2">Διαχείριση Επαφών</h2>
       </div>
       <div className="table-container">
         <DataTable 
