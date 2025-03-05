@@ -1,0 +1,74 @@
+.calendarContainer {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.selector {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.selector select {
+  padding: 5px;
+  font-size: 14px;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  width: 90%;
+  max-width: 600px;
+  margin: auto;
+}
+
+.dayHeader {
+  font-weight: bold;
+  text-align: center;
+  padding: 10px;
+  background-color: #1976d2;
+  color: white;
+  border-radius: 5px;
+}
+
+.dayCell {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.available {
+  background-color: #b3e6b3 !important; /* Πράσινο */
+}
+
+.full {
+  background-color: #ff9999 !important; /* Κόκκινο */
+}
+
+.legend {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+  gap: 20px;
+}
+
+.legendItem {
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: white;
+}
+
+.available.legendItem {
+  background-color: #4caf50;
+}
+
+.full.legendItem {
+  background-color: #d32f2f;
+}
