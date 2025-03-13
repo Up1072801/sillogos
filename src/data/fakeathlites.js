@@ -1,0 +1,72 @@
+export const fakeAthlites = [
+    {
+      firstName: "Γιάννης",
+      lastName: "Παπαδόπουλος",
+      phone: "2101234567",
+      email: "giannis@example.com",
+      vathmos: "5",
+      arithmosdeltiou: "A1234",
+      hmerominiaenarksis: "2023-01-01",
+      hmerominialiksis: "2023-12-31",
+      athlima: "Ποδόσφαιρο",
+      drastirioties: ["Προπόνηση", "Φιλικός Αγώνας"],
+      sxoles: ["Σχολή Ποδοσφαίρου"],
+      agones: ["Αγώνας 1", "Αγώνας 2"]
+    },
+    {
+      firstName: "Μαρία",
+      lastName: "Κωνσταντίνου",
+      phone: "2107654321",
+      email: "maria@example.com",
+      vathmos: "4",
+      arithmosdeltiou: "B5678",
+      hmerominiaenarksis: "2023-02-01",
+      hmerominialiksis: "2023-11-30",
+      athlima: "Μπάσκετ",
+      drastirioties: ["Προπόνηση", "Τουρνουά"],
+      sxoles: ["Σχολή Μπάσκετ"],
+      agones: ["Αγώνας 3", "Αγώνας 4"]
+    },
+    {
+      firstName: "Νίκος",
+      lastName: "Οικονόμου",
+      phone: "2109876543",
+      email: "nikos@example.com",
+      vathmos: "3",
+      arithmosdeltiou: "C9012",
+      hmerominiaenarksis: "2023-03-01",
+      hmerominialiksis: "2023-10-31",
+      athlima: "Βόλεϊ",
+      drastirioties: ["Προπόνηση", "Πρωτάθλημα"],
+      sxoles: ["Σχολή Βόλεϊ"],
+      agones: ["Αγώνας 5", "Αγώνας 6"]
+    },
+    {
+      firstName: "Ελένη",
+      lastName: "Γεωργίου",
+      phone: "2106543210",
+      email: "eleni@example.com",
+      vathmos: "2",
+      arithmosdeltiou: "D3456",
+      hmerominiaenarksis: "2023-04-01",
+      hmerominialiksis: "2023-09-30",
+      athlima: "Τένις",
+      drastirioties: ["Προπόνηση", "Διαγωνισμός"],
+      sxoles: ["Σχολή Τένις"],
+      agones: ["Αγώνας 7", "Αγώνας 8"]
+    },
+    {
+      firstName: "Κώστας",
+      lastName: "Δημητρίου",
+      phone: "2103210987",
+      email: "kostas@example.com",
+      vathmos: "1",
+      arithmosdeltiou: "E7890",
+      hmerominiaenarksis: "2023-05-01",
+      hmerominialiksis: "2023-08-31",
+      athlima: "Κολύμβηση",
+      drastirioties: ["Προπόνηση", "Αγώνας"],
+      sxoles: ["Σχολή Κολύμβησης"],
+      agones: ["Αγώνας 9", "Αγώνας 10"]
+    }
+  ];
