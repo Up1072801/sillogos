@@ -3,7 +3,8 @@ import React from "react";
 import DataTable from "../components/DataTable/DataTable"; // Ενημέρωση της διαδρομής εισαγωγής του DataTable
 import { fakeMeliAllwn } from "../data/fakeMeliallwn"; // Χρήση ονομαστικών εξαγωγών
 
-const columns = [
+  const columns = [
+  { accessorKey: "id", header: "ID" },
   { accessorKey: "firstName", header: "Όνομα" },
   { accessorKey: "lastName", header: "Επώνυμο" },
   { accessorKey: "phone", header: "Τηλέφωνο" },

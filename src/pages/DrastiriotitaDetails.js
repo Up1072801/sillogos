@@ -6,14 +6,23 @@ import { fakeEksormiseis } from "../data/fakeEksormiseis";
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from "@mui/material";
 
 export default function DrastiriotitaDetails() {
-  const { eksormisiName, drastiriotitaName } = useParams();
-  const eksormisi = fakeEksormiseis.find((eksormisi) => eksormisi.onoma === eksormisiName);
-  const drastiriotita = eksormisi?.drastirioties.find((drastiriotita) => drastiriotita.onoma === drastiriotitaName);
+  const { eksormisiId, drastiriotitaId } = useParams();
+
+  // Βρείτε την εξόρμηση με βάση το eksormisiId
+  const eksormisi = fakeEksormiseis.find((eksormisi) => eksormisi.id === eksormisiId);
+
+  // Βρείτε τη δραστηριότητα με βάση το drastiriotitaId
+  const drastiriotita = eksormisi?.drastirioties.find((drastiriotita) => drastiriotita.id === drastiriotitaId);
+
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editValues, setEditValues] = useState({ ...drastiriotita });
+  const [editValues, setEditValues] = useState(drastiriotita ? { ...drastiriotita } : {});
+
+  if (!eksormisi) {
+    return <div>Η εξόρμηση δεν βρέθηκε. Παρακαλώ ελέγξτε το URL.</div>;
+  }
 
   if (!drastiriotita) {
-    return <div>Η δραστηριότητα δεν βρέθηκε.</div>;
+    return <div>Η δραστηριότητα δεν βρέθηκε. Παρακαλώ ελέγξτε το URL.</div>;
   }
 
   const handleEditClick = useCallback(() => {
@@ -28,7 +37,7 @@ export default function DrastiriotitaDetails() {
   }, []);
 
   const handleEditSave = useCallback(() => {
-    // Εδώ μπορείς να προσθέσεις τον κώδικα για την αποθήκευση των αλλαγών
+    // Εδώ μπορείτε να προσθέσετε τον κώδικα για την αποθήκευση των αλλαγών
     setEditDialogOpen(false);
   }, []);
 

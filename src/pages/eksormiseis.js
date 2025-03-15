@@ -1,11 +1,12 @@
 import "./App.css";
-import React, { useCallback, useMemo } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import DataTable from "../components/DataTable/DataTable";
-import { fakeEksormiseis } from "../data/fakeEksormiseis"; // Διόρθωση της εισαγωγής
+import { fakeEksormiseis } from "../data/fakeEksormiseis";
 
 const eksormiseisColumns = [
-  { accessorKey: "onoma", header: "Όνομα", Cell: ({ row }) => <Link to={`/eksormiseis/${row.original.onoma}`}>{row.original.onoma}</Link> },
+  { accessorKey: "id", header: "ID" },
+  { accessorKey: "onoma", header: "Όνομα", Cell: ({ row }) => <Link to={`/eksormiseis/${row.original.id}`}>{row.original.onoma}</Link> },
   { accessorKey: "topothesia", header: "Τοποθεσία" },
   { accessorKey: "imerominia_enarksis", header: "Ημερομηνία Έναρξης" },
   { accessorKey: "imerominia_liksis", header: "Ημερομηνία Λήξης" },

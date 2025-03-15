@@ -1,16 +1,16 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { MaterialReactTable } from "material-react-table";
-import { Box, Button, Menu } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { Add, FileDownload } from "@mui/icons-material";
 import AddDialog from "./AddDialog";
 import EditDialog from "./EditDialog";
 import ExportMenu from "./ExportMenu";
 import DetailPanel from "./DetailPanel";
 import ActionsCell from "./ActionsCell";
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import "../../pages/App.css"; // Ενημέρωση της διαδρομής εισαγωγής του App.css
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import "../../pages/App.css";
 
 const DataTable = React.memo(({
   data = [],
@@ -23,6 +23,7 @@ const DataTable = React.memo(({
   enableEditExtra = true,
   enableDelete = true,
   enableFilter = true,
+  onAddNew,
 }) => {
   const [tableData, setTableData] = useState(data || []);
   const [editingRow, setEditingRow] = useState(null);
@@ -114,7 +115,7 @@ const DataTable = React.memo(({
         head: [headers],
         body: data,
       });
-      doc.save('table.pdf');
+      doc.save("table.pdf");
       handleExportClose();
     } catch (error) {
       console.error("Failed to export to PDF:", error);
@@ -145,7 +146,11 @@ const DataTable = React.memo(({
   return (
     <Box sx={{ padding: 2, overflowX: "hidden" }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleAddClick(columns)}>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={onAddNew || (() => handleAddClick(columns))}
+        >
           Προσθήκη Νέου
         </Button>
         <Button variant="contained" startIcon={<FileDownload />} onClick={handleExportClick}>
@@ -171,14 +176,14 @@ const DataTable = React.memo(({
         initialState={initialState}
         muiTableBodyCellProps={{
           sx: {
-            fontSize: '0.75rem',
-            padding: '0.25rem',
+            fontSize: "0.75rem",
+            padding: "0.25rem",
           },
         }}
         muiTableHeadCellProps={{
           sx: {
-            fontSize: '0.75rem',
-            padding: '0.25rem',
+            fontSize: "0.75rem",
+            padding: "0.25rem",
           },
         }}
         onRowClick={({ row }) => enableExpand && row.toggleRowExpanded()}
@@ -197,9 +202,9 @@ const DataTable = React.memo(({
       <EditDialog
         open={Boolean(editingRow)}
         onClose={() => setEditingRow(null)}
-        editValues={editValues}
-        handleEditChange={handleEditChange}
+        editValues={editValues || {}} // Προεπιλεγμένη τιμή για το editValues
         handleEditSave={handleEditSave}
+        fields={columns}
       />
       <AddDialog
         open={openAddDialog}

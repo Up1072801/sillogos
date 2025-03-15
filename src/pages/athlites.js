@@ -4,6 +4,7 @@ import DataTable from "../components/DataTable/DataTable"; // Ενημέρωση
 import { fakeAthlites } from "../data/fakeathlites"; // Χρήση ονομαστικών εξαγωγών
 
 const columns = [
+  { accessorKey: "id", header: "ID" },
   { accessorKey: "firstName", header: "Όνομα" },
   { accessorKey: "lastName", header: "Επώνυμο" },
   { accessorKey: "phone", header: "Τηλέφωνο" },

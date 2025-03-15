@@ -1,4 +1,4 @@
-import * as React from "react";
+import React from "react";
 import { styled, useTheme } from "@mui/material/styles";
 import {
   Box,
@@ -14,6 +14,7 @@ import {
   ListItemIcon,
   ListItemText,
   Collapse,
+  Button,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import {
@@ -25,8 +26,9 @@ import {
   Cabin as CabinIcon,
   School as SchoolIcon,
   Person as MemberIcon,
+  Logout as LogoutIcon,
 } from "@mui/icons-material";
-import { useCallback } from "react"; // Προσθήκη της εισαγωγής για το useCallback
+import { useCallback } from "react";
 
 const drawerWidth = 240;
 
@@ -47,7 +49,7 @@ const AppBar = styled(MuiAppBar, { shouldForwardProp: (prop) => prop !== "open" 
   })
 );
 
-export default function Navbar() {
+export default function Navbar({ user, onLogout }) {
   const theme = useTheme();
   const [membersOpen, setMembersOpen] = React.useState(false);
 
@@ -60,9 +62,16 @@ export default function Navbar() {
       <CssBaseline />
       <AppBar position="fixed" open={true} role="banner">
         <Toolbar>
-          <Typography variant="h6" noWrap component={RouterLink} to="/" sx={{ color: 'inherit', textDecoration: 'none' }}>
+          <Typography variant="h6" noWrap component={RouterLink} to="/" sx={{ color: "inherit", textDecoration: "none" }}>
             Ορειβατικός Σύλλογος
           </Typography>
+          <Box sx={{ flexGrow: 1 }} />
+          <Typography variant="body1" sx={{ marginRight: 2 }}>
+            Συνδεδεμένος ως: {user.username}
+          </Typography>
+          <Button color="inherit" startIcon={<LogoutIcon />} onClick={onLogout}>
+            Αποσύνδεση
+          </Button>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -107,7 +116,7 @@ export default function Navbar() {
                 <ListItemText primary="Αθλητές" />
               </ListItemButton>
               <ListItemButton sx={{ pl: 4 }} component={RouterLink} to="/meliallwnsillogwn" role="menuitem">
-                <ListItemText primary="Μέλοι άλλων συλλόγων" />
+                <ListItemText primary="Μέλη άλλων συλλόγων" />
               </ListItemButton>
               <ListItemButton sx={{ pl: 4 }} component={RouterLink} to="/epafes" role="menuitem">
                 <ListItemText primary="Επαφές" />
@@ -150,6 +159,17 @@ export default function Navbar() {
               <ListItemText primary="Σχολές" />
             </ListItemButton>
           </ListItem>
+
+          {user.role === "admin" && (
+            <ListItem disablePadding>
+              <ListItemButton component={RouterLink} to="/admin" role="menuitem">
+                <ListItemIcon>
+                  <MemberIcon />
+                </ListItemIcon>
+                <ListItemText primary="Διαχειριστής" />
+              </ListItemButton>
+            </ListItem>
+          )}
         </List>
       </Drawer>
     </Box>

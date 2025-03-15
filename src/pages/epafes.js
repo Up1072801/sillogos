@@ -1,165 +1,87 @@
-import "./App.css";
-import React, { useState, useEffect, useCallback } from "react";
-import DataTable from "../components/DataTable/DataTable"; // Ενημέρωση της διαδρομής εισαγωγής του DataTable
-import { fakeAthlites } from "../data/fakeathlites"; // Χρήση ονομαστικών εξαγωγών
-import { fakeMeli } from "../data/fakemeli"; // Χρήση ονομαστικών εξαγωγών
-import { fakeMeliAllwn } from "../data/fakeMeliallwn"; // Χρήση ονομαστικών εξαγωγών
-import { fakeEpafes } from "../data/fakeepafes"; // Χρήση ονομαστικών εξαγωγών
+import React, { useState } from "react";
+import DataTable from "../components/DataTable/DataTable";
+import AddDialog from "../components/DataTable/AddDialog";
+import EditDialog from "../components/DataTable/EditDialog";
+import { fakeEpafes } from "../data/fakeepafes";
+import * as yup from "yup";
 
-const columns = [
-  { accessorKey: "firstName", header: "Όνομα" },
-  { accessorKey: "lastName", header: "Επώνυμο" },
-  { accessorKey: "email", header: "Email" },
-  { accessorKey: "phone", header: "Τηλέφωνο" },
-  { accessorKey: "type", header: "Ιδιότητα" },
+const fields = [
+  {
+    accessorKey: "firstName",
+    header: "Όνομα",
+    validation: yup.string().required("Το όνομα είναι υποχρεωτικό"),
+    example: "π.χ. Γιάννης",
+  },
+  {
+    accessorKey: "lastName",
+    header: "Επώνυμο",
+    validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό"),
+    example: "π.χ. Παπαδόπουλος",
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    validation: yup.string().email("Μη έγκυρο email").required("Το email είναι υποχρεωτικό"),
+    example: "π.χ. example@email.com",
+  },
+  {
+    accessorKey: "phone",
+    header: "Τηλέφωνο",
+    validation: yup
+      .string()
+      .matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία")
+      .required("Το τηλέφωνο είναι υποχρεωτικό"),
+    example: "π.χ. 2101234567",
+  },
 ];
 
-const detailFields = {
-  athlites: [
-    { accessorKey: "firstName", header: "Όνομα" },
-    { accessorKey: "lastName", header: "Επώνυμο" },
-    { accessorKey: "phone", header: "Τηλέφωνο" },
-    { accessorKey: "email", header: "Email" },
-    { accessorKey: "vathmos", header: "Βαθμός Δυσκολίας" },
-    { accessorKey: "arithmosdeltiou", header: "Αριθμός Δελτίου" },
-    { accessorKey: "hmerominiaenarksis", header: "Ημερομηνία Εναρξης" },
-    { accessorKey: "hmerominialiksis", header: "Ημερομηνία Λήξης" },
-    { accessorKey: "athlima", header: "Άθλημα" }
-  ],
-  meli: [
-    { accessorKey: "firstName", header: "Όνομα" },
-    { accessorKey: "lastName", header: "Επώνυμο" },
-    { accessorKey: "phone", header: "Τηλέφωνο" },
-    { accessorKey: "email", header: "Email" },
-    { accessorKey: "job", header: "Επάγγελμα" },
-    { accessorKey: "vathmos", header: "Βαθμός Δυσκολίας" },
-    { accessorKey: "arithmosmitroou", header: "Αριθμός Μητρώου" },
-    { accessorKey: "katastasisindromis", header: "Κατάσταση Συνδρομής" },
-    { accessorKey: "datepliromis", header: "Ημερομηνία Πληρωμής Συνδρομής" },
-    { accessorKey: "dategrafis", header: "Ημερομηνία Εγγραφής" }
-  ],
-  meliallwn: [
-    { accessorKey: "firstName", header: "Όνομα" },
-    { accessorKey: "lastName", header: "Επώνυμο" },
-    { accessorKey: "phone", header: "Τηλέφωνο" },
-    { accessorKey: "email", header: "Email" },
-    { accessorKey: "vathmos", header: "Βαθμός Δυσκολίας" },
-    { accessorKey: "arithmosmitroou", header: "Αριθμός Μητρώου" },
-    { accessorKey: "onomasillogou", header: "Όνομα Συλλόγου" }
-  ],
-  epafes: [
-    { accessorKey: "firstName", header: "Όνομα" },
-    { accessorKey: "lastName", header: "Επώνυμο" },
-    { accessorKey: "email", header: "Email" },
-    { accessorKey: "phone", header: "Τηλέφωνο" },
-    { accessorKey: "type", header: "Ιδιότητα" }
-  ]
-};
+export default function Epafes() {
+  const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [data, setData] = useState(fakeEpafes);
+  const [editValues, setEditValues] = useState({});
 
-const extraColumns = {
-  athlites: [
-    [
-      { accessorKey: "drastirioties", header: "Δραστηριότητες" },
-    ],
-    [
-      { accessorKey: "sxoles", header: "Σχολές" },
-    ],
-    [
-      { accessorKey: "agones", header: "Αγώνες" }
-    ]
-  ],
-  meli: [
-    [
-      { accessorKey: "drastirioties", header: "Δραστηριότητες" },
-    ],
-    [
-      { accessorKey: "sxoles", header: "Σχολές" },
-    ]
-  ],
-  meliallwn: [
-    [
-      { accessorKey: "drastirioties", header: "Δραστηριότητες" },
-    ],
-    [
-      { accessorKey: "sxoles", header: "Σχολές" },
-    ]
-  ],
-  epafes: []
-};
+  const handleAddSave = (newRow) => {
+    setData((prevData) => [...prevData, { id: `epafes-${prevData.length + 1}`, ...newRow }]);
+    setOpenAddDialog(false);
+  };
 
-const Epafes = () => {
-  const [data, setData] = useState([]);
+  const handleEditClick = (row) => {
+    setEditValues(row || {}); // Ορισμός των τιμών που θα επεξεργαστούμε
+    setOpenEditDialog(true);
+  };
 
-  useEffect(() => {
-    const combinedData = [
-      ...fakeAthlites.map(item => ({ ...item, type: "Αθλητής", category: "Αθλητής" })),
-      ...fakeMeli.map(item => ({ ...item, type: "Μέλος Συλλόγου", category: "Μέλος Συλλόγου" })),
-      ...fakeMeliAllwn.map(item => ({ ...item, type: "Μέλος Άλλου Συλλόγου", category: "Μέλος Άλλου Συλλόγου" })),
-      ...fakeEpafes.map(item => ({ ...item, category: "Επαφή" }))
-    ];
-    setData(combinedData);
-  }, []);
-
-  const renderDetailPanel = useCallback(({ row }) => {
-    const category = row.original.category;
-    const detailFieldsForType = category === "Αθλητής" ? detailFields.athlites : category === "Μέλος Συλλόγου" ? detailFields.meli : category === "Μέλος Άλλου Συλλόγου" ? detailFields.meliallwn : detailFields.epafes;
-    const extraCols = category === "Αθλητής" ? extraColumns.athlites : category === "Μέλος Συλλόγου" ? extraColumns.meli : category === "Μέλος Άλλου Συλλόγου" ? extraColumns.meliallwn : extraColumns.epafes;
-
-    return (
-      <div>
-        <strong>Λεπτομέρειες:</strong>
-        {detailFieldsForType.map((field) => (
-          row.original[field.accessorKey] && (
-            <p key={field.accessorKey}>
-              <strong>{field.header}:</strong> {row.original[field.accessorKey]}
-            </p>
-          )
-        ))}
-        {extraCols.map((tableData, index) => (
-          row.original[tableData[0].accessorKey] && (
-            <div key={index}>
-              <strong>{tableData[0].header}:</strong>
-              <DataTable
-                data={row.original[tableData[0].accessorKey]}
-                columns={tableData}
-                extraColumns={[]}
-                detailFields={[]}
-                initialState={{}}
-                enableExpand={false}
-                enableView={false}
-                enableDelete={false}
-                          enableEditMain = {true}
-                          enableEditExtra = {false}
-                enableFilter={false}
-              />
-            </div>
-          )
-        ))}
-      </div>
+  const handleEditSave = (updatedRow) => {
+    setData((prevData) =>
+      prevData.map((row) => (row.id === updatedRow.id ? updatedRow : row))
     );
-  }, []);
+    setOpenEditDialog(false);
+  };
 
   return (
     <div className="container">
       <div className="header-container">
-        <h2 className="header" role="heading" aria-level="2">Επαφές <span className="record-count">({data.length})</span></h2>
+        <h2 className="header">Επαφές</h2>
       </div>
-      <div className="table-container">
-        <DataTable
-          data={data}
-          columns={columns}
-          extraColumns={[]}
-          detailFields={[]}
-          initialState={{}}
-          enableExpand={true}
-          enableView={true}
-          enableDelete={true}
-          enableFilter={true}
-          renderDetailPanel={renderDetailPanel}
-        />
-      </div>
+      <DataTable
+        data={data}
+        columns={fields}
+        onAddNew={() => setOpenAddDialog(true)}
+        handleEditClick={handleEditClick}
+      />
+      <AddDialog
+        open={openAddDialog}
+        onClose={() => setOpenAddDialog(false)}
+        fields={fields}
+        handleAddSave={handleAddSave}
+      />
+      <EditDialog
+        open={openEditDialog}
+        onClose={() => setOpenEditDialog(false)}
+        editValues={editValues}
+        handleEditSave={handleEditSave}
+        fields={fields}
+      />
     </div>
   );
-};
-
-export default Epafes;
+}

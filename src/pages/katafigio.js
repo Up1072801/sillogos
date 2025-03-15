@@ -1,10 +1,11 @@
 import "./App.css";
 import React, { useCallback } from "react";
-import DataTable from "../components/DataTable/DataTable"; // Ενημέρωση της διαδρομής εισαγωγής του DataTable
+import DataTable from "../components/DataTable/DataTable";
 import CustomCalendar from "../components/CustomCalendar";
-import fakeBookings from "../data/fakeBookings";
+import { fakeBookings } from "../data/fakeBookings"; // Ενημερωμένη εισαγωγή
 
 const columns = [
+  { accessorKey: "id", header: "ID" },
   { accessorKey: "arrival", header: "Ημ. Άφιξης" },
   { accessorKey: "departure", header: "Ημ. Αναχώρησης" },
   { accessorKey: "people", header: "Άτομα" },
@@ -16,7 +17,7 @@ const detailFields = [
   { accessorKey: "arrival", label: "Ημ. Άφιξης" },
   { accessorKey: "departure", label: "Ημ. Αναχώρησης" },
   { accessorKey: "people", label: "Άτομα" },
-  { accessorKey: "capacity", label: "Χωρητικότητα" }
+  { accessorKey: "capacity", label: "Χωρητικότητα" },
 ];
 
 export default function Katafigio() {

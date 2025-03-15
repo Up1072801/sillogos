@@ -118,6 +118,7 @@ body {
   justify-content: center;
   overflow-x: auto;
 }
+
 /* DataTable */
 .data-table,
 .extra-table {
@@ -182,6 +183,7 @@ select:focus {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
+
 /* Media Queries */
 @media (max-width: 1200px) {
   .container {
@@ -209,4 +211,117 @@ select:focus {
   .category p {
     font-size: var(--font-size-small);
   }
+}
+
+/* Login Styles */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f0f2f5;
+}
+
+.login-box {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.login-title {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.login-input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.login-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.login-button:hover {
+  background-color: #0056b3;
+}
+
+.login-error {
+  color: #ff0000;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+/* SchoolDetails, EksormisiDetails, DrastiriotitaDetails Styles */
+.details-container {
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 1rem;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.details-container h2 {
+  font-size: var(--font-size-large);
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.details-container p {
+  font-size: var(--font-size-base);
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.details-container strong {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.details-container .left-details,
+.details-container .right-details {
+  flex: 1;
+  margin-right: 20px;
+}
+
+.details-container .right-details h3 {
+  font-size: var(--font-size-medium);
+  color: #000000;
+  margin-bottom: 1rem;
+}
+
+.participants-container {
+  margin-top: 20px;
+  padding: 1rem;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.participants-container h3 {
+  font-size: var(--font-size-medium);
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.dialog-content .MuiTextField-root {
+  margin-bottom: 1rem;
 }

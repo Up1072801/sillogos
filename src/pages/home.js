@@ -1,7 +1,11 @@
 import "./App.css";
 import { Link } from "react-router-dom";
 
-function Home() {
+function Home({ user }) {
+  if (!user) {
+    return <p>Δεν έχετε συνδεθεί.</p>;
+  }
+
   return (
     <div className="container">
       <header className="header">
