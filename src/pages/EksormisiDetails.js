@@ -1,6 +1,6 @@
 import "./App.css";
 import React, { useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom"; // Εισαγωγή του Link
+import { useParams, Link } from "react-router-dom";
 import DataTable from "../components/DataTable/DataTable";
 import { fakeEksormiseis } from "../data/fakeEksormiseis";
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from "@mui/material";
@@ -11,10 +11,6 @@ export default function EksormisiDetails() {
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editValues, setEditValues] = useState(eksormisi ? { ...eksormisi } : {});
-
-  if (!eksormisi) {
-    return <div>Η εξόρμηση δεν βρέθηκε.</div>;
-  }
 
   const handleEditClick = useCallback(() => {
     setEditDialogOpen(true);
@@ -32,19 +28,42 @@ export default function EksormisiDetails() {
   }, []);
 
   const drastiriotitesColumns = [
-    { accessorKey: "onoma", header: "Όνομα", Cell: ({ row }) => <Link to={`/eksormiseis/${eksormisi.id}/${row.original.id}`}>{row.original.onoma}</Link> },
+    {
+      accessorKey: "onoma",
+      header: "Όνομα",
+      Cell: ({ row }) => (
+        <Link to={`/eksormiseis/${eksormisi?.id}/${row.original.id}`}>
+          {row.original.onoma}
+        </Link>
+      ),
+    },
   ];
+
+  // Αν το eksormisi είναι undefined, εμφανίστε μήνυμα στο JSX
+  if (!eksormisi) {
+    return <div>Η εξόρμηση δεν βρέθηκε.</div>;
+  }
 
   return (
     <div className="container">
       <div className="header-container">
-        <h2 className="header" role="heading" aria-level="2">{eksormisi.onoma}</h2>
+        <h2 className="header" role="heading" aria-level="2">
+          {eksormisi.onoma}
+        </h2>
       </div>
       <div className="details-container">
-        <p><strong>Τοποθεσία:</strong> {eksormisi.topothesia}</p>
-        <p><strong>Ημερομηνία Έναρξης:</strong> {eksormisi.imerominia_enarksis}</p>
-        <p><strong>Ημερομηνία Λήξης:</strong> {eksormisi.imerominia_liksis}</p>
-        <p><strong>Κόστος:</strong> {eksormisi.kostos}</p>
+        <p>
+          <strong>Τοποθεσία:</strong> {eksormisi.topothesia}
+        </p>
+        <p>
+          <strong>Ημερομηνία Έναρξης:</strong> {eksormisi.imerominia_enarksis}
+        </p>
+        <p>
+          <strong>Ημερομηνία Λήξης:</strong> {eksormisi.imerominia_liksis}
+        </p>
+        <p>
+          <strong>Κόστος:</strong> {eksormisi.kostos}
+        </p>
         <Button variant="contained" color="primary" onClick={handleEditClick}>
           Επεξεργασία
         </Button>

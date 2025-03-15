@@ -27,13 +27,13 @@
     "file-saver": "^2.0.5",
     "formik": "^2.4.6",
     "jspdf": "^3.0.0",
-    "jspdf-autotable": "^3.8.4",
+    "jspdf-autotable": "^3.0.4",
     "material-react-table": "^3.2.1",
     "pg": "^8.13.3",
     "react": "^19.0.0",
     "react-calendar": "^5.1.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.2.0",
+    "react-router-dom": "^7.3.0",
     "react-scripts": "^5.0.1",
     "xlsx": "^0.18.5",
     "yup": "^1.6.1"
@@ -62,5 +62,6 @@
     "@babel/plugin-transform-private-methods": "^7.25.9",
     "@babel/plugin-transform-unicode-property-regex": "^7.25.9",
     "prisma": "^6.5.0",
-    "typescript": "^5.1.0"  }
+    "typescript": "^5.1.0"
+  }
 }
