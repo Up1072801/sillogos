@@ -1,0 +1,26 @@
+export const fakeMeliAllwn = [
+  {
+    id: "meliallwnsillogwn-1",
+    firstName: "Alexandros",
+    lastName: "Nikolaou",
+    phone: "2109876543",
+    email: "alexandros@example.com",
+    vathmos: "4",
+    arithmosmitroou: "F1234",
+    onomasillogou: "Ορειβατικός Σύλλογος Αθηνών",
+    drastirioties: ["Ανάβαση στον Όλυμπο", "Ορεινή Πεζοπορία στα Ζαγοροχώρια"],
+    sxoles: ["Σχολή Αναρρίχησης Μέσου Επιπέδου"],
+  },
+  {
+    id: "meliallwnsillogwn-2",
+    firstName: "Eleni",
+    lastName: "Papadopoulou",
+    phone: "2310987654",
+    email: "eleni@example.com",
+    vathmos: "3",
+    arithmosmitroou: "G5678",
+    onomasillogou: "Ορειβατικός Σύλλογος Θεσσαλονίκης",
+    drastirioties: ["Σπήλαιο Εξερεύνηση στο Δίρφυ"],
+    sxoles: ["Σχολή Ορειβασίας Αρχαρίων"],
+  },
+];

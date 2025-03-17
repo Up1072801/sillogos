@@ -1,0 +1,134 @@
+:root {
+  --primary-color: #1976d2;
+  --available-color: #4caf50;
+  --full-color: #d32f2f;
+  --background-color: #f5f5f5;
+  --border-color: #ddd;
+  --text-color: #333;
+  --white: #fff;
+  --gap: 10px;
+  --border-radius: 5px;
+  --font-size: 14px;
+}
+
+.calendarContainer {
+  text-align: center;
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  background-color: var(--background-color);
+  padding: var(--gap);
+  border-radius: var(--border-radius);
+}
+
+.selector {
+  display: flex;
+  justify-content: center;
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+
+.selector label {
+  font-size: var(--font-size);
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+.selector select {
+  padding: 5px;
+  font-size: var(--font-size);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--white);
+  color: var(--text-color);
+}
+
+.selector select:focus {
+  outline: 2px solid var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--gap);
+  width: 90%;
+  max-width: 600px;
+  margin: auto;
+}
+
+.dayHeader {
+  font-weight: bold;
+  text-align: center;
+  padding: var(--gap);
+  background-color: var(--primary-color);
+  color: var(--white);
+  border-radius: var(--border-radius);
+}
+
+.dayCell {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size);
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-color);
+}
+
+.dayCell:focus {
+  outline: 2px solid var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.available {
+  background-color: var(--available-color) !important;
+  color: var(--white);
+}
+
+.full {
+  background-color: var(--full-color) !important;
+  color: var(--white);
+}
+
+.legend {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--gap);
+  gap: var(--gap);
+}
+
+.legendItem {
+  padding: 5px 10px;
+  border-radius: var(--border-radius);
+  color: var(--white);
+  font-size: var(--font-size);
+  font-weight: bold;
+}
+
+.available.legendItem {
+  background-color: var(--available-color);
+}
+
+.full.legendItem {
+  background-color: var(--full-color);
+}
+
+/* Προσθήκη στυλ για hover και focus */
+.dayCell:hover {
+  background-color: var(--primary-color);
+  color: var(--white);
+  cursor: pointer;
+}
+
+.selector select:hover {
+  border-color: var(--primary-color);
+}
+
+.legendItem:hover {
+  opacity: 0.9;
+}
