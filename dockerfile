@@ -1,20 +1,25 @@
-# Χρήση επίσημου Node.js image
-FROM node:18
+# 1️⃣ Χρήση επίσημου Node.js image για το build
+FROM node:18 AS build
 
-# Ορισμός του working directory μέσα στο container
+# 2️⃣ Ορισμός του working directory
 WORKDIR /app
 
-# Αντιγραφή package.json και package-lock.json
+# 3️⃣ Αντιγραφή package.json και εγκατάσταση dependencies
 COPY package*.json ./
-
-# Εγκατάσταση dependencies
 RUN npm install --force
 
-# Αντιγραφή όλων των αρχείων στο container
+# 4️⃣ Αντιγραφή του υπόλοιπου κώδικα και δημιουργία production build
 COPY . .
+RUN npm run build
 
-# Εξαγωγή port (αλλά να οριστεί στο docker-compose)
-EXPOSE 3000
+# 5️⃣ Χρήση ενός ελαφριού Nginx image για να σερβίρει το site
+FROM nginx:alpine
 
-# Εκκίνηση του React App
-CMD ["npm", "start"]
+# 6️⃣ Αντιγραφή του built React app στον Nginx
+COPY --from=build /app/build /usr/share/nginx/html
+
+# 7️⃣ Εξαγωγή του Port 80
+EXPOSE 80
+
+# 8️⃣ Εκκίνηση του Nginx server
+CMD ["nginx", "-g", "daemon off;"]
