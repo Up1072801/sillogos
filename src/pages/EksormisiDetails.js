@@ -1,77 +1,62 @@
-import "./App.css";
-import React, { useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom"; // Εισαγωγή του Link
 import DataTable from "../components/DataTable/DataTable";
-import { fakeEksormiseis } from "../data/fakeEksormiseis";
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from "@mui/material";
 
 export default function EksormisiDetails() {
   const { eksormisiId } = useParams();
-  const eksormisi = fakeEksormiseis.find((eksormisi) => eksormisi.id === eksormisiId);
+  const [eksormisi, setEksormisi] = useState(null);
 
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editValues, setEditValues] = useState(eksormisi ? { ...eksormisi } : {});
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const response = await fetch(`http://localhost:5000/api/eksormiseis/${eksormisiId}`);
+        const data = await response.json();
+        setEksormisi(data);
+      } catch (error) {
+        console.error("Σφάλμα κατά τη φόρτωση των δεδομένων:", error);
+      }
+    }
+    fetchData();
+  }, [eksormisiId]);
 
-  const handleEditClick = useCallback(() => {
-    setEditDialogOpen(true);
-  }, []);
-
-  const handleEditChange = useCallback((e) => {
-    setEditValues((prevValues) => ({
-      ...prevValues,
-      [e.target.name]: e.target.value,
-    }));
-  }, []);
-
-  const handleEditSave = useCallback(() => {
-    setEditDialogOpen(false);
-  }, []);
+  if (!eksormisi) {
+    return <div>Η εξόρμηση δεν βρέθηκε.</div>;
+  }
 
   const drastiriotitesColumns = [
     {
       accessorKey: "onoma",
       header: "Όνομα",
       Cell: ({ row }) => (
-        <Link to={`/eksormiseis/${eksormisi?.id}/${row.original.id}`}>
+        <Link
+          to={`/eksormiseis/${eksormisiId}/${row.original.id}`} // Χρήση του σωστού ID
+          style={{ textDecoration: "underline", color: "blue" }}
+        >
           {row.original.onoma}
         </Link>
       ),
     },
+    { accessorKey: "ores_poreias", header: "Ώρες Πορείας" },
+    { accessorKey: "diafora_ipsous", header: "Διαφορά Ύψους" },
+    { accessorKey: "megisto_ipsometro", header: "Μέγιστο Υψόμετρο" },
+    { accessorKey: "hmerominia", header: "Ημερομηνία" },
   ];
-
-  // Αν το eksormisi είναι undefined, εμφανίστε μήνυμα στο JSX
-  if (!eksormisi) {
-    return <div>Η εξόρμηση δεν βρέθηκε.</div>;
-  }
 
   return (
     <div className="container">
       <div className="header-container">
-        <h2 className="header" role="heading" aria-level="2">
-          {eksormisi.onoma}
-        </h2>
+        <h2 className="header">{eksormisi.onoma}</h2>
       </div>
       <div className="details-container">
-        <p>
-          <strong>Τοποθεσία:</strong> {eksormisi.topothesia}
-        </p>
-        <p>
-          <strong>Ημερομηνία Έναρξης:</strong> {eksormisi.imerominia_enarksis}
-        </p>
-        <p>
-          <strong>Ημερομηνία Λήξης:</strong> {eksormisi.imerominia_liksis}
-        </p>
-        <p>
-          <strong>Κόστος:</strong> {eksormisi.kostos}
-        </p>
-        <Button variant="contained" color="primary" onClick={handleEditClick}>
-          Επεξεργασία
-        </Button>
+        <p><strong>Τοποθεσία:</strong> {eksormisi.topothesia}</p>
+        <p><strong>Ημερομηνία Έναρξης:</strong> {eksormisi.imerominia_enarksis}</p>
+        <p><strong>Ημερομηνία Λήξης:</strong> {eksormisi.imerominia_liksis}</p>
+        <p><strong>Κόστος:</strong> {eksormisi.kostos}</p>
       </div>
-      <div className="drastiriotites-container">
+      <div className="table-container">
         <h3>Δραστηριότητες</h3>
         <DataTable
-          data={eksormisi.drastirioties || []}
+          data={eksormisi.drastiriotites || []}
           columns={drastiriotitesColumns}
           extraColumns={[]}
           detailFields={[]}
@@ -83,35 +68,6 @@ export default function EksormisiDetails() {
           enableFilter={true}
         />
       </div>
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
-        <DialogTitle>Επεξεργασία Στοιχείων Εξόρμησης</DialogTitle>
-        <DialogContent>
-          <TextField
-            margin="dense"
-            label="Όνομα"
-            name="onoma"
-            value={editValues.onoma}
-            onChange={handleEditChange}
-            fullWidth
-          />
-          <TextField
-            margin="dense"
-            label="Τοποθεσία"
-            name="topothesia"
-            value={editValues.topothesia}
-            onChange={handleEditChange}
-            fullWidth
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)} color="secondary">
-            Ακύρωση
-          </Button>
-          <Button onClick={handleEditSave} color="primary">
-            Αποθήκευση
-          </Button>
-        </DialogActions>
-      </Dialog>
     </div>
   );
 }

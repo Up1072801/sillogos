@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom"; // Εισαγωγή του useNavigate
 import { useState, useEffect } from "react";
 import Layout from "./components/Layout";
 import Home from "./pages/home";
@@ -17,6 +17,7 @@ import DrastiriotitaDetails from "./pages/DrastiriotitaDetails";
 
 function App() {
   const [user, setUser] = useState(null);
+  const navigate = useNavigate(); // Χρήση του useNavigate
 
   // Ανάκτηση του χρήστη από το local storage όταν φορτώνεται η εφαρμογή
   useEffect(() => {
@@ -29,7 +30,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("user"); // Καθαρισμός του local storage κατά την αποσύνδεση
-    navigate("/login");
+    navigate("/login"); // Ανακατεύθυνση στη σελίδα σύνδεσης
   };
 
   return (

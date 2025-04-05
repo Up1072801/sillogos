@@ -1,7 +1,7 @@
 import "./App.css";
-import React, { useCallback } from "react";
-import DataTable from "../components/DataTable/DataTable"; // Ενημέρωση της διαδρομής εισαγωγής του DataTable
-import { fakeEksoplismos, fakeDaneismosEksoplismou } from "../data/fakeeksoplismos"; // Χρήση ονομαστικών εξαγωγών
+import React, { useState, useEffect } from "react";
+import DataTable from "../components/DataTable/DataTable";
+
 const columns = [
   { accessorKey: "Name", header: "Όνομα" },
   { accessorKey: "marka", header: "Μάρκα" },
@@ -18,14 +18,37 @@ const newcolumns = [
 ];
 
 export default function Eksoplismos() {
+  const [eksoplismosData, setEksoplismosData] = useState([]);
+  const [daneismoiData, setDaneismoiData] = useState([]);
+
+  // Φόρτωση δεδομένων από το backend
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const eksoplismosResponse = await fetch("http://localhost:5000/api/eksoplismos");
+        const eksoplismos = await eksoplismosResponse.json();
+        setEksoplismosData(eksoplismos);
+
+        const daneismoiResponse = await fetch("http://localhost:5000/api/eksoplismos/daneismoi");
+        const daneismoi = await daneismoiResponse.json();
+        setDaneismoiData(daneismoi);
+      } catch (error) {
+        console.error("Σφάλμα κατά τη φόρτωση των δεδομένων:", error);
+      }
+    }
+    fetchData();
+  }, []);
+
   return (
     <div className="container">
       <div className="header-container">
-        <h2 className="header" role="heading" aria-level="2">Εξοπλισμός <span className="record-count">({fakeEksoplismos.length})</span></h2>
+        <h2 className="header" role="heading" aria-level="2">
+          Εξοπλισμός <span className="record-count">({eksoplismosData.length})</span>
+        </h2>
       </div>
       <div className="table-container">
         <DataTable
-          data={fakeEksoplismos || []}
+          data={eksoplismosData}
           columns={columns}
           extraColumns={[]}
           detailFields={[]}
@@ -41,20 +64,22 @@ export default function Eksoplismos() {
         />
       </div>
       <div className="header-container">
-        <h2 className="header" role="heading" aria-level="2">Δανεισμοί <span className="record-count">({fakeDaneismosEksoplismou.length})</span></h2>
+        <h2 className="header" role="heading" aria-level="2">
+          Δανεισμοί <span className="record-count">({daneismoiData.length})</span>
+        </h2>
       </div>
       <div className="table-container">
         <DataTable
-          data={fakeDaneismosEksoplismou || []}
+          data={daneismoiData}
           columns={newcolumns}
           extraColumns={[]}
           detailFields={[]}
           initialState={{}}
           enableExpand={false}
           enableView={false}
-          enableEditMain = {true}
-          enableEditExtra = {false}
-                    enableDelete={false}
+          enableEditMain={true}
+          enableEditExtra={false}
+          enableDelete={false}
           enableFilter={true}
         />
       </div>

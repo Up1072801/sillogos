@@ -3,16 +3,16 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "react-scripts --openssl-legacy-provider start",
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon backend/server.js",
+    "client": "react-scripts start",
     "build": "react-scripts build",
-    "homepage": "https://Up1072801.github.io/sillogos/",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "eject": "react-scripts eject",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build"
   },
   "prisma": {
-    "seed": "node prisma/seed.js"
+    "schema": "backend/prisma/schema.prisma",
+    "seed": "node backend/prisma/seed.js"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +27,8 @@
     "@mui/x-date-pickers": "^7.27.3",
     "@prisma/client": "^6.5.0",
     "@tanstack/react-query": "^5.67.1",
+    "axios": "^1.8.4",
+    "concurrently": "^9.1.2",
     "cors": "^2.8.5",
     "date-fns": "^2.30.0",
     "dotenv": "^16.4.7",

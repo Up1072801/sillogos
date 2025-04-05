@@ -4,7 +4,14 @@ import { useFormik } from "formik";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import * as yup from "yup";
 
-const EditDialog = ({ open, onClose, editValues = {}, handleEditSave, fields }) => {
+const EditDialog = ({ 
+  
+  open, 
+  onClose, 
+  editValues = {},
+  handleEditSave, 
+  fields 
+}) => {
   const validationSchema = yup.object(
     fields.reduce((schema, field) => {
       if (field.validation) {
@@ -15,17 +22,20 @@ const EditDialog = ({ open, onClose, editValues = {}, handleEditSave, fields }) 
   );
 
   const formik = useFormik({
-    initialValues: fields.reduce((values, field) => {
-      values[field.accessorKey] = editValues[field.accessorKey] || ""; // Αρχικοποίηση με υπάρχουσες τιμές
-      return values;
-    }, {}),
+    initialValues: {
+      ...fields.reduce((values, field) => {
+        values[field.accessorKey] = editValues[field.accessorKey] || "";
+        return values;
+      }, {}),
+      id: editValues.id || ""  // Προσθήκη του id στα initialValues
+    },
     validationSchema: validationSchema,
     validateOnBlur: true,
     validateOnChange: true,
-    enableReinitialize: true, // Επανεκκίνηση των αρχικών τιμών όταν αλλάζουν τα editValues
+    enableReinitialize: true,
     onSubmit: (values) => {
       if (Object.keys(formik.errors).length === 0) {
-        handleEditSave(values); // Κλήση του handleEditSave με τα ενημερωμένα δεδομένα
+        handleEditSave(values);
       }
     },
   });
@@ -41,7 +51,7 @@ const EditDialog = ({ open, onClose, editValues = {}, handleEditSave, fields }) 
                 margin="dense"
                 label={field.header}
                 name={field.accessorKey}
-                value={formik.values[field.accessorKey]}
+                value={formik.values[field.accessorKey] || ""}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 fullWidth
