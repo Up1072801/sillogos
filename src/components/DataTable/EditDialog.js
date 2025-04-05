@@ -47,21 +47,50 @@ const EditDialog = ({
         <DialogContent>
           {fields.map((field) => (
             <div key={field.accessorKey} style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
-              <TextField
-                margin="dense"
-                label={field.header}
-                name={field.accessorKey}
-                value={formik.values[field.accessorKey] || ""}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                fullWidth
-                error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
-                helperText={
-                  formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
-                    ? formik.errors[field.accessorKey]
-                    : ""
-                }
-              />
+{field.type === "select" ? (
+  <TextField
+    margin="dense"
+    label={field.header}
+    name={field.accessorKey}
+    value={formik.values[field.accessorKey] || ""}
+    onChange={formik.handleChange}
+    onBlur={formik.handleBlur}
+    fullWidth
+    select
+    SelectProps={{
+      native: true,
+    }}
+    error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+    helperText={
+      formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
+        ? formik.errors[field.accessorKey]
+        : ""
+    }
+  >
+    <option value=""></option>
+    {field.options.map((option) => (
+      <option key={option.value} value={option.value}>
+        {option.label}
+      </option>
+    ))}
+  </TextField>
+) : (
+  <TextField
+    margin="dense"
+    label={field.header}
+    name={field.accessorKey}
+    value={formik.values[field.accessorKey] || ""}
+    onChange={formik.handleChange}
+    onBlur={formik.handleBlur}
+    fullWidth
+    error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+    helperText={
+      formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
+        ? formik.errors[field.accessorKey]
+        : ""
+    }
+  />
+)}
               {field.example && (
                 <Tooltip title={`Παράδειγμα: ${field.example}`} placement="right">
                   <span style={{ marginLeft: "8px", color: "#888", cursor: "default" }}>

@@ -4,10 +4,67 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const router = express.Router();
 
-// Add BigInt serialization support
 BigInt.prototype.toJSON = function() {
   return this.toString();
 };
+
+// Middleware για ενημέρωση καταστάσεων συνδρομών
+router.use(async (req, res, next) => {
+  try {
+    const currentYear = new Date().getFullYear();
+    const cutoffDate = new Date(`${currentYear}-06-01`);
+    
+    // Find members with active subscriptions that need to be expired
+    const membersToExpire = await prisma.esoteriko_melos.findMany({
+      where: {
+        sindromitis: {
+          katastasi_sindromis: "Ενεργή",
+          exei: {
+            some: {
+              sindromi: {
+                hmerominia_enarksis: {
+                  lt: new Date(`${currentYear}-01-01`)
+                }
+              }
+            }
+          },
+          NOT: {
+            exei: {
+              some: {
+                sindromi: {
+                  hmerominia_enarksis: {
+                    gte: new Date(`${currentYear-1}-06-01`),
+                    lt: new Date(`${currentYear}-01-01`)
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      select: {
+        id_es_melous: true
+      }
+    });
+
+    // Update their subscription status
+    await prisma.sindromitis.updateMany({
+      where: {
+        id_sindromiti: {
+          in: membersToExpire.map(m => m.id_es_melous)
+        }
+      },
+      data: {
+        katastasi_sindromis: "Ληγμένη"
+      }
+    });
+    
+    next();
+  } catch (error) {
+    console.error("Error updating subscription statuses:", error);
+    next();
+  }
+});
 
 // GET: Retrieve all club members
 router.get("/", async (_req, res) => {
@@ -55,8 +112,10 @@ router.get("/", async (_req, res) => {
       },
     });
 
-    // Convert BigInt to String for serialization
     const formattedData = members.map((member) => {
+      const latestPayment = member.sindromitis?.exei?.[0]?.hmerominia_pliromis || null;
+      const registrationDate = member.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis || null;
+
       const formattedMember = {
         ...member,
         melos: member.melos ? {
@@ -69,6 +128,8 @@ router.get("/", async (_req, res) => {
         eidosSindromis: member.athlitis
           ? "Αθλητής"
           : member.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "-",
+        hmerominia_egrafis: registrationDate,
+        hmerominia_pliromis: latestPayment,
       };
       return formattedMember;
     });
@@ -88,7 +149,6 @@ router.post("/", async (req, res) => {
   try {
     const { epafes, ...memberData } = req.body;
     
-    // Convert phone number to BigInt if it exists
     if (epafes?.tilefono) {
       epafes.tilefono = BigInt(epafes.tilefono);
     }
@@ -99,11 +159,12 @@ router.post("/", async (req, res) => {
         melos: {
           create: {
             tipo_melous: "esoteriko",
+            hmerominia_egrafis: new Date(),
             epafes: {
               create: epafes
             },
             vathmos_diskolias: {
-              connect: { id_vathmou_diskolias: 1 } // Default difficulty level
+              connect: { id_vathmou_diskolias: 1 }
             }
           }
         }
@@ -117,7 +178,6 @@ router.post("/", async (req, res) => {
       }
     });
 
-    // Convert BigInt to String in response
     const responseMember = {
       ...newMember,
       melos: newMember.melos ? {
@@ -135,51 +195,71 @@ router.post("/", async (req, res) => {
     res.status(400).json({ error: "Error adding member", details: error.message });
   }
 });
-// PUT: Update member// PUT: Update member
+
+// PUT: Update member
 router.put("/:id", async (req, res) => {
   try {
-    const { epafes, vathmos_diskolias, ...memberData } = req.body;
+    const { epafes, vathmos_diskolias, katastasi_sindromis, eidosSindromis, ...memberData } = req.body;
     const id = parseInt(req.params.id);
 
     if (isNaN(id)) {
       return res.status(400).json({ error: "Invalid ID format" });
     }
 
-    // Convert phone number to BigInt if it exists
     if (epafes?.tilefono) {
       epafes.tilefono = BigInt(epafes.tilefono);
     }
 
-    // Get current member to check relationships
+    // Check if status is being changed to active
     const currentMember = await prisma.esoteriko_melos.findUnique({
       where: { id_es_melous: id },
       include: {
-        melos: {
+        melos: true,
+        sindromitis: {
           include: {
-            epafes: true,
-            vathmos_diskolias: true
+            exei: true
           }
         }
       }
     });
 
-    const updatedMember = await prisma.esoteriko_melos.update({
-      where: { id_es_melous: id },
-      data: {
-        ...memberData,
-        melos: {
-          update: {
-            epafes: epafes ? { update: epafes } : undefined,
-            vathmos_diskolias: vathmos_diskolias ? {
-              upsert: {
-                where: { id_vathmou_diskolias: currentMember.melos?.vathmos_diskolias?.id_vathmou_diskolias || 1 },
-                update: { epipedo: vathmos_diskolias.epipedo },
-                create: { epipedo: vathmos_diskolias.epipedo },
-              }
-            } : undefined,
-          },
+    const isStatusChangedToActive = 
+      katastasi_sindromis === "Ενεργή" && 
+      currentMember.sindromitis?.katastasi_sindromis !== "Ενεργή";
+
+    // Remove hmerominia_pliromis from memberData as it's not a direct field
+    const { hmerominia_pliromis, ...cleanMemberData } = memberData;
+
+    const updateData = {
+      ...cleanMemberData,
+      melos: {
+        update: {
+          epafes: epafes ? { update: epafes } : undefined,
+          vathmos_diskolias: vathmos_diskolias ? {
+            upsert: {
+              where: { id_vathmou_diskolias: currentMember.melos?.id_vathmou_diskolias || 1 },
+              update: { epipedo: vathmos_diskolias.epipedo },
+              create: { epipedo: vathmos_diskolias.epipedo },
+            }
+          } : undefined,
         },
       },
+      sindromitis: currentMember.sindromitis ? {
+        update: {
+          katastasi_sindromis: katastasi_sindromis,
+          exei: isStatusChangedToActive ? {
+            updateMany: {
+              where: { id_sindromiti: id },
+              data: { hmerominia_pliromis: new Date() }
+            }
+          } : undefined
+        }
+      } : undefined
+    };
+
+    const updatedMember = await prisma.esoteriko_melos.update({
+      where: { id_es_melous: id },
+      data: updateData,
       include: {
         melos: {
           include: {
@@ -187,10 +267,22 @@ router.put("/:id", async (req, res) => {
             vathmos_diskolias: true,
           },
         },
+        sindromitis: {
+          include: {
+            exei: {
+              include: {
+                sindromi: {
+                  include: {
+                    eidos_sindromis: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    // Convert BigInt to String in response
     const responseMember = {
       ...updatedMember,
       melos: updatedMember.melos ? {
@@ -200,7 +292,11 @@ router.put("/:id", async (req, res) => {
           tilefono: updatedMember.melos.epafes.tilefono?.toString()
         } : null,
         vathmos_diskolias: updatedMember.melos.vathmos_diskolias || null
-      } : null
+      } : null,
+      eidosSindromis: updatedMember.athlitis
+        ? "Αθλητής"
+        : updatedMember.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "-",
+      hmerominia_pliromis: updatedMember.sindromitis?.exei?.[0]?.hmerominia_pliromis || null
     };
 
     res.json(responseMember);
@@ -220,13 +316,12 @@ router.delete("/:id", async (req, res) => {
       return res.status(400).json({ error: "Invalid ID format" });
     }
 
-    // Ενισχυμένος έλεγχος ύπαρξης μέλους
     const memberExists = await prisma.esoteriko_melos.findUnique({
       where: { id_es_melous: id },
       include: {
         melos: {
           include: {
-            epafes: true, // Συμπερίληψη της επαφής για διαγραφή
+            epafes: true,
           },
         },
       },
@@ -236,30 +331,24 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Member not found" });
     }
 
-    // Διαγραφή σχετικών εγγραφών
     await prisma.$transaction(async (prisma) => {
-      // Βρες τα id_simmetoxis που σχετίζονται με το μέλος
       const simmetoxiIds = await prisma.simmetoxi.findMany({
         where: { id_melous: id },
         select: { id_simmetoxis: true },
       });
 
-      // Εξαγωγή των ID σε έναν πίνακα
       const simmetoxiIdList = simmetoxiIds.map((s) => s.id_simmetoxis);
 
-      // Διαγραφή από τον πίνακα plironei
       await prisma.plironei.deleteMany({
         where: {
           id_simmetoxis: { in: simmetoxiIdList },
         },
       });
 
-      // Διαγραφή από τον πίνακα simmetoxi
       await prisma.simmetoxi.deleteMany({
         where: { id_melous: id },
       });
 
-      // Διαγραφή από τον πίνακα katavalei πριν τον πίνακα parakolouthisi
       await prisma.katavalei.deleteMany({
         where: { id_parakolouthisis: { in: await prisma.parakolouthisi.findMany({
           where: { id_melous: id },
@@ -267,35 +356,29 @@ router.delete("/:id", async (req, res) => {
         }).then((results) => results.map((r) => r.id_parakolouthisis)) } },
       });
 
-      // Διαγραφή από τον πίνακα parakolouthisi
       await prisma.parakolouthisi.deleteMany({
         where: { id_melous: id },
       });
 
-      // Διαγραφή από τον πίνακα exei πριν τον πίνακα epafes
       await prisma.exei.deleteMany({
         where: { id_sindromiti: id },
       });
 
-      // Διαγραφή από τον πίνακα eksoflei πριν τον πίνακα epafes
       if (memberExists.melos?.epafes) {
         await prisma.eksoflei.deleteMany({
           where: { id_epafis: memberExists.melos.epafes.id_epafis },
         });
       }
 
-      // Διαγραφή από τον πίνακα epafes
       if (memberExists.melos?.epafes) {
         await prisma.epafes.delete({
           where: { id_epafis: memberExists.melos.epafes.id_epafis },
         });
       }
 
-      // Διαγραφή από άλλους σχετικούς πίνακες
       await prisma.athlitis.deleteMany({ where: { id_athliti: id } });
       await prisma.sindromitis.deleteMany({ where: { id_sindromiti: id } });
 
-      // Έλεγχος ύπαρξης εγγραφής πριν τη διαγραφή
       const melosExists = await prisma.melos.findUnique({
         where: { id_melous: id },
       });

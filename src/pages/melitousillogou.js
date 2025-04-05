@@ -20,7 +20,7 @@ const fields = [
     }
   },
   { accessorKey: "patronimo", header: "Πατρώνυμο", validation: yup.string().required("Υποχρεωτικό") },
-  { accessorKey: "arithmos_mitroou", header: "Αριθμός Μητρώου" }, // Νέα στήλη
+  { accessorKey: "arithmos_mitroou", header: "Αριθμός Μητρώου" },
   { accessorKey: "odos", header: "Οδός", validation: yup.string().required("Υποχρεωτικό") },
   { accessorKey: "tk", header: "ΤΚ", validation: yup.number().required("Υποχρεωτικό") },
   { 
@@ -50,7 +50,6 @@ const fields = [
   },
 ];
 
-
 const detailPanelConfig = {
   mainDetails: [
     { accessor: "melos.epafes.onoma", header: "Όνομα" },
@@ -73,7 +72,18 @@ const detailPanelConfig = {
     { 
       accessor: "melos.vathmos_diskolias.epipedo", 
       header: "Βαθμός Δυσκολίας" 
-    }
+    },
+    {
+      accessor: "hmerominia_egrafis",
+      header: "Ημ. Εγγραφής",
+      format: (value) => value ? new Date(value).toLocaleDateString() : '-'
+    },
+// Στο detailPanelConfig, αλλαγή του accessor για την ημερομηνία πληρωμής
+{
+  accessor: "hmerominia_pliromis",
+  header: "Ημ. Πληρωμής",
+  format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-'
+}
   ],
   tables: [
     {
@@ -83,7 +93,7 @@ const detailPanelConfig = {
         { accessor: "drastiriotita.titlos", header: "Τίτλος" },
         { accessor: "drastiriotita.hmerominia", header: "Ημερομηνία", format: (value) => value ? new Date(value).toLocaleDateString() : '-' },
         { accessor: "drastiriotita.vathmos_diskolias.epipedo", header: "Βαθμός Δυσκολίας" },
-        { accessor: "drastiriotita.eksormisi.titlos", header: "Τίτλος Εξόρμησης" }, // Νέα στήλη
+        { accessor: "drastiriotita.eksormisi.titlos", header: "Τίτλος Εξόρμησης" },
       ],
     },
     {
@@ -103,15 +113,31 @@ export default function Meloi() {
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [editValues, setEditValues] = useState({});
+  const [difficultyLevels, setDifficultyLevels] = useState([]);
+  const [subscriptionTypes, setSubscriptionTypes] = useState([]);
+  const [subscriptionStatuses, setSubscriptionStatuses] = useState([]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/melitousillogou");
-        console.log("Δεδομένα από το backend:", response.data); // Logging για έλεγχο
+        const [membersRes, difficultyRes, typesRes] = await Promise.all([
+          axios.get("http://localhost:5000/api/melitousillogou"),
+          axios.get("http://localhost:5000/api/vathmoi-diskolias"),
+          axios.get("http://localhost:5000/api/eidi-sindromis")
+        ]);
+  
+        setDifficultyLevels(difficultyRes.data);
+        setSubscriptionTypes(typesRes.data);
+        setSubscriptionStatuses([
+          { value: "Ενεργή", label: "Ενεργή" },
+          { value: "Ληγμένη", label: "Ληγμένη" },
+          { value: "Διαγραμμένη", label: "Διαγραμμένη" }
+        ]);
+
         setData(
-          response.data.map((member) => ({
+          membersRes.data.map((member) => ({
             ...member,
-            id: member.id_es_melous, // Βεβαιώσου ότι το ID περιλαμβάνεται
+            id: member.id_es_melous,
             fullName: `${member.melos?.epafes?.onoma || ""} ${member.melos?.epafes?.epitheto || ""}`.trim(),
             email: member.melos?.epafes?.email || "-",
             tilefono: member.melos?.epafes?.tilefono || "-",
@@ -127,7 +153,12 @@ export default function Meloi() {
               : member.sindromitis?.katastasi_sindromis || "Χωρίς Συνδρομή",
             parakolouthisi: member.melos?.parakolouthisi || [],
             simmetoxi: member.melos?.simmetoxi || [],
-          }))
+            hmerominia_egrafis: member.hmerominia_egrafis
+            ? new Date(member.hmerominia_egrafis).toLocaleDateString("el-GR")
+            : "-",
+          hmerominia_pliromis: member.hmerominia_pliromis
+            ? new Date(member.hmerominia_pliromis).toLocaleDateString("el-GR")
+            : "-",          }))
         );
         setLoading(false);
       } catch (error) {
@@ -155,8 +186,8 @@ export default function Meloi() {
       console.error("Σφάλμα προσθήκης:", error);
     }
   };
+
   const handleEditClick = (row) => {
-    console.log("Row προς επεξεργασία:", row); // Logging για έλεγχο
     setEditValues({
       ...row,
       id_es_melous: row.id_es_melous || row.id,
@@ -169,36 +200,45 @@ export default function Meloi() {
       odos: row.odos || "",
       tk: row.tk || "",
       arithmos_mitroou: row.arithmos_mitroou || "",
-      eidosSindromis: row.eidosSindromis || "", // Προσθήκη του πεδίου
+      eidosSindromis: row.eidosSindromis || "",
+      katastasi_sindromis: row.sindromitis?.katastasi_sindromis || ""
     });
     setOpenEditDialog(true);
   };
 
-  const handleEditSave = async (updatedRow) => {
-    try {
-      const requestData = {
-        epafes: {
-          onoma: updatedRow.onoma,
-          epitheto: updatedRow.epitheto,
-          email: updatedRow.email,
-          tilefono: updatedRow.tilefono,
-        },
-        vathmos_diskolias: updatedRow.epipedo ? {
-          epipedo: parseInt(updatedRow.epipedo)
-        } : undefined,
-        patronimo: updatedRow.patronimo,
-        arithmos_mitroou: updatedRow.arithmos_mitroou,
-        odos: updatedRow.odos,
-        tk: updatedRow.tk,
-        eidosSindromis: updatedRow.eidosSindromis, // Προσθήκη του πεδίου
-      };
-  
+// Τροποποίηση του handleEditSave για αυτόματη ενημέρωση ημερομηνίας πληρωμής
+const handleEditSave = async (updatedRow) => {
+  try {
+    const today = new Date().toISOString();
+    const isStatusChangedToActive = 
+      updatedRow.katastasi_sindromis === "Ενεργή" && 
+      editValues.katastasi_sindromis !== "Ενεργή";
+
+    const requestData = {
+      epafes: {
+        onoma: updatedRow.onoma,
+        epitheto: updatedRow.epitheto,
+        email: updatedRow.email,
+        tilefono: updatedRow.tilefono,
+      },
+      vathmos_diskolias: updatedRow.epipedo ? {
+        epipedo: parseInt(updatedRow.epipedo)
+      } : undefined,
+      patronimo: updatedRow.patronimo,
+      arithmos_mitroou: updatedRow.arithmos_mitroou,
+      odos: updatedRow.odos,
+      tk: updatedRow.tk,
+      eidosSindromis: updatedRow.eidosSindromis,
+      katastasi_sindromis: updatedRow.katastasi_sindromis,
+      hmerominia_pliromis: isStatusChangedToActive ? today : undefined
+    };
+
       const id = updatedRow.id_es_melous || updatedRow.id;
       if (!id) {
         console.error("No ID provided for update");
         return;
       }
-  
+
       const response = await axios.put(`http://localhost:5000/api/melitousillogou/${id}`, requestData);
       
       setData((prevData) =>
@@ -219,11 +259,19 @@ export default function Meloi() {
                 epipedo: parseInt(updatedRow.epipedo)
               } : item.melos?.vathmos_diskolias,
             },
-            eidosSindromis: updatedRow.eidosSindromis, // Ενημέρωση του πεδίου
+            eidosSindromis: updatedRow.eidosSindromis,
+            sindromitis: {
+              ...item.sindromitis,
+              katastasi_sindromis: updatedRow.katastasi_sindromis,
+              exei: isStatusChangedToActive ? [{
+                ...item.sindromitis?.exei?.[0],
+                hmerominia_pliromis: today
+              }] : item.sindromitis?.exei
+            }
           } : item
         )
       );
-  
+
       setOpenEditDialog(false);
     } catch (error) {
       console.error("Σφάλμα ενημέρωσης:", error);
@@ -232,16 +280,12 @@ export default function Meloi() {
 
   const handleDelete = async (id) => {
     try {
-      // Προσθήκη ελέγχου για έγκυρο ID
       if (!id || isNaN(id)) {
         console.error("Invalid ID");
         return;
       }
   
-      // Κάνε το αίτημα διαγραφής στο backend
       await axios.delete(`http://localhost:5000/api/melitousillogou/${id}`);
-  
-      // Ενημέρωσε το state αφαιρώντας το διαγραμμένο στοιχείο
       setData((prevData) => prevData.filter((item) => item.id !== id));
     } catch (error) {
       console.error("Error deleting member:", error);
@@ -258,7 +302,6 @@ export default function Meloi() {
           data={data}
           columns={fields}
           detailPanelConfig={detailPanelConfig}
-          // Προσθήκη row ID configuration
           getRowId={(row) => row.id_es_melous}
           initialState={{
             columnVisibility: {
@@ -329,6 +372,8 @@ export default function Meloi() {
     { 
       accessorKey: "epipedo", 
       header: "Βαθμός Δυσκολίας", 
+      type: "select",
+      options: difficultyLevels.map(level => ({ value: level.epipedo, label: level.epipedo })),
       validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1") 
     },
     { 
@@ -347,9 +392,18 @@ export default function Meloi() {
     },
     { 
       accessorKey: "eidosSindromis", 
-      header: "Είδος Συνδρομής", 
-      validation: yup.string().required("Υποχρεωτικό") // Προσθήκη validation
+      header: "Είδος Συνδρομής",
+      type: "select",
+      options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
+      validation: yup.string().required("Υποχρεωτικό")
     },
+    { 
+      accessorKey: "katastasi_sindromis", 
+      header: "Κατάσταση Συνδρομής",
+      type: "select",
+      options: subscriptionStatuses,
+      validation: yup.string().required("Υποχρεωτικό")
+    }
   ]}
 />
       </Box>
