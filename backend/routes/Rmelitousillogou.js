@@ -96,6 +96,7 @@ router.get("/", async (_req, res) => {
         sindromitis: {
           include: {
             exei: {
+              take: 1, // Παίρνει μόνο την πρώτη εγγραφή αντί να κάνει orderBy
               include: {
                 sindromi: {
                   include: {
@@ -147,55 +148,135 @@ router.get("/", async (_req, res) => {
 // POST: Add new member
 router.post("/", async (req, res) => {
   try {
-    const { epafes, ...memberData } = req.body;
+    const { epafes, melos, esoteriko_melos, sindromitis } = req.body;
     
-    if (epafes?.tilefono) {
-      epafes.tilefono = BigInt(epafes.tilefono);
-    }
+    // Χρήση transaction για να διασφαλίσουμε την ατομικότητα των λειτουργιών
+    const result = await prisma.$transaction(async (prismaTransaction) => {
+      if (epafes?.tilefono) {
+        epafes.tilefono = BigInt(epafes.tilefono);
+      }
 
-    const newMember = await prisma.esoteriko_melos.create({
-      data: {
-        ...memberData,
-        melos: {
-          create: {
-            tipo_melous: "esoteriko",
-            hmerominia_egrafis: new Date(),
-            epafes: {
-              create: epafes
-            },
-            vathmos_diskolias: {
-              connect: { id_vathmou_diskolias: 1 }
+      // 1. Δημιουργία της επαφής
+      const newEpafi = await prismaTransaction.epafes.create({
+        data: epafes
+      });
+
+      // 2. Δημιουργία του μέλους
+      const newMelos = await prismaTransaction.melos.create({
+        data: {
+          tipo_melous: "esoteriko",
+          epafes: {
+            connect: { id_epafis: newEpafi.id_epafis }
+          },
+          vathmos_diskolias: {
+            connect: { 
+              id_vathmou_diskolias: melos.vathmos_diskolias.epipedo 
             }
           }
         }
-      },
-      include: {
-        melos: {
-          include: {
-            epafes: true
-          }
+      });
+
+      // 3. Δημιουργία του εσωτερικού μέλους
+      const newEsoterikoMelos = await prismaTransaction.esoteriko_melos.create({
+        data: {
+          ...esoteriko_melos,
+          id_es_melous: newMelos.id_melous
         }
+      });
+
+      // 4. Δημιουργία του συνδρομητή
+      const newSindromitis = await prismaTransaction.sindromitis.create({
+        data: {
+          id_sindromiti: newEsoterikoMelos.id_es_melous,
+          katastasi_sindromis: sindromitis.katastasi_sindromis
+        }
+      });
+
+      // 5. Αναζήτηση του είδους συνδρομής
+      const eidosSindromisRecord = await prismaTransaction.eidos_sindromis.findFirst({
+        where: {
+          titlos: sindromitis.exei.sindromi.eidos_sindromis
+        }
+      });
+
+      if (!eidosSindromisRecord) {
+        throw new Error(`Δεν βρέθηκε είδος συνδρομής με τίτλο: ${sindromitis.exei.sindromi.eidos_sindromis}`);
       }
+
+// 6. Δημιουργία της συνδρομής - χρήση χειροκίνητης αρίθμησης
+// Πρώτα βρίσκουμε το μέγιστο id_sindromis στη βάση
+const maxIdResult = await prismaTransaction.sindromi.aggregate({
+  _max: {
+    id_sindromis: true,
+  },
+});
+const newId = (maxIdResult._max.id_sindromis || 0) + 1;
+
+// Δημιουργία με συγκεκριμένο ID
+const newSindromi = await prismaTransaction.sindromi.create({
+  data: {
+    id_sindromis: newId,
+    hmerominia_enarksis: new Date(sindromitis.exei.sindromi.hmerominia_enarksis),
+    id_eidous_sindromis: eidosSindromisRecord.id_eidous_sindromis
+  }
+});
+      // 7. Δημιουργία της σχέσης "exei"
+      await prismaTransaction.exei.create({
+        data: {
+          id_sindromiti: newSindromitis.id_sindromiti,
+          id_sindromis: newSindromi.id_sindromis,
+          hmerominia_pliromis: new Date(sindromitis.exei.hmerominia_pliromis)
+        }
+      });
+
+      // 8. Ανάκτηση του πλήρους νέου μέλους για την απάντηση
+      const completeMember = await prismaTransaction.esoteriko_melos.findUnique({
+        where: { id_es_melous: newEsoterikoMelos.id_es_melous },
+        include: {
+          melos: {
+            include: {
+              epafes: true,
+              vathmos_diskolias: true,
+            },
+          },
+          sindromitis: {
+            include: {
+              exei: {
+                include: {
+                  sindromi: {
+                    include: {
+                      eidos_sindromis: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Επιστρέφουμε τη διαμορφωμένη απάντηση
+      return {
+        ...completeMember,
+        melos: completeMember.melos ? {
+          ...completeMember.melos,
+          epafes: completeMember.melos.epafes ? {
+            ...completeMember.melos.epafes,
+            tilefono: completeMember.melos.epafes.tilefono?.toString()
+          } : null
+        } : null,
+        eidosSindromis: completeMember.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "-",
+        hmerominia_egrafis: completeMember.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis,
+        hmerominia_pliromis: completeMember.sindromitis?.exei?.[0]?.hmerominia_pliromis
+      };
     });
 
-    const responseMember = {
-      ...newMember,
-      melos: newMember.melos ? {
-        ...newMember.melos,
-        epafes: newMember.melos.epafes ? {
-          ...newMember.melos.epafes,
-          tilefono: newMember.melos.epafes.tilefono?.toString()
-        } : null
-      } : null
-    };
-
-    res.status(201).json(responseMember);
+    res.status(201).json(result);
   } catch (error) {
     console.error("Error adding member:", error);
     res.status(400).json({ error: "Error adding member", details: error.message });
   }
 });
-
 // PUT: Update member
 router.put("/:id", async (req, res) => {
   try {
