@@ -118,54 +118,82 @@ export default function Eksoplismos() {
   const [addLoanDialogOpen, setAddLoanDialogOpen] = useState(false);
   const [editLoanData, setEditLoanData] = useState(null);
   const [editLoanDialogOpen, setEditLoanDialogOpen] = useState(false);
+  // Προσθήκη state για το dialog επεξεργασίας εξοπλισμού
+  const [editEquipmentData, setEditEquipmentData] = useState(null);
+  const [editEquipmentDialogOpen, setEditEquipmentDialogOpen] = useState(false);
 
-  // Ενημερώστε το useEffect για τη φόρτωση δεδομένων
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        
-        // Φόρτωση εξοπλισμού
-        const eksoplismosResponse = await axios.get("http://localhost:5000/api/eksoplismos");
-        setEksoplismosData(eksoplismosResponse.data.map(item => ({
+  // Βελτιωμένη επεξεργασία δεδομένων στο useEffect
+useEffect(() => {
+  async function fetchData() {
+    try {
+      setLoading(true);
+      
+      // Φόρτωση εξοπλισμού
+      const eksoplismosResponse = await axios.get("http://localhost:5000/api/eksoplismos");
+      console.log("Δεδομένα εξοπλισμού από API:", eksoplismosResponse.data);
+      
+      // Φόρτωση δανεισμών
+      const daneismoiResponse = await axios.get("http://localhost:5000/api/eksoplismos/daneismoi");
+      console.log("Δεδομένα δανεισμών από API:", daneismoiResponse.data);
+      
+      // Επεξεργασία δεδομένων εξοπλισμού και προσθήκη δανεισμών για κάθε εξοπλισμό
+      const processedEquipment = eksoplismosResponse.data.map(item => {
+        // Διασφάλιση ότι το πεδίο daneizetai υπάρχει πάντα
+        const itemWithDaneizetai = {
           ...item,
-          id: item.id_eksoplismou
-        })));
-
-        // Φόρτωση δανεισμών
-        const daneismoiResponse = await axios.get("http://localhost:5000/api/eksoplismos/daneismoi");
+          id: item.id_eksoplismou, // Διασφάλιση συνέπειας ID
+          // Αν το daneizetai δεν υπάρχει ή είναι κενό από το API, συνδέουμε με τους δανεισμούς από το ξεχωριστό endpoint
+          daneizetai: item.daneizetai || daneismoiResponse.data.filter(loan => 
+            parseInt(loan.id_eksoplismou) === parseInt(item.id_eksoplismou)
+          ).map(loan => ({
+            id: loan.id,
+            borrowerName: loan.borrowerName || `${loan.epafes?.onoma || ''} ${loan.epafes?.epitheto || ''}`.trim() || "Άγνωστο",
+            hmerominia_daneismou: loan.hmerominia_daneismou,
+            hmerominia_epistrofis: loan.hmerominia_epistrofis
+          }))
+        };
         
-        console.log("Δεδομένα δανεισμών:", daneismoiResponse.data); // Για έλεγχο
+        // Debug log
+        console.log(`Εξοπλισμός ${item.onoma} (ID:${item.id_eksoplismou}): ${itemWithDaneizetai.daneizetai?.length || 0} δανεισμοί`);
         
-        // Διασφάλιση των σωστών ιδιοτήτων για κάθε δανεισμό
-        setDaneismoiData(daneismoiResponse.data.map(item => ({
-          ...item,
-          id: item.id,
-          id_epafis: item.id_epafis,
-          id_eksoplismou: item.id_eksoplismou,
-          borrowerName: item.Name || "Άγνωστο",
-          equipmentName: item.nameeksoplismou || "Άγνωστο",
-          hmerominia_daneismou: item.hmerominia_daneismou,
-          hmerominia_epistrofis: item.hmerominia_epistrofis
-        })));
-
-        // Φόρτωση επαφών για το dropdown επιλογής δανειζόμενου
-        const contactsResponse = await axios.get("http://localhost:5000/api/Repafes");
-        setContactsList(contactsResponse.data.map(contact => ({
-          id: contact.id_epafis,
-          fullName: `${contact.onoma || ''} ${contact.epitheto || ''}`.trim(),
-          email: contact.email,
-          tilefono: contact.tilefono
-        })));
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Σφάλμα κατά τη φόρτωση των δεδομένων:", error);
-        setLoading(false);
-      }
+        return itemWithDaneizetai;
+      });
+      
+      setEksoplismosData(processedEquipment);
+      
+      // Κανονική επεξεργασία δανεισμών για τον πίνακα δανεισμών
+      const processedLoans = daneismoiResponse.data.map(item => ({
+        ...item,
+        id: item.id,
+        borrowerName: item.borrowerName || `${item.epafes?.onoma || ''} ${item.epafes?.epitheto || ''}`.trim() || "Άγνωστο",
+        equipmentName: item.equipmentName || item.eksoplismos?.onoma || "Άγνωστο"
+      }));
+      
+      setDaneismoiData(processedLoans);
+      
+      // Φόρτωση επαφών
+      const contactsResponse = await axios.get("http://localhost:5000/api/Repafes");
+      const processedContacts = contactsResponse.data.map(contact => ({
+        id: contact.id_epafis,
+        id_epafis: contact.id_epafis,
+        fullName: `${contact.onoma || ''} ${contact.epitheto || ''}`.trim(),
+        onoma: contact.onoma,
+        epitheto: contact.epitheto,
+        email: contact.email,
+        tilefono: contact.tilefono
+      }));
+      
+      setContactsList(processedContacts);
+      setLoading(false);
+    } catch (error) {
+      console.error("Σφάλμα κατά τη φόρτωση των δεδομένων:", error);
+      alert("Σφάλμα κατά τη φόρτωση των δεδομένων. Παρακαλώ προσπαθήστε ξανά.");
+      setLoading(false);
     }
-    fetchData();
-  }, []);
+  }
+  
+  fetchData();
+}, []);
 
   // Χειρισμός προσθήκης νέου εξοπλισμού
   const handleAddEquipment = async (newEquipment) => {
@@ -182,81 +210,109 @@ export default function Eksoplismos() {
     }
   };
 
-  // Τροποποίηση του κώδικα χειρισμού προσθήκης δανεισμού
-  const handleAddLoan = async (newLoan) => {
-    try {
-      console.log("Δεδομένα φόρμας:", newLoan); // Έλεγχος δεδομένων φόρμας
-      
-      // Βεβαιωθείτε ότι όλα τα απαιτούμενα πεδία υπάρχουν
-      if (!newLoan.id_epafis || !newLoan.id_eksoplismou) {
-        throw new Error("Λείπουν απαιτούμενα πεδία");
+  // Βελτιωμένη έκδοση του handleAddLoan
+const handleAddLoan = async (newLoan) => {
+  try {
+    // Βεβαιωθείτε ότι όλα τα απαιτούμενα πεδία υπάρχουν
+    if (!newLoan.id_epafis || !newLoan.id_eksoplismou) {
+      throw new Error("Λείπουν απαιτούμενα πεδία");
+    }
+    
+    const formattedLoan = {
+      id_epafis: parseInt(newLoan.id_epafis),
+      id_eksoplismou: parseInt(newLoan.id_eksoplismou),
+      hmerominia_daneismou: newLoan.hmerominia_daneismou || new Date().toISOString().split('T')[0],
+      hmerominia_epistrofis: newLoan.hmerominia_epistrofis || null
+    };
+    
+    console.log("Αποστολή δεδομένων για προσθήκη δανεισμού:", formattedLoan);
+    
+    const response = await axios.post("http://localhost:5000/api/eksoplismos/daneismos", formattedLoan);
+    
+    // Βρίσκουμε τις πλήρεις λεπτομέρειες για την επαφή και τον εξοπλισμό
+    const borrower = contactsList.find(c => parseInt(c.id) === parseInt(newLoan.id_epafis));
+    const equipment = eksoplismosData.find(e => parseInt(e.id) === parseInt(newLoan.id_eksoplismou));
+    
+    // Δημιουργία πλήρους αντικειμένου με όλα τα απαραίτητα δεδομένα
+    const newDaneismosEntry = {
+      ...response.data,
+      id: response.data.id,
+      id_epafis: parseInt(newLoan.id_epafis),
+      id_eksoplismou: parseInt(newLoan.id_eksoplismou),
+      borrowerName: borrower?.fullName || "Άγνωστο",
+      equipmentName: equipment?.onoma || "Άγνωστο",
+      hmerominia_daneismou: response.data.hmerominia_daneismou,
+      hmerominia_epistrofis: response.data.hmerominia_epistrofis,
+      // Δημιουργία πλήρους αντικειμένου epafes αν δεν υπάρχει στην απάντηση
+      epafes: response.data.epafes || borrower || {
+        id_epafis: parseInt(newLoan.id_epafis),
+        onoma: borrower?.onoma || "",
+        epitheto: borrower?.epitheto || "",
+        email: borrower?.email || "",
+        tilefono: borrower?.tilefono || ""
+      },
+      // Δημιουργία πλήρους αντικειμένου eksoplismos αν δεν υπάρχει στην απάντηση
+      eksoplismos: response.data.eksoplismos || equipment || {
+        id_eksoplismou: parseInt(newLoan.id_eksoplismou),
+        onoma: equipment?.onoma || ""
       }
-      
-      const formattedLoan = {
-        id_epafis: parseInt(newLoan.id_epafis),
-        id_eksoplismou: parseInt(newLoan.id_eksoplismou),
-        hmerominia_daneismou: newLoan.hmerominia_daneismou || new Date().toISOString().split('T')[0],
-        hmerominia_epistrofis: newLoan.hmerominia_epistrofis || null
-      };
+    };
+    
+    console.log("Νέος δανεισμός που προστέθηκε:", newDaneismosEntry);
+    setDaneismoiData(prevData => [...prevData, newDaneismosEntry]);
+    setAddLoanDialogOpen(false);
+  } catch (error) {
+    console.error("Σφάλμα κατά την προσθήκη δανεισμού:", error);
+    alert(`Σφάλμα κατά την προσθήκη δανεισμού: ${error.message}`);
+  }
+};
 
-      console.log("Αποστολή δεδομένων:", formattedLoan); // Έλεγχος μορφοποιημένων δεδομένων
-      
-      const response = await axios.post("http://localhost:5000/api/eksoplismos/daneismos", formattedLoan);
-      
-      // Ενημέρωση του πίνακα με τα νέα δεδομένα
-      const borrower = contactsList.find(c => c.id === parseInt(newLoan.id_epafis));
-      const equipment = eksoplismosData.find(e => e.id === parseInt(newLoan.id_eksoplismou));
-      
-      setDaneismoiData(prevData => [...prevData, {
-        ...response.data,
-        id: response.data.id,
-        id_epafis: parseInt(newLoan.id_epafis),
-        id_eksoplismou: parseInt(newLoan.id_eksoplismou),
-        borrowerName: borrower?.fullName || "Άγνωστο",
-        equipmentName: equipment?.onoma || "Άγνωστο",
-        hmerominia_daneismou: response.data.hmerominia_daneismou || new Date().toISOString(),
-        hmerominia_epistrofis: response.data.hmerominia_epistrofis
-      }]);
-      setAddLoanDialogOpen(false);
-    } catch (error) {
-      console.error("Σφάλμα κατά την προσθήκη δανεισμού:", error);
-      alert(`Σφάλμα κατά την προσθήκη δανεισμού: ${error.message}`);
-    }
-  };
-
-  // Χειρισμός επεξεργασίας δανεισμού
-  const handleEditLoan = async (editedLoan) => {
-    try {
-      const formattedLoan = {
-        id_epafis: parseInt(editedLoan.id_epafis),
-        id_eksoplismou: parseInt(editedLoan.id_eksoplismou),
-        hmerominia_daneismou: editedLoan.hmerominia_daneismou || new Date().toISOString().split('T')[0],
-        hmerominia_epistrofis: editedLoan.hmerominia_epistrofis || null
-      };
-
-      await axios.put(`http://localhost:5000/api/eksoplismos/daneismos/${editLoanData.id}`, formattedLoan);
-      
-      // Ενημέρωση του πίνακα
-      setDaneismoiData(prevData => 
-        prevData.map(item => 
-          item.id === editLoanData.id 
-            ? {
-                ...item,
-                ...formattedLoan,
-                borrowerName: contactsList.find(c => c.id === parseInt(editedLoan.id_epafis))?.fullName || "Άγνωστο",
-                equipmentName: eksoplismosData.find(e => e.id === parseInt(editedLoan.id_eksoplismou))?.onoma || "Άγνωστο"
-              } 
-            : item
-        )
-      );
-      
-      setEditLoanDialogOpen(false);
-      setEditLoanData(null);
-    } catch (error) {
-      console.error("Σφάλμα κατά την επεξεργασία δανεισμού:", error);
-      alert("Σφάλμα κατά την επεξεργασία δανεισμού: " + error.message);
-    }
-  };
+  // Βελτιωμένη έκδοση του handleEditLoan
+const handleEditLoan = async (editedLoan) => {
+  try {
+    const formattedLoan = {
+      id_epafis: parseInt(editedLoan.id_epafis),
+      id_eksoplismou: parseInt(editedLoan.id_eksoplismou),
+      hmerominia_daneismou: editedLoan.hmerominia_daneismou || null,
+      hmerominia_epistrofis: editedLoan.hmerominia_epistrofis || null
+    };
+    
+    console.log("Αποστολή δεδομένων για επεξεργασία:", formattedLoan);
+    
+    const response = await axios.put(`http://localhost:5000/api/eksoplismos/daneismos/${editLoanData.id}`, formattedLoan);
+    
+    // Βρίσκουμε τις πλήρεις λεπτομέρειες για την επαφή και τον εξοπλισμό
+    const borrower = contactsList.find(c => parseInt(c.id) === parseInt(editedLoan.id_epafis));
+    const equipment = eksoplismosData.find(e => parseInt(e.id) === parseInt(editedLoan.id_eksoplismou));
+    
+    // Ενημέρωση του πίνακα με διατήρηση των στοιχείων επαφής
+    setDaneismoiData(prevData => 
+      prevData.map(item => 
+        item.id === editLoanData.id 
+          ? {
+              ...item, // Διατήρηση των υπαρχόντων δεδομένων (σημαντικό!)
+              // Ενημέρωση μόνο των στοιχείων που αλλάζουν
+              id_epafis: parseInt(editedLoan.id_epafis),
+              id_eksoplismou: parseInt(editedLoan.id_eksoplismou),
+              borrowerName: borrower?.fullName || "Άγνωστο",
+              equipmentName: equipment?.onoma || "Άγνωστο",
+              hmerominia_daneismou: response.data.hmerominia_daneismou || editedLoan.hmerominia_daneismou,
+              hmerominia_epistrofis: response.data.hmerominia_epistrofis || editedLoan.hmerominia_epistrofis,
+              // Προσεκτική ενημέρωση των αντικειμένων
+              epafes: response.data.epafes || borrower || item.epafes,
+              eksoplismos: response.data.eksoplismos || equipment || item.eksoplismos
+            } 
+          : item
+      )
+    );
+    
+    setEditLoanDialogOpen(false);
+    setEditLoanData(null);
+  } catch (error) {
+    console.error("Σφάλμα κατά την επεξεργασία δανεισμού:", error);
+    alert("Σφάλμα κατά την επεξεργασία δανεισμού: " + error.message);
+  }
+};
 
   // Άνοιγμα διαλόγου επεξεργασίας
   const handleEditLoanClick = (loan) => {
@@ -269,6 +325,88 @@ export default function Eksoplismos() {
     });
     setEditLoanDialogOpen(true);
   };
+
+  // Βελτιωμένος χειριστής επεξεργασίας εξοπλισμού
+const handleEditEquipmentClick = (equipment) => {
+  console.log("Επεξεργασία εξοπλισμού:", equipment);
+  
+  // Μορφοποίηση ημερομηνίας (διασφαλίζει σωστή μορφή για το input)
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      return isNaN(date.getTime()) ? "" : date.toISOString().split('T')[0];
+    } catch (e) {
+      console.error("Σφάλμα μορφοποίησης ημερομηνίας:", e);
+      return "";
+    }
+  };
+  
+  // Βεβαιωνόμαστε ότι έχουμε πάντα ένα ID
+  const equipmentId = equipment.id_eksoplismou || equipment.id;
+  
+  if (!equipmentId) {
+    console.error("Δεν βρέθηκε ID εξοπλισμού:", equipment);
+    alert("Σφάλμα: Δεν βρέθηκε αναγνωριστικό για τον εξοπλισμό.");
+    return;
+  }
+  
+  setEditEquipmentData({
+    id: equipmentId,
+    id_eksoplismou: equipmentId, // Αποθηκεύουμε το ID και στα δύο πεδία για συμβατότητα
+    onoma: equipment.onoma || "",
+    marka: equipment.marka || "",
+    xroma: equipment.xroma || "",
+    megethos: equipment.megethos || "",
+    hmerominia_kataskeuis: formatDate(equipment.hmerominia_kataskeuis)
+  });
+  
+  setEditEquipmentDialogOpen(true);
+};
+
+// Χειριστής αποθήκευσης επεξεργασίας εξοπλισμού - διορθωμένη έκδοση
+const handleEditEquipment = async (editedEquipment) => {
+  try {
+    // Βεβαιωνόμαστε ότι έχουμε ένα έγκυρο ID για το URL
+    const equipmentId = editedEquipment.id_eksoplismou || editedEquipment.id || editEquipmentData?.id_eksoplismou || editEquipmentData?.id;
+    
+    if (!equipmentId) {
+      throw new Error("Δεν βρέθηκε ID εξοπλισμού για επεξεργασία");
+    }
+
+    console.log("Αποστολή ενημερωμένου εξοπλισμού:", editedEquipment, "με ID:", equipmentId);
+    
+    // Δημιουργία αντικειμένου με τα δεδομένα που θα αποσταλούν
+    const dataToSend = {
+      ...editedEquipment,
+      id_eksoplismou: equipmentId, // Βεβαιωνόμαστε ότι το ID περιλαμβάνεται στα δεδομένα
+      id: equipmentId
+    };
+    
+    const response = await axios.put(
+      `http://localhost:5000/api/eksoplismos/${equipmentId}`,
+      dataToSend
+    );
+    
+    setEksoplismosData(prevData => 
+      prevData.map(item => 
+        (item.id === equipmentId || item.id_eksoplismou === equipmentId) 
+          ? {
+              ...response.data,
+              id: response.data.id_eksoplismou || response.data.id,  // Διασφάλιση συμβατότητας ID
+              id_eksoplismou: response.data.id_eksoplismou || response.data.id // Διπλό ID για συνέπεια
+            } 
+          : item
+      )
+    );
+    
+    setEditEquipmentDialogOpen(false);
+    setEditEquipmentData(null);
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση του εξοπλισμού:", error);
+    alert(`Σφάλμα κατά την ενημέρωση του εξοπλισμού: ${error.message}`);
+  }
+};
 
   // Χειρισμός διαγραφής εξοπλισμού
   const handleDeleteEquipment = async (id) => {
@@ -292,98 +430,172 @@ export default function Eksoplismos() {
     }
   };
 
-  // Βελτιωμένη διαμόρφωση του loanDetailPanelConfig για σωστή εμφάνιση στοιχείων
-  const loanDetailPanelConfig = {
-    mainDetails: [],
-    tables: [
-      {
-        title: "Στοιχεία Δανειζόμενου",
-        accessor: "borrowerDetails",
-        getData: (row) => {
-          // Χρησιμοποιούμε τα δεδομένα του epafes αντικειμένου
-          if (row.epafes) {
+  // Βελτιωμένο loanDetailPanelConfig με περισσότερους τρόπους εύρεσης στοιχείων δανειζόμενου
+const loanDetailPanelConfig = {
+  mainDetails: [
+    { 
+      accessor: "hmerominia_daneismou", 
+      header: "Ημερομηνία Δανεισμού", 
+      format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-' 
+    },
+    { 
+      accessor: "hmerominia_epistrofis", 
+      header: "Ημερομηνία Επιστροφής", 
+      format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-' 
+    }
+  ],
+  tables: [
+    {
+      title: "Στοιχεία Δανειζόμενου",
+      accessor: "borrowerDetails",
+      getData: (row) => {
+        console.log("Στοιχεία δανειζόμενου για:", row);
+        
+        // Τρόπος 1: Χρήση του αντικειμένου epafes (αν υπάρχει)
+        if (row.epafes) {
+          return [{
+            fullName: `${row.epafes.onoma || ''} ${row.epafes.epitheto || ''}`.trim() || row.borrowerName || "Άγνωστο",
+            email: row.epafes.email || '-',
+            tilefono: row.epafes.tilefono ? row.epafes.tilefono.toString() : '-'
+          }];
+        }
+        
+        // Τρόπος 2: Αναζήτηση με βάση το id_epafis (αν υπάρχει)
+        if (row.id_epafis) {
+          // Μετατροπή σε string για σύγκριση
+          const epafisId = row.id_epafis.toString();
+          // Εύρεση επαφής με id που ταιριάζει με id_epafis
+          const contact = contactsList.find(c => 
+            c.id.toString() === epafisId || c.id_epafis.toString() === epafisId
+          );
+          
+          if (contact) {
             return [{
-              fullName: row.Name || `${row.epafes.onoma || ''} ${row.epafes.epitheto || ''}`.trim(),
-              email: row.epafes.email || '-',
-              tilefono: row.epafes.tilefono || '-'
+              fullName: contact.fullName || `${contact.onoma || ''} ${contact.epitheto || ''}`.trim() || "Άγνωστο",
+              email: contact.email || '-',
+              tilefono: contact.tilefono || '-'
             }];
           }
-          return [];
-        },
-        columns: [
-          { accessor: "fullName", header: "Ονοματεπώνυμο" },
-          { accessor: "email", header: "Email" },
-          { accessor: "tilefono", header: "Τηλέφωνο" }
-        ]
+        }
+        
+        // Τρόπος 3: Αναζήτηση με βάση το borrowerName (αν υπάρχει)
+        if (row.borrowerName && row.borrowerName !== "Άγνωστο") {
+          // Εύρεση επαφής με όνομα που ταιριάζει με borrowerName
+          const contact = contactsList.find(c => 
+            c.fullName === row.borrowerName || 
+            `${c.onoma || ''} ${c.epitheto || ''}`.trim() === row.borrowerName
+          );
+          
+          if (contact) {
+            return [{
+              fullName: contact.fullName || `${contact.onoma || ''} ${contact.epitheto || ''}`.trim() || row.borrowerName,
+              email: contact.email || '-',
+              tilefono: contact.tilefono || '-'
+            }];
+          }
+          
+          // Αν δεν βρέθηκε επαφή, επιστροφή μόνο του borrowerName
+          return [{
+            fullName: row.borrowerName,
+            email: '-',
+            tilefono: '-'
+          }];
+        }
+        
+        // Τρόπος 4: Επιστροφή κενών στοιχείων αν τίποτα άλλο δεν λειτουργεί
+        return [{
+          fullName: "Άγνωστο",
+          email: '-',
+          tilefono: '-'
+        }];
       },
-      {
-        title: "Στοιχεία Εξοπλισμού",
-        accessor: "equipmentDetails",
-        getData: (row) => {
-          // Χρησιμοποιούμε τα δεδομένα του eksoplismos αντικειμένου
-          if (row.eksoplismos) {
-            return [{
-              onoma: row.eksoplismos.onoma || '-',
-              marka: row.eksoplismos.marka || '-',
-              xroma: row.eksoplismos.xroma || '-',
-              megethos: row.eksoplismos.megethos || '-',
-              hmerominia_kataskeuis: row.eksoplismos.hmerominia_kataskeuis
-            }];
-          }
+      columns: [
+        { accessor: "fullName", header: "Ονοματεπώνυμο" },
+        { accessor: "email", header: "Email" },
+        { accessor: "tilefono", header: "Τηλέφωνο" }
+      ]
+    },
+    {
+      title: "Στοιχεία Εξοπλισμού",
+      accessor: "equipmentDetails",
+      getData: (row) => {
+        if (!row.eksoplismos && !row.id_eksoplismou) {
           return [];
-        },
-        columns: [
-          { accessor: "onoma", header: "Όνομα" },
-          { accessor: "marka", header: "Μάρκα" },
-          { accessor: "xroma", header: "Χρώμα" },
-          { accessor: "megethos", header: "Μέγεθος" },
-          { 
-            accessor: "hmerominia_kataskeuis", 
-            header: "Ημ/νία Κατασκευής",
-            Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-" 
-          }
-        ]
-      }
-    ]
-  };
+        }
+        
+        // Αν έχουμε ήδη πλήρεις πληροφορίες από το backend
+        if (row.eksoplismos) {
+          return [{
+            onoma: row.eksoplismos.onoma || '-',
+            marka: row.eksoplismos.marka || '-',
+            xroma: row.eksoplismos.xroma || '-',
+            megethos: row.eksoplismos.megethos || '-',
+            hmerominia_kataskeuis: row.eksoplismos.hmerominia_kataskeuis
+          }];
+        }
+        
+        // Εναλλακτικά, αναζητούμε τον εξοπλισμό στη λίστα εξοπλισμών
+        const equipment = eksoplismosData.find(e => parseInt(e.id) === parseInt(row.id_eksoplismou));
+        if (equipment) {
+          return [{
+            onoma: equipment.onoma || '-',
+            marka: equipment.marka || '-',
+            xroma: equipment.xroma || '-',
+            megethos: equipment.megethos || '-',
+            hmerominia_kataskeuis: equipment.hmerominia_kataskeuis
+          }];
+        }
+        
+        return [];
+      },
+      columns: [
+        { accessor: "onoma", header: "Όνομα" },
+        { accessor: "marka", header: "Μάρκα" },
+        { accessor: "xroma", header: "Χρώμα" },
+        { accessor: "megethos", header: "Μέγεθος" },
+        { 
+          accessor: "hmerominia_kataskeuis", 
+          header: "Ημ/νία Κατασκευής",
+          Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-" 
+        }
+      ]
+    }
+  ]
+};
 
-  // Δημιουργία detailPanelConfig για τον εξοπλισμό
-  const equipmentDetailPanelConfig = {
-    mainDetails: [
-      { accessor: "onoma", header: "Όνομα" },
-      { accessor: "marka", header: "Μάρκα" },
-      { accessor: "xroma", header: "Χρώμα" },
-      { accessor: "megethos", header: "Μέγεθος" },
-      { 
-        accessor: "hmerominia_kataskeuis", 
-        header: "Ημερομηνία Κατασκευής",
-        format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-' 
-      }
-    ],
-    tables: [
-      {
-        title: "Ιστορικό Δανεισμών",
-        accessor: "loanHistory",
-        getData: (row) => {
-          // Βρίσκουμε όλους τους δανεισμούς αυτού του εξοπλισμού
-          return daneismoiData.filter(d => d.id_eksoplismou === row.id);
+  // Πλήρης αναδιάρθρωση του equipmentDetailPanelConfig
+const equipmentDetailPanelConfig = {
+  mainDetails: [
+    { accessor: "onoma", header: "Όνομα" },
+    { accessor: "marka", header: "Μάρκα" },
+    { accessor: "xroma", header: "Χρώμα" },
+    { accessor: "megethos", header: "Μέγεθος" },
+    { 
+      accessor: "hmerominia_kataskeuis", 
+      header: "Ημερομηνία Κατασκευής",
+      format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-' 
+    }
+  ],
+  tables: [
+    {
+      title: "Ιστορικό Δανεισμών",
+      accessor: "daneizetai", // Αλλαγή του accessor για να ταιριάζει με τα δεδομένα από το backend
+      columns: [
+        { accessor: "borrowerName", header: "Δανειζόμενος" },
+        { 
+          accessor: "hmerominia_daneismou", 
+          header: "Ημερομηνία Δανεισμού",
+          Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
         },
-        columns: [
-          { accessor: "borrowerName", header: "Δανειζόμενος" },
-          { 
-            accessor: "hmerominia_daneismou", 
-            header: "Ημερομηνία Δανεισμού",
-            Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
-          },
-          { 
-            accessor: "hmerominia_epistrofis", 
-            header: "Ημερομηνία Επιστροφής",
-            Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
-          }
-        ]
-      }
-    ]
-  };
+        { 
+          accessor: "hmerominia_epistrofis", 
+          header: "Ημερομηνία Επιστροφής",
+          Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
+        }
+      ]
+    }
+  ]
+};
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
@@ -410,6 +622,8 @@ export default function Eksoplismos() {
             enableAddNew={true}
             onAddNew={() => setAddEquipmentDialogOpen(true)}
             handleDelete={handleDeleteEquipment}
+            handleEditClick={handleEditEquipmentClick} // Προσθήκη handler επεξεργασίας
+            enableRowActions={true} // Ενεργοποίηση ενεργειών γραμμής
           />
         </div>
 
@@ -474,6 +688,18 @@ export default function Eksoplismos() {
             contactsList: contactsList,
             equipmentList: eksoplismosData
           }}
+        />
+
+        <AddDialog
+          open={editEquipmentDialogOpen}
+          onClose={() => {
+            setEditEquipmentDialogOpen(false);
+            setEditEquipmentData(null);
+          }}
+          handleAddSave={handleEditEquipment}
+          fields={equipmentFormFields}
+          title="Επεξεργασία Εξοπλισμού"
+          initialValues={editEquipmentData}
         />
       </div>
     </LocalizationProvider>

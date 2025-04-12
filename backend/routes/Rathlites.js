@@ -853,4 +853,158 @@ router.post("/agona/:id/athletes", async (req, res) => {
   }
 });
 
+// PUT: Ενημέρωση υπάρχοντος αθλητή
+router.put("/athlete/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID αθλητή" });
+    }
+
+    const { 
+      epafes, 
+      vathmos_diskolias, 
+      esoteriko_melos, 
+      athlitis, 
+      athlimata 
+    } = req.body;
+
+    // Έλεγχος ότι ο αθλητής υπάρχει
+    const existingAthlete = await prisma.athlitis.findUnique({
+      where: { id_athliti: id },
+      include: {
+        esoteriko_melos: {
+          include: {
+            melos: {
+              include: {
+                epafes: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!existingAthlete) {
+      return res.status(404).json({ error: "Ο αθλητής δεν βρέθηκε" });
+    }
+
+    const epafisId = existingAthlete.esoteriko_melos?.melos?.epafes?.id_epafis;
+
+    if (!epafisId) {
+      return res.status(404).json({ error: "Δεν βρέθηκαν δεδομένα επαφής για τον αθλητή" });
+    }
+
+    const result = await prisma.$transaction(async (prismaTransaction) => {
+      // 1. Ενημέρωση επαφής
+      if (epafes) {
+        await prismaTransaction.epafes.update({
+          where: { id_epafis: epafisId },
+          data: {
+            ...epafes,
+            tilefono: epafes.tilefono ? BigInt(epafes.tilefono) : null,
+          }
+        });
+      }
+
+      // 2. Ενημέρωση βαθμού δυσκολίας
+      if (vathmos_diskolias) {
+        await prismaTransaction.melos.update({
+          where: { id_melous: epafisId },
+          data: {
+            id_vathmou_diskolias: vathmos_diskolias.id_vathmou_diskolias,
+          }
+        });
+      }
+
+      // 3. Ενημέρωση εσωτερικού μέλους
+      if (esoteriko_melos) {
+        await prismaTransaction.esoteriko_melos.update({
+          where: { id_es_melous: id },
+          data: {
+            ...esoteriko_melos
+          }
+        });
+      }
+
+      // 4. Ενημέρωση αθλητή
+      if (athlitis) {
+        await prismaTransaction.athlitis.update({
+          where: { id_athliti: id },
+          data: {
+            ...athlitis
+          }
+        });
+      }
+
+      // 5. Ενημέρωση συσχετίσεων με αθλήματα
+      if (athlimata && athlimata.length > 0) {
+        // Διαγραφή υπαρχουσών συσχετίσεων
+        await prismaTransaction.asxoleitai.deleteMany({
+          where: { id_athliti: id }
+        });
+        
+        // Δημιουργία νέων συσχετίσεων
+        for (const athlima of athlimata) {
+          await prismaTransaction.asxoleitai.create({
+            data: {
+              id_athliti: id,
+              id_athlimatos: athlima.id_athlimatos
+            }
+          });
+        }
+      }
+
+      // 6. Ανάκτηση του πλήρους ενημερωμένου αθλητή
+      const completeAthlete = await prismaTransaction.athlitis.findUnique({
+        where: { id_athliti: id },
+        include: {
+          esoteriko_melos: {
+            include: {
+              melos: {
+                include: {
+                  epafes: true,
+                  vathmos_diskolias: true,
+                }
+              }
+            }
+          },
+          asxoleitai: {
+            include: {
+              athlima: true
+            }
+          },
+          agonizetai: {
+            include: {
+              agones: true
+            }
+          }
+        }
+      });
+
+      return {
+        ...completeAthlete,
+        esoteriko_melos: {
+          ...completeAthlete.esoteriko_melos,
+          melos: {
+            ...completeAthlete.esoteriko_melos.melos,
+            epafes: {
+              ...completeAthlete.esoteriko_melos.melos.epafes,
+              tilefono: completeAthlete.esoteriko_melos.melos.epafes.tilefono?.toString()
+            }
+          }
+        }
+      };
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση αθλητή:", error);
+    res.status(400).json({ 
+      error: "Σφάλμα κατά την ενημέρωση αθλητή", 
+      details: error.message 
+    });
+  }
+});
+
 module.exports = router;

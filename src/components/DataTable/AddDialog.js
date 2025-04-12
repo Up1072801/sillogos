@@ -56,6 +56,17 @@ const AddDialog = ({
     enableReinitialize: false, // Σημαντικό: Μην ενεργοποιήσετε αυτό!
   });
 
+  // Διορθώσεις στο AddDialog για την επεξεργασία 
+  // Προσθήκη στην αρχή της συνάρτησης για να διασφαλίσουμε ότι το initialValues χρησιμοποιείται σωστά
+
+  useEffect(() => {
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      formik.resetForm({
+        values: initialValues
+      });
+    }
+  }, [initialValues]);
+
   // Επαναφορά της φόρμας όταν κλείνει το dialog
   useEffect(() => {
     // Μόνο όταν ανοίγει το dialog και υπάρχουν externalInitialValues

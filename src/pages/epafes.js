@@ -70,10 +70,21 @@ export default function Epafes() {
   }, []);
 
   const handleEditClick = (row) => {
-    setCurrentRow({
-      ...row,
+    console.log("Editing contact:", row);
+    
+    // Βεβαιωνόμαστε ότι έχουμε όλα τα απαραίτητα πεδία
+    const editData = {
+      id: row.id,
       id_epafis: row.id_epafis || row.id, // Διασφάλιση ότι έχουμε το σωστό ID
-    });
+      onoma: row.onoma || "",
+      epitheto: row.epitheto || "",
+      email: row.email || "",
+      tilefono: row.tilefono || "",
+      idiotita: row.idiotita || ""
+    };
+    
+    console.log("Prepared contact edit data:", editData);
+    setCurrentRow(editData);
     setEditDialogOpen(true);
   };
 

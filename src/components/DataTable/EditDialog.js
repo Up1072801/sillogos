@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, 
   Tooltip, FormControl, InputLabel, MenuItem, Select, FormHelperText,
@@ -44,6 +44,40 @@ const EditDialog = ({
       handleEditSave(values);
     },
   });
+
+  useEffect(() => {
+    // Διασφαλίζουμε ότι τα editValues υπάρχουν και ενημερώνουμε το formik
+    if (editValues && Object.keys(editValues).length > 0) {
+      console.log("EditDialog received values:", editValues);
+      
+      const preparedValues = {};
+      
+      // Επεξεργάζεστε τα πεδία για να βρείτε τιμές ακόμα και σε εμφωλευμένα αντικείμενα
+      fields.forEach(field => {
+        const accessorParts = field.accessorKey.split('.');
+        
+        if (accessorParts.length === 1) {
+          // Απλό πεδίο
+          preparedValues[field.accessorKey] = editValues[field.accessorKey];
+        } else {
+          // Εμφωλευμένο πεδίο
+          let value = editValues;
+          for (const part of accessorParts) {
+            value = value?.[part];
+            if (value === undefined) break;
+          }
+          
+          preparedValues[field.accessorKey] = value;
+        }
+      });
+      
+      console.log("Prepared values for form:", preparedValues);
+      formik.setValues({
+        ...formik.values,
+        ...preparedValues
+      });
+    }
+  }, [editValues]);
 
   const renderField = (field) => {
     switch (field.type) {

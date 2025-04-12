@@ -219,8 +219,9 @@ export default function Meloi() {
   };
 
   const handleEditClick = (row) => {
-    setEditValues({
-      ...row,
+    console.log("Edit row:", row);
+
+    const editData = {
       id_es_melous: row.id_es_melous || row.id,
       onoma: row.melos?.epafes?.onoma || "",
       epitheto: row.melos?.epafes?.epitheto || "",
@@ -232,8 +233,17 @@ export default function Meloi() {
       tk: row.tk || "",
       arithmos_mitroou: row.arithmos_mitroou || "",
       eidosSindromis: row.eidosSindromis || "",
-      katastasi_sindromis: row.sindromitis?.katastasi_sindromis || ""
-    });
+      katastasi_sindromis: row.sindromitis?.katastasi_sindromis || "",
+      // Προσθέτουμε και τα επιπλέον πεδία για συμβατότητα με την επεξεργασία
+      "melos.epafes.onoma": row.melos?.epafes?.onoma || "",
+      "melos.epafes.epitheto": row.melos?.epafes?.epitheto || "",
+      "melos.epafes.email": row.melos?.epafes?.email || "",
+      "melos.epafes.tilefono": row.melos?.epafes?.tilefono || "",
+      "melos.vathmos_diskolias.epipedo": row.melos?.vathmos_diskolias?.epipedo || ""
+    };
+
+    console.log("Prepared edit data:", editData);
+    setEditValues(editData);
     setOpenEditDialog(true);
   };
 

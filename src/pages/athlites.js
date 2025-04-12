@@ -897,6 +897,89 @@ const memoizedInitialValues = useMemo(() => {
   };
 }, [editCompetitionData, selectedAthletes, currentSportId]);
 
+// Προσθήκη συνάρτησης για επεξεργασία αθλητή (αν χρειάζεται)
+
+// Πλήρης υλοποίηση του handleEditAthlete
+const handleEditAthlete = async (athlete) => {
+  console.log("Editing athlete:", athlete);
+  
+  // Δημιουργία αντικειμένου με όλα τα απαραίτητα δεδομένα για επεξεργασία
+  const editValues = {
+    id: athlete.id,
+    firstName: athlete.firstName || "",
+    lastName: athlete.lastName || "",
+    email: athlete.email || "",
+    phone: athlete.phone || "",
+    patronimo: athlete.patronimo || "",
+    odos: athlete.odos || "",
+    tk: athlete.tk || "",
+    arithmos_mitroou: athlete.arithmos_mitroou || "",
+    vathmos_diskolias: athlete.vathmos_diskolias || "",
+    arithmosdeltiou: athlete.arithmosdeltiou || "",
+    hmerominiaenarksis: athlete.hmerominiaenarksis || "",
+    hmerominialiksis: athlete.hmerominialiksis || "",
+    athlimata: athlete.athlimata?.map(a => a.id) || []
+  };
+
+  console.log("Prepared athlete edit data:", editValues);
+  
+  // Ορίζουμε τις τιμές για επεξεργασία και ανοίγουμε το dialog
+  setEditAthleteValues(editValues);
+  setOpenEditAthleteDialog(true);
+};
+
+// Προσθήκη συνάρτησης για την αποθήκευση των αλλαγών μετά την επεξεργασία
+const handleEditAthleteSave = async (updatedAthlete) => {
+  try {
+    console.log("Saving edited athlete:", updatedAthlete);
+    
+    const athleteId = updatedAthlete.id;
+    
+    // Δημιουργία του αντικειμένου δεδομένων για το API
+    const requestData = {
+      epafes: {
+        onoma: updatedAthlete.firstName,
+        epitheto: updatedAthlete.lastName,
+        email: updatedAthlete.email,
+        tilefono: updatedAthlete.phone,
+      },
+      vathmos_diskolias: {
+        id_vathmou_diskolias: parseInt(updatedAthlete.vathmos_diskolias) || 1,
+      },
+      esoteriko_melos: {
+        patronimo: updatedAthlete.patronimo,
+        odos: updatedAthlete.odos,
+        tk: updatedAthlete.tk ? parseInt(updatedAthlete.tk) : null,
+        arithmos_mitroou: updatedAthlete.arithmos_mitroou ? parseInt(updatedAthlete.arithmos_mitroou) : null,
+      },
+      athlitis: {
+        arithmos_deltiou: updatedAthlete.arithmosdeltiou ? parseInt(updatedAthlete.arithmosdeltiou) : null,
+        hmerominia_enarksis_deltiou: updatedAthlete.hmerominiaenarksis ? new Date(updatedAthlete.hmerominiaenarksis) : null,
+        hmerominia_liksis_deltiou: updatedAthlete.hmerominialiksis ? new Date(updatedAthlete.hmerominialiksis) : null,
+      },
+      athlimata: updatedAthlete.athlimata ? 
+        (Array.isArray(updatedAthlete.athlimata) ? 
+          updatedAthlete.athlimata.map(id => ({ id_athlimatos: parseInt(id) })) : 
+          [{ id_athlimatos: parseInt(updatedAthlete.athlimata) }]
+        ) : [],
+    };
+
+    // Κλήση του API για ενημέρωση
+    await axios.put(`http://localhost:5000/api/athlites/athlete/${athleteId}`, requestData);
+    
+    // Ανανέωση των δεδομένων
+    await refreshData();
+    
+    // Κλείσιμο του dialog
+    setOpenEditAthleteDialog(false);
+    setEditAthleteValues({});
+
+  } catch (error) {
+    console.error("Σφάλμα κατά την επεξεργασία αθλητή:", error);
+    alert(`Σφάλμα κατά την επεξεργασία αθλητή: ${error.response?.data?.error || error.message}`);
+  }
+};
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
       <Box sx={{ p: 3 }}>
@@ -930,7 +1013,8 @@ const memoizedInitialValues = useMemo(() => {
               ]
             }}
             state={{ isLoading: loading }}
-            onAddNew={() => setOpenAddAthleteDialog(true)}
+            onAddNew={() => setOpenAddAthleteDialog(false)}
+            handleEditClick={handleEditAthlete} // Προσθήκη του handler
             handleDelete={handleDeleteAthlete}
             enableExpand={true}
           />
@@ -1027,6 +1111,16 @@ const memoizedInitialValues = useMemo(() => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Προσθέστε το EditDialog για αθλητές */}
+        <EditDialog
+          open={openEditAthleteDialog}
+          onClose={() => setOpenEditAthleteDialog(false)}
+          handleEditSave={handleEditAthleteSave}
+          editValues={editAthleteValues}
+          fields={athleteFormFields} // Χρησιμοποιούμε τα ίδια πεδία με το AddDialog
+          title="Επεξεργασία Αθλητή"
+        />
       </Box>
     </LocalizationProvider>
   );

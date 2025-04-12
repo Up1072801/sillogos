@@ -150,16 +150,22 @@ export default function MeliAllwn() {
   };
 
   const handleEditClick = (row) => {
-    setEditValues({
+    console.log("Editing member:", row);
+    
+    // Εξαγωγή των ακριβών τιμών που χρειάζονται για την επεξεργασία
+    const editData = {
       id: row.id,
-      firstName: row.firstName || "",
-      lastName: row.lastName || "",
-      email: row.email || "",
-      phone: row.phone || "",
-      vathmos_diskolias: row.vathmos_diskolias || "",
-      arithmosmitroou: row.arithmosmitroou || "",
-      onomasillogou: row.onomasillogou || ""
-    });
+      firstName: row.firstName || row.melos?.epafes?.onoma || "",
+      lastName: row.lastName || row.melos?.epafes?.epitheto || "",
+      email: row.email || row.melos?.epafes?.email || "",
+      phone: row.phone || row.melos?.epafes?.tilefono || "",
+      vathmos_diskolias: row.vathmos_diskolias || row.melos?.vathmos_diskolias?.id_vathmou_diskolias || "",
+      arithmosmitroou: row.arithmosmitroou || row.arithmos_mitroou || "",
+      onomasillogou: row.onomasillogou || row.onoma_sillogou || ""
+    };
+    
+    console.log("Prepared edit data:", editData);
+    setEditValues(editData);
     setOpenEditDialog(true);
   };
 
