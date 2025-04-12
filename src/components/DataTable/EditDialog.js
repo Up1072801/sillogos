@@ -1,17 +1,26 @@
-import React from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Tooltip } from "@mui/material";
+import React, { useState } from "react";
+import { 
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, 
+  Tooltip, FormControl, InputLabel, MenuItem, Select, FormHelperText,
+  Table, TableHead, TableRow, TableCell, TableBody, Checkbox, TableContainer,
+  Paper, Typography, Box, InputAdornment
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 import { useFormik } from "formik";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import * as yup from "yup";
 
 const EditDialog = ({ 
-  
   open, 
   onClose, 
   editValues = {},
   handleEditSave, 
-  fields 
+  fields,
+  title = "Επεξεργασία",
+  resourceData = {} // Added parameter for additional data needed by custom field types
 }) => {
+  const [searchText, setSearchText] = useState('');
+  
   const validationSchema = yup.object(
     fields.reduce((schema, field) => {
       if (field.validation) {
@@ -24,82 +33,275 @@ const EditDialog = ({
   const formik = useFormik({
     initialValues: {
       ...fields.reduce((values, field) => {
-        values[field.accessorKey] = editValues[field.accessorKey] || "";
+        values[field.accessorKey] = editValues[field.accessorKey] !== undefined ? 
+          editValues[field.accessorKey] : "";
         return values;
       }, {}),
       id: editValues.id || ""  // Προσθήκη του id στα initialValues
     },
     validationSchema: validationSchema,
-    validateOnBlur: true,
-    validateOnChange: true,
-    enableReinitialize: true,
     onSubmit: (values) => {
-      if (Object.keys(formik.errors).length === 0) {
-        handleEditSave(values);
-      }
+      handleEditSave(values);
     },
   });
 
+  const renderField = (field) => {
+    switch (field.type) {
+      case 'select':
+        return (
+          <FormControl 
+            fullWidth 
+            error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+          >
+            <InputLabel id={`${field.accessorKey}-label`}>{field.header}</InputLabel>
+            <Select
+              labelId={`${field.accessorKey}-label`}
+              id={field.accessorKey}
+              name={field.accessorKey}
+              value={formik.values[field.accessorKey] || ''}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              label={field.header}
+              disabled={field.disabled}
+            >
+              {field.options?.map(option => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+            {formik.touched[field.accessorKey] && formik.errors[field.accessorKey] && (
+              <FormHelperText>{formik.errors[field.accessorKey]}</FormHelperText>
+            )}
+          </FormControl>
+        );
+        
+      case 'multiSelect':
+        return (
+          <FormControl 
+            fullWidth 
+            error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+          >
+            <InputLabel id={`${field.accessorKey}-label`}>{field.header}</InputLabel>
+            <Select
+              labelId={`${field.accessorKey}-label`}
+              id={field.accessorKey}
+              name={field.accessorKey}
+              multiple
+              value={formik.values[field.accessorKey] || []}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              label={field.header}
+              disabled={field.disabled}
+            >
+              {field.options?.map(option => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+            {formik.touched[field.accessorKey] && formik.errors[field.accessorKey] && (
+              <FormHelperText>{formik.errors[field.accessorKey]}</FormHelperText>
+            )}
+          </FormControl>
+        );
+        
+      case 'date':
+        return (
+          <TextField
+            id={field.accessorKey}
+            name={field.accessorKey}
+            label={field.header}
+            type="date"
+            value={formik.values[field.accessorKey] || ''}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+            helperText={formik.touched[field.accessorKey] && formik.errors[field.accessorKey]}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+        );
+        
+      case 'tableSelect': // New field type for athlete selection
+        const items = resourceData[field.dataKey] || [];
+        const filteredItems = items.filter(item => 
+          (item.name?.toLowerCase() || '').includes(searchText.toLowerCase()) ||
+          (item.firstName?.toLowerCase() || '').includes(searchText.toLowerCase()) ||
+          (item.lastName?.toLowerCase() || '').includes(searchText.toLowerCase()) ||
+          (item.fullName?.toLowerCase() || '').includes(searchText.toLowerCase()) ||
+          (item.athleteNumber?.toLowerCase() || '').includes(searchText.toLowerCase()) ||
+          (item.arithmosdeltiou?.toString().toLowerCase() || '').includes(searchText.toLowerCase())
+        );
+        
+        const displayName = (item) => {
+          if (item.name) return item.name;
+          if (item.fullName) return item.fullName;
+          return `${item.firstName || ''} ${item.lastName || ''}`.trim();
+        };
+
+        // Make sure the value is always an array
+        if (!Array.isArray(formik.values[field.accessorKey])) {
+          formik.setFieldValue(field.accessorKey, []);
+        }
+        
+        return (
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="subtitle1" gutterBottom>
+              {field.header}
+            </Typography>
+            
+            <TextField
+              fullWidth
+              placeholder="Αναζήτηση..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              sx={{ mb: 2 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            
+            <TableContainer component={Paper} sx={{ maxHeight: 300, overflow: 'auto' }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        indeterminate={
+                          formik.values[field.accessorKey].length > 0 && 
+                          formik.values[field.accessorKey].length < items.length
+                        }
+                        checked={
+                          items.length > 0 && 
+                          formik.values[field.accessorKey].length === items.length
+                        }
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            formik.setFieldValue(
+                              field.accessorKey, 
+                              items.map(item => item.id)
+                            );
+                          } else {
+                            formik.setFieldValue(field.accessorKey, []);
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    {field.columns.map((column) => (
+                      <TableCell key={column.field}>{column.header}</TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredItems.length > 0 ? (
+                    filteredItems.map((item) => {
+                      const isSelected = formik.values[field.accessorKey].includes(item.id);
+                      return (
+                        <TableRow
+                          hover
+                          onClick={() => {
+                            const selectedIds = [...formik.values[field.accessorKey]];
+                            const selectedIndex = selectedIds.indexOf(item.id);
+                            
+                            if (selectedIndex === -1) {
+                              selectedIds.push(item.id);
+                            } else {
+                              selectedIds.splice(selectedIndex, 1);
+                            }
+                            
+                            formik.setFieldValue(field.accessorKey, selectedIds);
+                          }}
+                          key={item.id}
+                          selected={isSelected}
+                        >
+                          <TableCell padding="checkbox">
+                            <Checkbox checked={isSelected} />
+                          </TableCell>
+                          {field.columns.map((column) => (
+                            <TableCell key={`${item.id}-${column.field}`}>
+                              {column.valueGetter ? column.valueGetter(item) : item[column.field]}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={field.columns.length + 1} align="center">
+                        Δεν βρέθηκαν αποτελέσματα
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            
+            {formik.touched[field.accessorKey] && formik.errors[field.accessorKey] && (
+              <FormHelperText error>{formik.errors[field.accessorKey]}</FormHelperText>
+            )}
+            
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Επιλεγμένοι: {formik.values[field.accessorKey].length}
+            </Typography>
+          </Box>
+        );
+
+      default:
+        return (
+          <div style={{ position: "relative" }}>
+            <TextField
+              fullWidth
+              id={field.accessorKey}
+              name={field.accessorKey}
+              label={field.header}
+              value={formik.values[field.accessorKey] || ""}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+              helperText={
+                formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
+                ? formik.errors[field.accessorKey]
+                : ""
+              }
+            />
+            {field.example && (
+              <Tooltip title={`Παράδειγμα: ${field.example}`} placement="right">
+                <span style={{ marginLeft: "8px", color: "#888", cursor: "default" }}>
+                  <HelpOutlineIcon fontSize="small" />
+                </span>
+              </Tooltip>
+            )}
+          </div>
+        );
+    }
+  };
+
+  // Determine if there are any tableSelect fields
+  const hasTableSelects = fields.some(field => field.type === 'tableSelect');
+
   return (
-    <Dialog open={open} onClose={onClose} aria-labelledby="edit-dialog-title">
-      <DialogTitle id="edit-dialog-title">Επεξεργασία Εγγραφής</DialogTitle>
+    <Dialog open={open} onClose={onClose} maxWidth={hasTableSelects ? "md" : "sm"} fullWidth>
       <form onSubmit={formik.handleSubmit}>
+        <DialogTitle>{title}</DialogTitle>
         <DialogContent>
-          {fields.map((field) => (
-            <div key={field.accessorKey} style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
-{field.type === "select" ? (
-  <TextField
-    margin="dense"
-    label={field.header}
-    name={field.accessorKey}
-    value={formik.values[field.accessorKey] || ""}
-    onChange={formik.handleChange}
-    onBlur={formik.handleBlur}
-    fullWidth
-    select
-    SelectProps={{
-      native: true,
-    }}
-    error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
-    helperText={
-      formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
-        ? formik.errors[field.accessorKey]
-        : ""
-    }
-  >
-    <option value=""></option>
-    {field.options.map((option) => (
-      <option key={option.value} value={option.value}>
-        {option.label}
-      </option>
-    ))}
-  </TextField>
-) : (
-  <TextField
-    margin="dense"
-    label={field.header}
-    name={field.accessorKey}
-    value={formik.values[field.accessorKey] || ""}
-    onChange={formik.handleChange}
-    onBlur={formik.handleBlur}
-    fullWidth
-    error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
-    helperText={
-      formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
-        ? formik.errors[field.accessorKey]
-        : ""
-    }
-  />
-)}
-              {field.example && (
-                <Tooltip title={`Παράδειγμα: ${field.example}`} placement="right">
-                  <span style={{ marginLeft: "8px", color: "#888", cursor: "default" }}>
-                    <HelpOutlineIcon fontSize="small" />
-                  </span>
-                </Tooltip>
-              )}
-            </div>
-          ))}
+          <Box sx={{ mt: 2 }}>
+            {fields.map((field, index) => (
+              <Box 
+                key={`field-container-${field.accessorKey}-${index}`}
+                sx={{
+                  mb: 3,
+                  ...(field.type === 'tableSelect' && { gridColumn: '1 / -1' })
+                }}
+              >
+                {renderField(field, index)}
+              </Box>
+            ))}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose} color="secondary">
@@ -108,7 +310,7 @@ const EditDialog = ({
           <Button 
             type="submit" 
             color="primary" 
-            disabled={Object.keys(formik.errors).length > 0 || !formik.dirty}
+            disabled={Object.keys(formik.errors).length > 0}
           >
             Αποθήκευση
           </Button>

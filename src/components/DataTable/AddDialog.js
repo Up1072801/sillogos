@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  TextField, FormControl, InputLabel, MenuItem, Select, FormHelperText
+  TextField, FormControl, InputLabel, MenuItem, Select, FormHelperText,
+  Table, TableHead, TableRow, TableCell, TableBody, Checkbox, TableContainer,
+  Paper, Typography, Box, InputAdornment, IconButton
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import { DatePicker } from '@mui/x-date-pickers';
 import { format, parseISO } from 'date-fns';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 
-const AddDialog = ({ open, onClose, fields = [], handleAddSave }) => {
+const AddDialog = ({ 
+  open, 
+  onClose, 
+  fields = [], 
+  handleAddSave,
+  title = "Προσθήκη Νέας Εγγραφής",
+  additionalInfo,
+  initialValues: externalInitialValues,
+  resourceData = {} // Added parameter for additional data needed by custom field types
+}) => {
+  const [searchTexts, setSearchTexts] = useState({});
+  
   // Μνημοποίηση (memoization) του validation schema για να μην ξαναδημιουργείται σε κάθε render
   const validationSchema = useMemo(() => {
     const schemaObject = {};
@@ -20,11 +34,15 @@ const AddDialog = ({ open, onClose, fields = [], handleAddSave }) => {
     return yup.object(schemaObject);
   }, [fields]);
 
-  // Μνημοποίηση των αρχικών τιμών για να μην ξαναδημιουργούνται σε κάθε render
+  // Χρησιμοποιήστε useMemo για τα initialValues και μετακινήστε το αρχικό αντικείμενο έξω από το render
   const initialValues = useMemo(() => {
     const values = {};
     fields.forEach(field => {
-      values[field.accessorKey] = field.defaultValue || '';
+      if (field.type === 'tableSelect' || field.type === 'multiSelect') {
+        values[field.accessorKey] = [];
+      } else {
+        values[field.accessorKey] = '';
+      }
     });
     return values;
   }, [fields]);
@@ -35,15 +53,26 @@ const AddDialog = ({ open, onClose, fields = [], handleAddSave }) => {
     onSubmit: (values) => {
       handleAddSave(values);
     },
-    enableReinitialize: true,
+    enableReinitialize: false, // Σημαντικό: Μην ενεργοποιήσετε αυτό!
   });
 
   // Επαναφορά της φόρμας όταν κλείνει το dialog
   useEffect(() => {
+    // Μόνο όταν ανοίγει το dialog και υπάρχουν externalInitialValues
+    if (open && externalInitialValues) {
+      // Αναφέρουμε συγκεκριμένα τα πεδία αντί να κάνουμε βρόχο για όλα
+      fields.forEach(field => {
+        if (externalInitialValues.hasOwnProperty(field.accessorKey)) {
+          formik.setFieldValue(field.accessorKey, externalInitialValues[field.accessorKey]);
+        }
+      });
+    }
+    
+    // Επαναφορά της φόρμας όταν κλείνει το dialog
     if (!open) {
       formik.resetForm();
     }
-  }, [open]);
+  }, [open]); // Μόνο το open ως εξάρτηση - Σημαντικό
 
   const handleClose = () => {
     formik.resetForm();
@@ -51,21 +80,17 @@ const AddDialog = ({ open, onClose, fields = [], handleAddSave }) => {
   };
 
   const renderField = (field, index) => {
-    if (!field) return null;
-    
-    const key = `field-${field.accessorKey}-${index}`;
-    
     switch (field.type) {
       case 'select':
         return (
           <FormControl 
             fullWidth 
-            key={key}
             error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
           >
             <InputLabel id={`${field.accessorKey}-label`}>{field.header}</InputLabel>
             <Select
               labelId={`${field.accessorKey}-label`}
+              id={field.accessorKey}
               name={field.accessorKey}
               value={formik.values[field.accessorKey] || ''}
               onChange={formik.handleChange}
@@ -73,44 +98,205 @@ const AddDialog = ({ open, onClose, fields = [], handleAddSave }) => {
               label={field.header}
               disabled={field.disabled}
             >
-              {field.options?.map((option, optIndex) => (
-                <MenuItem key={`${key}-option-${optIndex}`} value={option.value}>
+              {field.options?.map(option => (
+                <MenuItem key={option.value} value={option.value}>
                   {option.label}
                 </MenuItem>
               ))}
             </Select>
-            <FormHelperText>
-              {formik.touched[field.accessorKey] && formik.errors[field.accessorKey]}
-            </FormHelperText>
+            {formik.touched[field.accessorKey] && formik.errors[field.accessorKey] && (
+              <FormHelperText>{formik.errors[field.accessorKey]}</FormHelperText>
+            )}
           </FormControl>
         );
+        
+      case 'multiSelect':
+        return (
+          <FormControl 
+            fullWidth 
+            error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+          >
+            <InputLabel id={`${field.accessorKey}-label`}>{field.header}</InputLabel>
+            <Select
+              labelId={`${field.accessorKey}-label`}
+              id={field.accessorKey}
+              name={field.accessorKey}
+              multiple
+              value={formik.values[field.accessorKey] || []}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              label={field.header}
+              disabled={field.disabled}
+            >
+              {field.options?.map(option => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+            {formik.touched[field.accessorKey] && formik.errors[field.accessorKey] && (
+              <FormHelperText>{formik.errors[field.accessorKey]}</FormHelperText>
+            )}
+          </FormControl>
+        );
+        
       case 'date':
         return (
-          <DatePicker
-            key={key}
+          <TextField
+            id={field.accessorKey}
+            name={field.accessorKey}
             label={field.header}
-            value={formik.values[field.accessorKey] ? parseISO(formik.values[field.accessorKey]) : null}
-            onChange={(value) => {
-              formik.setFieldValue(
-                field.accessorKey, 
-                value ? format(value, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx") : null
-              );
-            }}
-            disabled={field.disabled}
-            slotProps={{
-              textField: {
-                fullWidth: true,
-                variant: 'outlined',
-                error: formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey]),
-                helperText: formik.touched[field.accessorKey] && formik.errors[field.accessorKey],
-              },
-            }}
+            type="date"
+            value={formik.values[field.accessorKey] || ''}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+            helperText={formik.touched[field.accessorKey] && formik.errors[field.accessorKey]}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
           />
         );
+        
+      case 'tableSelect': {
+        const items = resourceData[field.dataKey] || [];
+        const fieldSearchText = searchTexts[field.accessorKey] || '';
+        
+        const filteredItems = items.filter(item => 
+          Object.values(item).some(value => 
+            value && String(value).toLowerCase().includes(fieldSearchText.toLowerCase())
+          )
+        );
+
+        // Βεβαιωθείτε ότι η τιμή είναι πάντα ένας πίνακας
+        useEffect(() => {
+          if (open && field.type === 'tableSelect' && !Array.isArray(formik.values[field.accessorKey])) {
+            formik.setFieldValue(field.accessorKey, []);
+          }
+        }, [open, field.accessorKey]); // Σημαντική βελτίωση - ελάχιστες εξαρτήσεις
+        
+        const displayName = (item) => {
+          if (item.name) return item.name;
+          if (item.fullName) return item.fullName;
+          return `${item.firstName || ''} ${item.lastName || ''}`.trim();
+        };
+
+        return (
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="subtitle1" gutterBottom>
+              {field.header}
+            </Typography>
+            
+            <TextField
+              fullWidth
+              placeholder="Αναζήτηση..."
+              value={fieldSearchText}
+              onChange={(e) => setSearchTexts(prev => ({
+                ...prev,
+                [field.accessorKey]: e.target.value
+              }))}
+              sx={{ mb: 2 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            
+            <TableContainer component={Paper} sx={{ maxHeight: 300, overflow: 'auto' }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        indeterminate={
+                          formik.values[field.accessorKey].length > 0 && 
+                          formik.values[field.accessorKey].length < items.length
+                        }
+                        checked={
+                          items.length > 0 && 
+                          formik.values[field.accessorKey].length === items.length
+                        }
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            formik.setFieldValue(
+                              field.accessorKey, 
+                              items.map(item => item.id)
+                            );
+                          } else {
+                            formik.setFieldValue(field.accessorKey, []);
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    {field.columns.map((column) => (
+                      <TableCell key={column.field}>{column.header}</TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredItems.length > 0 ? (
+                    filteredItems.map((item) => {
+                      const isSelected = formik.values[field.accessorKey].includes(item.id);
+                      return (
+                        <TableRow
+                          hover
+                          onClick={() => {
+                            const selectedIds = [...formik.values[field.accessorKey]];
+                            const selectedIndex = selectedIds.indexOf(item.id);
+                            
+                            if (selectedIndex === -1) {
+                              selectedIds.push(item.id);
+                            } else {
+                              selectedIds.splice(selectedIndex, 1);
+                            }
+                            
+                            formik.setFieldValue(field.accessorKey, selectedIds);
+                          }}
+                          key={item.id}
+                          selected={isSelected}
+                        >
+                          <TableCell padding="checkbox">
+                            <Checkbox checked={isSelected} />
+                          </TableCell>
+                          {field.columns.map((column) => (
+                            <TableCell key={`${item.id}-${column.field}`}>
+                              {column.valueGetter ? column.valueGetter(item) : item[column.field]}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={field.columns.length + 1} align="center">
+                        Δεν βρέθηκαν αποτελέσματα
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            
+            {formik.touched[field.accessorKey] && formik.errors[field.accessorKey] && (
+              <FormHelperText error>{formik.errors[field.accessorKey]}</FormHelperText>
+            )}
+            
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Επιλεγμένοι: {formik.values[field.accessorKey].length}
+            </Typography>
+          </Box>
+        );
+      }
+        
+      case 'custom':
+        return field.render ? field.render(formik) : null;
+        
       default:
         return (
           <TextField
-            key={key}
+            id={field.accessorKey}
             name={field.accessorKey}
             label={field.header}
             value={formik.values[field.accessorKey] || ''}
@@ -133,18 +319,38 @@ const AddDialog = ({ open, onClose, fields = [], handleAddSave }) => {
     return null;
   }
 
+  // Determine if there are any tableSelect fields
+  const hasTableSelects = fields.some(field => field.type === 'tableSelect');
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={handleClose} 
+      maxWidth={hasTableSelects ? "md" : "sm"} 
+      fullWidth
+    >
       <form onSubmit={formik.handleSubmit}>
-        <DialogTitle>Προσθήκη Νέας Εγγραφής</DialogTitle>
+        <DialogTitle>{title}</DialogTitle>
         <DialogContent>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
+          {additionalInfo && (
+            <Typography variant="subtitle2" sx={{ mb: 2, fontStyle: 'italic' }}>
+              {additionalInfo}
+            </Typography>
+          )}
+          
+          <Box sx={{ mt: 2 }}>
             {fields.map((field, index) => (
-              <div key={`field-container-${field.accessorKey}-${index}`}>
+              <Box 
+                key={`field-container-${field.accessorKey}-${index}`}
+                sx={{
+                  mb: 3,
+                  ...(field.type === 'tableSelect' && { gridColumn: '1 / -1' })
+                }}
+              >
                 {renderField(field, index)}
-              </div>
+              </Box>
             ))}
-          </div>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Άκυρο</Button>
@@ -154,7 +360,7 @@ const AddDialog = ({ open, onClose, fields = [], handleAddSave }) => {
             variant="contained"
             disabled={!formik.isValid || formik.isSubmitting}
           >
-            Προσθήκη
+            {externalInitialValues ? 'Αποθήκευση' : 'Προσθήκη'}
           </Button>
         </DialogActions>
       </form>

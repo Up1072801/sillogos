@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Box, Toolbar, Breadcrumbs, Link, Typography } from "@mui/material";
 import { useLocation, Link as RouterLink } from "react-router-dom";
 import Navbar from "./navbar";
@@ -7,6 +7,17 @@ import "../pages/App.css";
 const Layout = ({ children, user, onLogout }) => {
   const location = useLocation();
   const pathnames = location.pathname.split("/").filter((x) => x);
+
+  // Εκκαθάριση τυχόν προβληματικών effects κατά την αλλαγή σελίδας
+  useEffect(() => {
+    return () => {
+      // Force cleanup of any pending state updates
+      let id = window.setTimeout(() => {}, 0);  // Αλλαγή από const σε let
+      while (id--) {
+        window.clearTimeout(id);
+      }
+    };
+  }, [location.pathname]);
 
   return (
     <Box sx={{ display: "flex" }} role="main">

@@ -135,11 +135,13 @@ router.get("/sports", async (_req, res) => {
       
       return {
         id: sport.id_athlimatos,
+        id_athlimatos: sport.id_athlimatos, // Προσθήκη για συνέπεια
         athlima: sport.onoma || "",
         participants: uniqueAthletes.size,
         totalCompetitions: totalAthleteParticipations,
         agones: sport.agones.map((agonas) => ({
           id: agonas.id_agona,
+          id_agona: agonas.id_agona, // Προσθήκη για συνέπεια
           id_athlimatos: agonas.id_athlimatos,
           onoma: agonas.onoma,
           perigrafi: agonas.perigrafi,
@@ -147,6 +149,7 @@ router.get("/sports", async (_req, res) => {
           summetexontesCount: agonas.agonizetai.length,
           summetexontes: agonas.agonizetai.map((agonizetai) => ({
             id: agonizetai.athlitis.id_athliti,
+            id_athliti: agonizetai.athlitis.id_athliti, // Προσθήκη για συνέπεια
             firstName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
             lastName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
             arithmosdeltiou: agonizetai.athlitis.arithmos_deltiou || "",
@@ -277,13 +280,19 @@ router.post("/athlete", async (req, res) => {
 // POST: Προσθήκη νέου αγώνα
 router.post("/agona", async (req, res) => {
   try {
-    const { id_athlimatos, onoma, perigrafi, hmerominia, agonizetai } = req.body;
+    const { id_athlimatos, onoma, perigrafi, hmerominia, athleteIds } = req.body;
+    
+    // Έλεγχος εγκυρότητας id_athlimatos
+    const sportId = parseInt(id_athlimatos);
+    if (isNaN(sportId)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID αθλήματος" });
+    }
 
     const result = await prisma.$transaction(async (prismaTransaction) => {
       // 1. Δημιουργία αγώνα
       const newAgona = await prismaTransaction.agones.create({
         data: {
-          id_athlimatos: parseInt(id_athlimatos),
+          id_athlimatos: sportId,
           onoma,
           perigrafi,
           hmerominia: hmerominia ? new Date(hmerominia) : null
@@ -291,18 +300,24 @@ router.post("/agona", async (req, res) => {
       });
 
       // 2. Συσχέτιση με αθλητές
-      if (agonizetai && agonizetai.length > 0) {
-        for (const athleteId of agonizetai) {
+      if (Array.isArray(athleteIds) && athleteIds.length > 0) {
+        for (const athleteId of athleteIds) {
+          const parsedAthleteId = parseInt(athleteId);
+          if (isNaN(parsedAthleteId)) {
+            console.warn(`Αγνοήθηκε μη έγκυρο ID αθλητή: ${athleteId}`);
+            continue;
+          }
+          
           await prismaTransaction.agonizetai.create({
             data: {
               id_agona: newAgona.id_agona,
-              id_athliti: parseInt(athleteId)
+              id_athliti: parsedAthleteId
             }
           });
         }
       }
 
-      // 3. Ανάκτηση του πλήρους νέου αγώνα
+      // Επιστροφή του πλήρους αγώνα με συμμετέχοντες
       const completeAgona = await prismaTransaction.agones.findUnique({
         where: { id_agona: newAgona.id_agona },
         include: {
@@ -327,7 +342,23 @@ router.post("/agona", async (req, res) => {
         }
       });
 
-      return completeAgona;
+      return {
+        id: completeAgona.id_agona,
+        id_agona: completeAgona.id_agona,
+        id_athlimatos: completeAgona.id_athlimatos,
+        onoma: completeAgona.onoma,
+        perigrafi: completeAgona.perigrafi,
+        hmerominia: completeAgona.hmerominia ? new Date(completeAgona.hmerominia).toISOString().split('T')[0] : null,
+        athlima: completeAgona.athlima.onoma,
+        summetexontes: completeAgona.agonizetai.map(agonizetai => ({
+          id: agonizetai.athlitis.id_athliti,
+          id_athliti: agonizetai.athlitis.id_athliti,
+          firstName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
+          lastName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
+          arithmosdeltiou: agonizetai.athlitis.arithmos_deltiou || "",
+        })),
+        summetexontesCount: completeAgona.agonizetai.length
+      };
     });
 
     res.status(201).json(result);
@@ -401,6 +432,58 @@ router.get("/sports-list", async (_req, res) => {
       error: "Σφάλμα κατά την ανάκτηση της λίστας αθλημάτων", 
       details: error.message 
     });
+  }
+});
+
+// Προσθέστε ή τροποποιήστε το endpoint για αθλητές ανά άθλημα
+
+router.get("/by-sport/:sportId", async (req, res) => {
+  try {
+    const sportId = parseInt(req.params.sportId);
+    
+    if (isNaN(sportId)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID αθλήματος" });
+    }
+    
+    // Βρίσκουμε όλους τους αθλητές που ασχολούνται με το συγκεκριμένο άθλημα
+    const athletes = await prisma.asxoleitai.findMany({
+      where: {
+        id_athlimatos: sportId
+      },
+      include: {
+        athlitis: {
+          include: {
+            esoteriko_melos: {
+              include: {
+                melos: {
+                  include: {
+                    epafes: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        athlima: true
+      }
+    });
+    
+    // Διαμορφώνουμε τα δεδομένα για το frontend με συνεπή IDs
+    const formattedAthletes = athletes.map(asxoleitai => ({
+      id: asxoleitai.athlitis.id_athliti,
+      id_athliti: asxoleitai.athlitis.id_athliti, // Προσθήκη για συνέπεια
+      firstName: asxoleitai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
+      lastName: asxoleitai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
+      arithmosdeltiou: asxoleitai.athlitis.arithmos_deltiou || "",
+      fullName: `${asxoleitai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || ""} ${asxoleitai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || ""}`.trim(),
+      name: `${asxoleitai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || ""} ${asxoleitai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || ""}`.trim(),
+      athleteNumber: asxoleitai.athlitis.arithmos_deltiou || ""
+    }));
+    
+    res.json(formattedAthletes);
+  } catch (error) {
+    console.error("Σφάλμα κατά την ανάκτηση αθλητών ανά άθλημα:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση αθλητών" });
   }
 });
 
@@ -598,6 +681,175 @@ router.delete("/agona/:id_agona", async (req, res) => {
       error: "Σφάλμα κατά τη διαγραφή του αγώνα", 
       details: error.message 
     });
+  }
+});
+
+// PUT: Ενημέρωση αγώνα
+router.put("/agona/:id_agona", async (req, res) => {
+  try {
+    const id_agona = parseInt(req.params.id_agona);
+    const { id_athlimatos, onoma, perigrafi, hmerominia } = req.body;
+    
+    if (isNaN(id_agona)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID αγώνα" });
+    }
+    
+    // Ενημέρωση του αγώνα
+    const updatedAgona = await prisma.agones.update({
+      where: { id_agona },
+      data: {
+        id_athlimatos: id_athlimatos ? parseInt(id_athlimatos) : undefined,
+        onoma: onoma || undefined,
+        perigrafi: perigrafi || undefined,
+        hmerominia: hmerominia ? new Date(hmerominia) : undefined
+      },
+      include: {
+        athlima: true,
+        agonizetai: {
+          include: {
+            athlitis: {
+              include: {
+                esoteriko_melos: {
+                  include: {
+                    melos: {
+                      include: {
+                        epafes: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    res.json(updatedAgona);
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση του αγώνα:", error);
+    res.status(500).json({ 
+      error: "Σφάλμα κατά την ενημέρωση του αγώνα", 
+      details: error.message 
+    });
+  }
+});
+
+// DELETE: Διαγραφή όλων των αθλητών από έναν αγώνα
+router.delete("/agona/:id_agona/athletes", async (req, res) => {
+  try {
+    const id_agona = parseInt(req.params.id_agona);
+    
+    if (isNaN(id_agona)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID αγώνα" });
+    }
+    
+    await prisma.agonizetai.deleteMany({
+      where: { id_agona }
+    });
+    
+    res.status(200).json({ message: "Όλοι οι αθλητές αφαιρέθηκαν επιτυχώς από τον αγώνα" });
+  } catch (error) {
+    console.error("Σφάλμα κατά την αφαίρεση των αθλητών από τον αγώνα:", error);
+    res.status(500).json({ 
+      error: "Σφάλμα κατά την αφαίρεση των αθλητών από τον αγώνα", 
+      details: error.message 
+    });
+  }
+});
+
+// Προσθέστε στο Rathlites.js για διαχείριση αθλητών ανά αγώνα
+router.post("/agona/:id/athletes", async (req, res) => {
+  try {
+    const agonaId = parseInt(req.params.id);
+    const { athleteIds } = req.body;
+    
+    if (isNaN(agonaId)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID αγώνα" });
+    }
+    
+    // Έλεγχος ύπαρξης του αγώνα
+    const agonasExists = await prisma.agones.findUnique({
+      where: { id_agona: agonaId }
+    });
+    
+    if (!agonasExists) {
+      return res.status(404).json({ error: "Δεν βρέθηκε ο αγώνας" });
+    }
+
+    // Διαγραφή υπαρχόντων συσχετίσεων
+    await prisma.agonizetai.deleteMany({
+      where: { id_agona: agonaId }
+    });
+    
+    // Δημιουργία νέων συσχετίσεων
+    if (Array.isArray(athleteIds) && athleteIds.length > 0) {
+      // Φιλτράρισμα μόνο έγκυρων IDs αθλητών
+      const validIds = athleteIds
+        .map(id => typeof id === 'number' ? id : parseInt(id))
+        .filter(id => !isNaN(id));
+        
+      const createPromises = validIds.map(athleteId => 
+        prisma.agonizetai.create({
+          data: {
+            id_agona: agonaId,
+            id_athliti: athleteId
+          }
+        })
+      );
+      
+      await Promise.all(createPromises);
+    }
+    
+    // Ανάκτηση του ενημερωμένου αγώνα
+    const updatedCompetition = await prisma.agones.findUnique({
+      where: { id_agona: agonaId },
+      include: {
+        athlima: true,
+        agonizetai: {
+          include: {
+            athlitis: {
+              include: {
+                esoteriko_melos: {
+                  include: {
+                    melos: {
+                      include: {
+                        epafes: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    // Επιστροφή διαμορφωμένης απάντησης
+    const formattedResponse = {
+      id: updatedCompetition.id_agona,
+      id_agona: updatedCompetition.id_agona,
+      id_athlimatos: updatedCompetition.id_athlimatos,
+      onoma: updatedCompetition.onoma,
+      perigrafi: updatedCompetition.perigrafi,
+      hmerominia: updatedCompetition.hmerominia ? new Date(updatedCompetition.hmerominia).toISOString().split('T')[0] : null,
+      summetexontes: updatedCompetition.agonizetai.map(a => ({
+        id: a.athlitis.id_athliti,
+        id_athliti: a.athlitis.id_athliti,
+        firstName: a.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
+        lastName: a.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
+        arithmosdeltiou: a.athlitis.arithmos_deltiou || ""
+      })),
+      summetexontesCount: updatedCompetition.agonizetai.length,
+      success: true,
+      message: "Οι αθλητές ενημερώθηκαν επιτυχώς"
+    };
+    
+    res.json(formattedResponse);
+  } catch (error) {
+    console.error("Σφάλμα ενημέρωσης αθλητών αγώνα:", error);
+    res.status(500).json({ error: "Σφάλμα ενημέρωσης αθλητών αγώνα", details: error.message });
   }
 });
 

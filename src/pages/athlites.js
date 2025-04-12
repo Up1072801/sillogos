@@ -44,7 +44,7 @@ const athleteColumns = [
     enableHiding: true,
     Cell: ({ cell }) => cell.getValue() ? new Date(cell.getValue()).toLocaleDateString("el-GR") : "-" 
   },
-  { accessorKey: "athlima", header: "Άθλημα(τα)" },
+  { accessorKey: "athlima", header: "Άθλημα" }, // Διορθώθηκε από "Άθλημα(τα)" σε "Άθλημα"
   { accessorKey: "totalParticipation", header: "Συμμετοχές σε Αγώνες" },
 ];
 
@@ -93,7 +93,6 @@ export default function Athlites() {
   const [loading, setLoading] = useState(true);
   const [openAddAthleteDialog, setOpenAddAthleteDialog] = useState(false);
   const [openAddCompetitionDialog, setOpenAddCompetitionDialog] = useState(false);
-  const [openAddSportCompetitionDialog, setOpenAddSportCompetitionDialog] = useState(false); // New dialog for adding competition from sports section
   const [openEditAthleteDialog, setOpenEditAthleteDialog] = useState(false);
   const [editAthleteValues, setEditAthleteValues] = useState({});
   const [currentSportId, setCurrentSportId] = useState(null);
@@ -162,26 +161,82 @@ export default function Athlites() {
     fetchData();
   }, []);
 
-  // Φόρτωση αθλητών για συγκεκριμένο άθλημα
-  const fetchAthletesBySport = async (sportId) => {
-    if (!sportId) return;
-    
-    try {
-      setCurrentSportId(sportId);
-      const sport = sportsData.find(sport => sport.id === sportId) || 
-                  sportsListData.find(sport => sport.id_athlimatos === sportId);
-      
-      if (sport) {
-        setCurrentSportName(sport.athlima || sport.onoma || "");
-      }
-      
-      const response = await axios.get(`http://localhost:5000/api/athlites/athletes-by-sport/${sportId}`);
-      setAthletesBySport(response.data);
-    } catch (error) {
-      console.error("Σφάλμα φόρτωσης αθλητών ανά άθλημα:", error);
+  // Ενημερώστε αυτή τη συνάρτηση
+const fetchAthletesBySport = async (sportId) => {
+  try {
+    if (!sportId) {
       setAthletesBySport([]);
+      return [];
     }
-  };
+    
+    const response = await axios.get(`http://localhost:5000/api/athlites/by-sport/${sportId}`);
+    const athletesData = response.data;
+    
+    setAthletesBySport(athletesData);
+    return athletesData;
+  } catch (error) {
+    console.error("Σφάλμα φόρτωσης αθλητών:", error);
+    setAthletesBySport([]);
+    return [];
+  }
+};
+
+// Χειρισμός επεξεργασίας αγώνα
+const handleEditCompetition = (competition) => {
+  console.log('Editing competition:', competition); // Για debugging
+  
+  // Βρίσκουμε το σωστό ID
+  const competitionId = competition.id_agona || competition.id;
+  
+  // Πρέπει να βεβαιωθούμε ότι έχουμε σωστά IDs αθλητών
+  const athleteIds = competition.summetexontes?.map(athlete => 
+    typeof athlete.id === 'number' ? athlete.id : parseInt(athlete.id)
+  ) || [];
+  
+  console.log('Athlete IDs:', athleteIds); // Για debugging
+  
+  setEditCompetitionData({
+    id: competitionId,
+    id_agona: competitionId, // Προσθέτουμε και τα δύο για σιγουριά
+    onoma: competition.onoma,
+    perigrafi: competition.perigrafi,
+    hmerominia: competition.hmerominia ? new Date(competition.hmerominia).toISOString().split('T')[0] : "",
+    id_athlimatos: competition.id_athlimatos
+  });
+  
+  setCurrentSportId(competition.id_athlimatos);
+  
+  const sport = sportsData.find(s => s.id === competition.id_athlimatos);
+  if (sport) {
+    setCurrentSportName(sport.athlima);
+  }
+  
+  // Φόρτωση αθλητών για αυτό το άθλημα και άνοιγμα του dialog
+  fetchAthletesBySport(competition.id_athlimatos).then(() => {
+    // Καθορισμός των επιλεγμένων αθλητών
+    setSelectedAthletes(athleteIds);
+    // Άνοιγμα του dialog
+    setOpenAddCompetitionDialog(true);
+  });
+};
+
+// Χειρισμός προσθήκης αγώνα σε άθλημα
+const handleAddCompetitionClick = (sportId, sportName) => {
+  // Αν δίνεται sportId, προεπιλέγουμε το άθλημα
+  if (sportId) {
+    setCurrentSportId(sportId);
+    setCurrentSportName(sportName);
+    fetchAthletesBySport(sportId);
+  } else {
+    setCurrentSportId(null);
+    setCurrentSportName("");
+  }
+  
+  // Καθαρισμός δεδομένων επεξεργασίας
+  setEditCompetitionData(null);
+  setSelectedAthletes([]);
+  setOpenAddCompetitionDialog(true);
+};
 
   // Χειρισμός προσθήκης αθλητή
   const handleAddAthlete = async (newAthlete) => {
@@ -270,25 +325,35 @@ export default function Athlites() {
       {
         title: "Αγώνες",
         accessor: "agones",
-        onAddNew: (sportId) => handleAddCompetitionClick(sportId, sportId ? 
-          sportsData.find(s => s.id === sportId)?.athlima : ""),
+        onAddNew: (sportId) => handleAddCompetitionClick(sportId, 
+          sportsData.find(s => s.id === sportId)?.athlima || ""),
+        onEdit: handleEditCompetition,
+        onDelete: (competition) => {
+          console.log("Competition to delete:", competition); // Για debugging
+          // Χρησιμοποιούμε το σωστό ID αγώνα
+          const competitionId = competition.id_agona || competition.id;
+          if (!competitionId) {
+            console.error("No valid ID found for competition:", competition);
+            return;
+          }
+          handleConfirmDelete(competitionId, null, 'competition');
+        },
         columns: [
           { accessor: "onoma", header: "Όνομα Αγώνα" },
           { accessor: "perigrafi", header: "Περιγραφή" },
           { accessor: "hmerominia", header: "Ημερομηνία", format: (value) => (value ? new Date(value).toLocaleDateString("el-GR") : "-") },
           { accessor: "summetexontesCount", header: "Συμμετέχοντες" }
         ],
-        onEdit: (competition) => handleEditCompetition(competition),
-        onDelete: (competition) => handleConfirmDelete(competition.id, null, 'competition'),
+        // Προσθέτουμε την εμφάνιση των συμμετεχόντων στο expand
         renderExpandedRow: (row) => (
-          <Box sx={{ p: 2, backgroundColor: "#f5f5f5", borderRadius: 1 }}>
+          <Box>
             <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: "bold" }}>
               Συμμετέχοντες Αθλητές
             </Typography>
             {row.summetexontes && row.summetexontes.length > 0 ? (
-              <Box sx={{ maxHeight: '300px', overflow: 'auto' }}>
+              <TableContainer component={Paper} sx={{ maxHeight: 200, overflow: 'auto' }}>
                 <Table size="small">
-                  <TableHead sx={{ bgcolor: 'white' }}>
+                  <TableHead>
                     <TableRow>
                       <TableCell>Ονοματεπώνυμο</TableCell>
                       <TableCell>Αρ. Δελτίου</TableCell>
@@ -306,7 +371,16 @@ export default function Athlites() {
                             variant="outlined" 
                             color="error"
                             startIcon={<Delete fontSize="small" />}
-                            onClick={() => handleConfirmDelete(row.id, athlete.id, 'athlete-from-competition')}
+                            onClick={() => {
+                              // Διασφαλίζουμε ότι έχουμε το σωστό ID αγώνα (είτε id είτε id_agona)
+                              const competitionId = row.id_agona || row.id;
+                              console.log("Deleting athlete from competition:", competitionId, athlete.id);
+                              if (!competitionId || !athlete.id) {
+                                alert("Δεν ήταν δυνατή η εύρεση των απαραίτητων IDs για την αφαίρεση του αθλητή");
+                                return;
+                              }
+                              handleConfirmDelete(competitionId, athlete.id, 'athlete-from-competition');
+                            }}
                           >
                             Αφαίρεση
                           </Button>
@@ -315,175 +389,228 @@ export default function Athlites() {
                     ))}
                   </TableBody>
                 </Table>
-              </Box>
+              </TableContainer>
             ) : (
               <Typography>Δεν υπάρχουν συμμετέχοντες αθλητές</Typography>
             )}
+            <Box sx={{ mt: 2 }}>
+              <Button 
+                variant="contained" 
+                size="small" 
+                startIcon={<Add />} 
+                onClick={() => handleAddAthleteToCompetition(row.id)}
+              >
+                Προσθήκη Αθλητών
+              </Button>
+            </Box>
           </Box>
         )
       }
-    ]
+    ],
+    // Προσθέτουμε την παράμετρο για να απενεργοποιήσουμε το κουμπί επεξεργασίας στοιχείων
+    showEditButton: false
   }), [sportsData]);
 
-  // Χειρισμός προσθήκης αγώνα σε άθλημα
-  const handleAddCompetitionClick = (sportId, sportName) => {
-    setCurrentSportId(sportId);
-    setCurrentSportName(sportName);
-    setEditCompetitionData(null); // Καθάρισμα δεδομένων επεξεργασίας
-    fetchAthletesBySport(sportId);
-    setSelectedAthletes([]); // Καθάρισμα επιλεγμένων αθλητών
-    setOpenAddCompetitionDialog(true);
-  };
-  
-  // Χειρισμός επεξεργασίας αγώνα
-  const handleEditCompetition = (competition) => {
-    setEditCompetitionData({
-      id: competition.id,
-      onoma: competition.onoma,
-      perigrafi: competition.perigrafi,
-      hmerominia: competition.hmerominia ? new Date(competition.hmerominia).toISOString().split('T')[0] : ""
-    });
-    setCurrentSportId(competition.id_athlimatos);
-    const sport = sportsData.find(s => s.id === competition.id_athlimatos);
-    if (sport) {
-      setCurrentSportName(sport.athlima);
+  // Χειρισμός προσθήκης αγώνα - Διορθωμένη έκδοση
+const handleAddCompetition = async (newCompetition) => {
+  try {
+    console.log("Submit competition data:", newCompetition);
+    
+    // Έλεγχος ότι όλα τα απαραίτητα πεδία υπάρχουν
+    if (!newCompetition.sportId) {
+      throw new Error("Δεν έχει επιλεγεί άθλημα");
     }
-    fetchAthletesBySport(competition.id_athlimatos);
-    setSelectedAthletes(competition.summetexontes?.map(athlete => athlete.id) || []);
-    setOpenAddCompetitionDialog(true);
-  };
-  
-  // Χειρισμός προσθήκης αγώνα
-  const handleAddCompetition = async (newCompetition) => {
-    try {
-      // Αν έχουμε editCompetitionData, κάνουμε επεξεργασία αντί για προσθήκη
-      if (editCompetitionData) {
-        // Διαμόρφωση δεδομένων για ενημέρωση
-        const updatedCompetition = {
-          id_agona: editCompetitionData.id,
-          id_athlimatos: parseInt(currentSportId),
-          onoma: newCompetition.onoma,
-          perigrafi: newCompetition.perigrafi,
-          hmerominia: newCompetition.hmerominia ? new Date(newCompetition.hmerominia).toISOString() : null
-        };
-  
-        // Ενημέρωση των αθλητών που συμμετέχουν
-        await axios.post(`http://localhost:5000/api/athlites/agona/${editCompetitionData.id}/athletes`, {
-          athleteIds: selectedAthletes
-        });
-  
-        // Ανανέωση του UI
-        const response = await axios.get("http://localhost:5000/api/athlites/sports");
-        setSportsData(response.data.map(sport => ({
-          ...sport,
-          totalCompetitions: sport.agones.reduce((total, agonas) => total + (agonas.agonizetai?.length || 0), 0),
-          agones: sport.agones.map(agonas => ({
-            ...agonas,
-            summetexontesCount: agonas.agonizetai?.length || 0,
-            summetexontes: agonas.agonizetai?.map(agonizetai => ({
-              id: agonizetai.athlitis.id_athliti,
-              firstName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
-              lastName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
-              arithmosdeltiou: agonizetai.athlitis.arithmos_deltiou || ""
-            })) || []
-          }))
-        })));
-      } else {
-        // Προσθήκη νέου αγώνα
-        const requestData = {
-          id_athlimatos: parseInt(currentSportId),
-          onoma: newCompetition.onoma,
-          perigrafi: newCompetition.perigrafi || "",
-          hmerominia: newCompetition.hmerominia ? new Date(newCompetition.hmerominia).toISOString() : null,
-          agonizetai: selectedAthletes
-        };
-  
-        const response = await axios.post("http://localhost:5000/api/athlites/agona", requestData);
-        
-        // Ενημέρωση του UI με τον νέο αγώνα
-        setSportsData(prevData => 
-          prevData.map(sport => {
-            if (sport.id === currentSportId) {
-              // Δημιουργία του νέου αγώνα για το UI
-              const newAgona = {
-                id: response.data.id_agona,
-                onoma: response.data.onoma,
-                perigrafi: response.data.perigrafi,
-                hmerominia: response.data.hmerominia,
-                id_athlimatos: sport.id,
-                summetexontesCount: response.data.agonizetai?.length || 0,
-                summetexontes: response.data.agonizetai?.map(agonizetai => ({
-                  id: agonizetai.athlitis.id_athliti,
-                  firstName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
-                  lastName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
-                  arithmosdeltiou: agonizetai.athlitis.arithmos_deltiou || ""
-                })) || []
-              };
-              
-              return {
-                ...sport,
-                agones: [...sport.agones, newAgona],
-                totalCompetitions: sport.totalCompetitions + (response.data.agonizetai?.length || 0)
-              };
-            }
-            return sport;
-          })
-        );
+
+    if (!newCompetition.onoma) {
+      throw new Error("Το όνομα αγώνα είναι υποχρεωτικό");
+    }
+    
+    const sportId = parseInt(newCompetition.sportId);
+    
+    // Διασφαλίζουμε ότι έχουμε πραγματικό array με IDs αθλητών
+    const athleteIds = Array.isArray(newCompetition.athleteIds) ? 
+      newCompetition.athleteIds.map(id => typeof id === 'number' ? id : parseInt(id)).filter(id => !isNaN(id)) : 
+      [];
+    
+    console.log("Actual athlete IDs to send:", athleteIds);
+    console.log("Edit competition data:", editCompetitionData);
+    
+    // Αν έχουμε editCompetitionData, κάνουμε επεξεργασία αντί για προσθήκη
+    if (editCompetitionData) {
+      // Βρίσκουμε το σωστό ID (μπορεί να είναι είτε id είτε id_agona)
+      const competitionId = editCompetitionData.id_agona || editCompetitionData.id;
+      
+      if (!competitionId) {
+        throw new Error("Δεν βρέθηκε έγκυρο ID αγώνα για επεξεργασία");
       }
       
-      setOpenAddCompetitionDialog(false);
-      setSelectedAthletes([]);
-      setEditCompetitionData(null);
-    } catch (error) {
-      console.error("Σφάλμα προσθήκης/επεξεργασίας αγώνα:", error);
-      alert("Σφάλμα κατά την προσθήκη/επεξεργασία του αγώνα. Παρακαλώ δοκιμάστε ξανά.");
+      console.log("Using competition ID for update:", competitionId);
+      
+      // Διαμόρφωση δεδομένων για ενημέρωση
+      const updatedCompetition = {
+        id_athlimatos: sportId,
+        onoma: newCompetition.onoma,
+        perigrafi: newCompetition.perigrafi || "",
+        hmerominia: newCompetition.hmerominia ? new Date(newCompetition.hmerominia).toISOString() : null
+      };
+      
+      console.log("Updating competition with:", updatedCompetition);
+      
+      // Ενημέρωση στοιχείων αγώνα
+      await axios.put(`http://localhost:5000/api/athlites/agona/${competitionId}`, updatedCompetition);
+      
+      // Ενημέρωση αθλητών για τον αγώνα μόνο αν έχουμε έγκυρα IDs
+      if (athleteIds.length > 0) {
+        await axios.post(`http://localhost:5000/api/athlites/agona/${competitionId}/athletes`, {
+          athleteIds: athleteIds
+        });
+      }
+      
+    } else {
+      // Προσθήκη νέου αγώνα
+      console.log("Creating competition with athletes:", athleteIds);
+      
+      const requestData = {
+        id_athlimatos: sportId,
+        onoma: newCompetition.onoma,
+        perigrafi: newCompetition.perigrafi || "",
+        hmerominia: newCompetition.hmerominia ? new Date(newCompetition.hmerominia).toISOString() : null
+      };
+      
+      // Προσθέτουμε athleteIds μόνο αν έχουμε διαθέσιμους αθλητές και είναι πίνακας
+      if (Array.isArray(athleteIds) && athleteIds.length > 0) {
+        requestData.athleteIds = athleteIds;
+      }
+      
+      console.log("Sending request data:", requestData);
+      
+      try {
+        // Δημιουργία νέου αγώνα
+        const response = await axios.post("http://localhost:5000/api/athlites/agona", requestData);
+        console.log("Success response:", response.data);
+      } catch (apiError) {
+        console.error("API Error:", apiError.response?.data || apiError.message);
+        throw apiError;
+      }
     }
-  };
+    
+    // ΚΡΙΣΙΜΟ: Πάντα ανανεώνουμε τα δεδομένα μετά από οποιαδήποτε αλλαγή
+    await refreshData();
+    
+    setOpenAddCompetitionDialog(false);
+    setSelectedAthletes([]);
+    setEditCompetitionData(null);
+  } catch (error) {
+    // Βελτιωμένο μήνυμα λάθους με περισσότερες πληροφορίες
+    console.error("Σφάλμα προσθήκης/επεξεργασίας αγώνα:", error);
+    alert(`Σφάλμα κατά την προσθήκη/επεξεργασία του αγώνα: ${error.response?.data?.error || error.message}`);
+  }
+};
+
+// Νέα συνάρτηση ανανέωσης δεδομένων - προσθέστε την στο component
+const refreshData = async () => {
+  try {
+    console.log("Refreshing data...");
+    
+    // Ανανέωση δεδομένων από το API
+    const [athletesRes, sportsRes] = await Promise.all([
+      axios.get("http://localhost:5000/api/athlites/athletes"),
+      axios.get("http://localhost:5000/api/athlites/sports"),
+    ]);
+
+    // Διαμόρφωση αθλητών
+    const formattedAthletes = athletesRes.data.map(athlete => ({
+      ...athlete,
+      fullName: `${athlete.firstName || ""} ${athlete.lastName || ""}`.trim(),
+    }));
+
+    // Διαμόρφωση αθλημάτων
+    const formattedSports = sportsRes.data.map(sport => {
+      // Υπολογισμός συνολικών συμμετοχών αθλητών στο άθλημα
+      let totalCompetitions = 0;
+      sport.agones.forEach(agonas => {
+        totalCompetitions += agonas.summetexontes?.length || 0;
+      });
+      
+      return {
+        ...sport,
+        totalCompetitions,
+        // Προσθήκη μετρητή συμμετεχόντων σε κάθε αγώνα
+        agones: sport.agones.map(agonas => ({
+          ...agonas,
+          id: agonas.id_agona, // Διασφάλιση σωστού ID
+          summetexontesCount: agonas.summetexontes?.length || 0,
+          summetexontes: agonas.summetexontes?.map(athlete => ({
+            ...athlete,
+            id: athlete.id, // Διασφάλιση σωστού ID
+            fullName: `${athlete.firstName || ""} ${athlete.lastName || ""}`.trim(),
+            arithmosdeltiou: athlete.arithmosdeltiou || "-"
+          })) || []
+        }))
+      };
+    });
+
+    // Ενημέρωση του state με τα νέα δεδομένα
+    setAthletesData(formattedAthletes);
+    setSportsData(formattedSports);
+    
+    console.log("Data refresh complete");
+  } catch (error) {
+    console.error("Error refreshing data:", error);
+  }
+};
 
   // Χειρισμός προσθήκης αθλητή σε αγώνα
   const handleAddAthleteToCompetition = (competitionId) => {
     const competition = sportsData.flatMap(s => s.agones).find(a => a.id === competitionId);
     if (competition) {
       setSelectedCompetitionId(competitionId);
-      fetchAthletesBySport(competition.id_athlimatos);
-      setOpenAthleteSelectionDialog(true);
+      
+      // Get the IDs of already selected athletes in this competition
+      const existingAthleteIds = competition.summetexontes?.map(athlete => athlete.id) || [];
+      
+      // Fetch athletes for this sport and then open the dialog
+      fetchAthletesBySport(competition.id_athlimatos).then(() => {
+        // Pass the existing athlete IDs to be pre-selected
+        setSelectedAthletes(existingAthleteIds);
+        setOpenAthleteSelectionDialog(true);
+      });
     }
   };
   
-  // Χειρισμός επιλογής αθλητών για αγώνα
-  const handleCompetitionAthleteSelection = async (selectedIds) => {
-    try {
-      if (!selectedCompetitionId) return;
-      
-      await axios.post(`http://localhost:5000/api/athlites/agona/${selectedCompetitionId}/athletes`, {
-        athleteIds: selectedIds
-      });
-      
-      // Επαναφόρτωση των δεδομένων
-      const response = await axios.get("http://localhost:5000/api/athlites/sports");
-      const formattedSports = response.data.map(sport => ({
-        ...sport,
-        totalCompetitions: sport.agones.reduce((total, agonas) => total + (agonas.agonizetai?.length || 0), 0),
-        agones: sport.agones.map(agonas => ({
-          ...agonas,
-          summetexontesCount: agonas.agonizetai?.length || 0,
-          summetexontes: agonas.agonizetai?.map(agonizetai => ({
-            id: agonizetai.athlitis.id_athliti,
-            firstName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
-            lastName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
-            arithmosdeltiou: agonizetai.athlitis.arithmos_deltiou || ""
-          }))
-        }))
-      }));
-      
-      setSportsData(formattedSports);
-      setOpenAthleteSelectionDialog(false);
-      setSelectedCompetitionId(null);
-    } catch (error) {
-      console.error("Σφάλμα κατά την προσθήκη αθλητών στον αγώνα:", error);
-      alert("Σφάλμα κατά την προσθήκη αθλητών στον αγώνα. Παρακαλώ δοκιμάστε ξανά.");
-    }
-  };
+// Χειρισμός επιλογής αθλητών για αγώνα
+const handleCompetitionAthleteSelection = async (selectedIds) => {
+  try {
+    if (!selectedCompetitionId) return;
+    
+    // Εκτύπωση των επιλεγμένων IDs για debugging
+    console.log("Selected athlete IDs:", selectedIds);
+    
+    // Βεβαιωθείτε ότι στέλνονται τα σωστά IDs
+    const validIds = selectedIds.map(id => 
+      typeof id === 'number' ? id : parseInt(id)
+    ).filter(id => !isNaN(id));
+    
+    console.log("Valid athlete IDs to send:", validIds);
+    
+    // Στείλτε μόνο έγκυρα IDs στο API
+    await axios.post(`http://localhost:5000/api/athlites/agona/${selectedCompetitionId}/athletes`, {
+      athleteIds: validIds
+    });
+    
+    // Χρησιμοποιούμε την refreshData για να ανανεώσουμε όλα τα δεδομένα
+    await refreshData();
+    
+    // Κλείσιμο του dialog και επαναφορά της κατάστασης
+    setOpenAthleteSelectionDialog(false);
+    setSelectedCompetitionId(null);
+    setSelectedAthletes([]);
+    
+  } catch (error) {
+    console.error("Σφάλμα κατά την προσθήκη αθλητών στον αγώνα:", error);
+    alert("Σφάλμα κατά την προσθήκη αθλητών στον αγώνα. Παρακαλώ δοκιμάστε ξανά.");
+  }
+};
 
   // Διαχείριση διαγραφών με επιβεβαίωση
   const handleConfirmDelete = (id, secondaryId = null, type = '') => {
@@ -493,62 +620,73 @@ export default function Athlites() {
   };
   
   // Εκτέλεση διαγραφής μετά την επιβεβαίωση
-  const executeDelete = async () => {
-    try {
-      if (!itemToDelete) return;
-      
-      switch(deleteType) {
-        case 'athlete':
-          await axios.delete(`http://localhost:5000/api/athlites/athlete/${itemToDelete.id}`);
-          setAthletesData(athletesData.filter(athlete => athlete.id !== itemToDelete.id));
-          break;
+const executeDelete = async () => {
+  try {
+    if (!itemToDelete) return;
+    
+    console.log("Executing delete for:", deleteType, itemToDelete);
+    
+    switch(deleteType) {
+      case 'athlete':
+        if (!itemToDelete.id) {
+          throw new Error("Δεν καθορίστηκε ID αθλητή για διαγραφή");
+        }
+        const athleteId = parseInt(itemToDelete.id);
+        if (isNaN(athleteId)) {
+          throw new Error(`Μη έγκυρο ID αθλητή: ${itemToDelete.id}`);
+        }
+        await axios.delete(`http://localhost:5000/api/athlites/athlete/${athleteId}`);
+        break;
+        
+      case 'competition':
+        if (!itemToDelete.id) {
+          throw new Error("Δεν καθορίστηκε ID αγώνα για διαγραφή");
+        }
+        const competitionId = parseInt(itemToDelete.id);
+        if (isNaN(competitionId)) {
+          throw new Error(`Μη έγκυρο ID αγώνα: ${itemToDelete.id}`);
+        }
+        await axios.delete(`http://localhost:5000/api/athlites/agona/${competitionId}`);
+        break;
+        
+      case 'athlete-from-competition':
+        if (!itemToDelete.id || !itemToDelete.secondaryId) {
+          console.error("Λείπει το ID αγώνα ή αθλητή", itemToDelete);
+          throw new Error(`Λείπουν απαραίτητα IDs: αγώνας=${itemToDelete.id}, αθλητής=${itemToDelete.secondaryId}`);
+        }
+        
+        try {
+          // Ελέγχουμε αν τα IDs είναι αριθμητικά 
+          const compId = parseInt(itemToDelete.id);
+          const athId = parseInt(itemToDelete.secondaryId);
           
-        case 'competition':
-          await axios.delete(`http://localhost:5000/api/athlites/agona/${itemToDelete.id}`);
-          setSportsData(prevData => {
-            return prevData.map(sport => ({
-              ...sport,
-              agones: sport.agones.filter(agonas => agonas.id !== itemToDelete.id),
-              totalCompetitions: sport.agones
-                .filter(agonas => agonas.id !== itemToDelete.id)
-                .reduce((total, agonas) => total + (agonas.summetexontesCount || 0), 0)
-            }));
-          });
-          break;
-          
-        case 'athlete-from-competition':
-          if (itemToDelete.secondaryId) {
-            await axios.delete(`http://localhost:5000/api/athlites/agona/${itemToDelete.id}/athlete/${itemToDelete.secondaryId}`);
-            setSportsData(prevData => {
-              return prevData.map(sport => ({
-                ...sport,
-                agones: sport.agones.map(agonas => {
-                  if (agonas.id === itemToDelete.id) {
-                    const updatedSummetexontes = agonas.summetexontes.filter(
-                      athlete => athlete.id !== itemToDelete.secondaryId
-                    );
-                    return {
-                      ...agonas,
-                      summetexontes: updatedSummetexontes,
-                      summetexontesCount: updatedSummetexontes.length
-                    };
-                  }
-                  return agonas;
-                }),
-                totalCompetitions: sport.totalCompetitions - 1
-              }));
-            });
+          if (isNaN(compId) || isNaN(athId)) {
+            throw new Error(`Μη έγκυρα IDs: αγώνας=${itemToDelete.id}, αθλητής=${itemToDelete.secondaryId}`);
           }
-          break;
-      }
-    } catch (error) {
-      console.error("Σφάλμα κατά τη διαγραφή:", error);
-      alert("Σφάλμα κατά τη διαγραφή. Παρακαλώ δοκιμάστε ξανά.");
-    } finally {
-      setConfirmDeleteOpen(false);
-      setItemToDelete(null);
+          
+          console.log(`Διαγραφή αθλητή ${athId} από αγώνα ${compId}`);
+          await axios.delete(`http://localhost:5000/api/athlites/agona/${compId}/athlete/${athId}`);
+        } catch (deleteError) {
+          console.error("Σφάλμα κατά την αφαίρεση αθλητή:", deleteError);
+          throw deleteError;
+        }
+        break;
+        
+      default:
+        throw new Error(`Άγνωστος τύπος διαγραφής: ${deleteType}`);
     }
-  };
+    
+    // Ανανέωση όλων των δεδομένων μετά από οποιαδήποτε διαγραφή
+    await refreshData();
+    
+  } catch (error) {
+    console.error("Σφάλμα κατά τη διαγραφή:", error);
+    alert(`Σφάλμα κατά τη διαγραφή: ${error.message}`);
+  } finally {
+    setConfirmDeleteOpen(false);
+    setItemToDelete(null);
+  }
+};
 
   // Χειρισμός διαγραφής αθλητή
   const handleDeleteAthlete = (id) => {
@@ -561,40 +699,7 @@ export default function Athlites() {
     setCurrentSportName("");
     setSelectedAthletes([]);
     setEditCompetitionData(null);
-    setOpenAddSportCompetitionDialog(true);
-  };
-
-  // Χειρισμός προσθήκης αγώνα από το dialog επιλογής αθλήματος
-  const handleAddSportCompetition = async (newCompetition) => {
-    try {
-      // Βρίσκουμε το ID του αθλήματος από το όνομα
-      const sportId = parseInt(newCompetition.sportId);
-      
-      if (!sportId) {
-        alert("Παρακαλώ επιλέξτε άθλημα");
-        return;
-      }
-      
-      // Φόρτωση αθλητών για το επιλεγμένο άθλημα και προετοιμασία για το dialog προσθήκης αγώνα
-      setCurrentSportId(sportId);
-      const sport = sportsListData.find(s => s.id_athlimatos === sportId);
-      if (sport) {
-        setCurrentSportName(sport.onoma || "");
-      }
-      
-      // Κλείσιμο του dialog επιλογής αθλήματος και άνοιγμα του dialog προσθήκης αγώνα
-      setOpenAddSportCompetitionDialog(false);
-      
-      // Φόρτωση αθλητών για το επιλεγμένο άθλημα
-      await fetchAthletesBySport(sportId);
-      
-      // Άνοιγμα του dialog προσθήκης αγώνα
-      setOpenAddCompetitionDialog(true);
-      
-    } catch (error) {
-      console.error("Σφάλμα προσθήκης αγώνα:", error);
-      alert("Σφάλμα κατά την προσθήκη του αγώνα. Παρακαλώ δοκιμάστε ξανά.");
-    }
+    setOpenAddCompetitionDialog(true); // Άνοιγμα απευθείας του κύριου διαλόγου
   };
 
   // Πεδία φόρμας για επιλογή αθλήματος
@@ -685,6 +790,18 @@ export default function Athlites() {
   // Πεδία φόρμας για προσθήκη/επεξεργασία αγώνα
   const competitionFormFields = useMemo(() => [
     { 
+      // Πρώτα το άθλημα
+      accessorKey: "sportId", 
+      header: "Άθλημα", 
+      type: "select",
+      options: sportsListData.map(sport => ({ 
+        value: sport.id_athlimatos, 
+        label: sport.onoma 
+      })),
+      validation: yup.string().required("Παρακαλώ επιλέξτε άθλημα"),
+      disabled: editCompetitionData !== null, // Disable when editing
+    },
+    { 
       accessorKey: "onoma", 
       header: "Όνομα Αγώνα", 
       validation: yup.string().required("Υποχρεωτικό πεδίο")
@@ -700,33 +817,24 @@ export default function Athlites() {
       validation: yup.date().required("Υποχρεωτικό πεδίο")
     },
     {
-      accessorKey: "athletes",
+      accessorKey: "athleteIds",
       header: "Συμμετέχοντες Αθλητές",
-      type: "custom",
-      render: () => (
-        <Box sx={{ mt: 2 }}>
-          <Button 
-            variant="outlined" 
-            onClick={() => {
-              if (!openAthleteSelectionDialog) {
-                setOpenAthleteSelectionDialog(true);
-              }
-            }}
-            fullWidth
-            sx={{ mb: 1 }}
-            startIcon={<Add />}
-          >
-            Επιλογή Αθλητών
-          </Button>
-          {selectedAthletes.length > 0 && (
-            <Typography variant="body2" sx={{ color: 'success.main' }}>
-              <strong>{selectedAthletes.length}</strong> αθλητές επιλεγμένοι
-            </Typography>
-          )}
-        </Box>
-      )
+      type: "tableSelect",
+      dataKey: "athletesBySport",
+      validation: yup.array(), // Αφαιρέστε το .min(1, "...")
+      columns: [
+        {
+          field: "fullName",
+          header: "Ονοματεπώνυμο",
+          valueGetter: (item) => `${item.firstName || ''} ${item.lastName || ''}`.trim()
+        },
+        {
+          field: "arithmosdeltiou",
+          header: "Αρ. Δελτίου"
+        }
+      ]
     }
-  ], [openAthleteSelectionDialog, selectedAthletes.length]);
+  ], [sportsListData, editCompetitionData]);
 
   // Στήλες για το dialog επιλογής αθλητών
   const athleteSelectionColumns = [
@@ -741,6 +849,53 @@ export default function Athlites() {
       width: "30%"
     }
   ];
+
+  // Βεβαιωθείτε ότι δεν αλλάζουν τα resourceData σε κάθε render
+
+// Define formatAthletesForSelection first
+const formatAthletesForSelection = useMemo(() => {
+  return athletesBySport.map(athlete => {
+    // Διασφάλιση συνεπούς μορφής δεδομένων για όλα τα πεδία
+    const formattedAthlete = {
+      ...athlete,
+      id: athlete.id,
+      name: athlete.name || `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim(),
+      athleteNumber: athlete.athleteNumber || athlete.arithmosdeltiou || "-",
+      firstName: athlete.firstName || athlete.name?.split(' ')[0] || "",
+      lastName: athlete.lastName || athlete.name?.split(' ').slice(1).join(' ') || ""
+    };
+    
+    // Προσθήκη πεδίου fullName για καλύτερη εμφάνιση
+    formattedAthlete.fullName = formattedAthlete.name || 
+      `${formattedAthlete.firstName} ${formattedAthlete.lastName}`.trim();
+    
+    return formattedAthlete;
+  });
+}, [athletesBySport]);
+
+// Then use it in competitionResourceData
+const competitionResourceData = useMemo(() => ({
+  athletesBySport: formatAthletesForSelection
+}), [formatAthletesForSelection]);
+
+// Βεβαιωθείτε ότι τα initialValues και resourceData δεν αλλάζουν σε κάθε render
+
+// Βελτίωση του κώδικα που περνάει initialValues
+const memoizedInitialValues = useMemo(() => {
+  if (editCompetitionData) {
+    return {
+      sportId: editCompetitionData.id_athlimatos.toString(),
+      onoma: editCompetitionData.onoma,
+      perigrafi: editCompetitionData.perigrafi,
+      hmerominia: editCompetitionData.hmerominia ? new Date(editCompetitionData.hmerominia).toISOString().split('T')[0] : "",
+      athleteIds: selectedAthletes || []
+    };
+  }
+  return {
+    sportId: currentSportId ? currentSportId.toString() : "",
+    athleteIds: []
+  };
+}, [editCompetitionData, selectedAthletes, currentSportId]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
@@ -759,6 +914,10 @@ export default function Athlites() {
                 id: false,
                 odos: false,
                 tk: false,
+                arithmosdeltiou: false,   // Πρόσθεσα κρυφή κατάσταση για τον αριθμό δελτίου
+                hmerominiaenarksis: false, // Πρόσθεσα κρυφή κατάσταση για την ημερομηνία έναρξης
+                athlima: false,            // Πρόσθεσα κρυφή κατάσταση για το άθλημα
+                totalParticipation: false  // Πρόσθεσα κρυφή κατάσταση για τις συμμετοχές
               },
               columnOrder: [
                 "fullName",
@@ -795,6 +954,7 @@ export default function Athlites() {
             enableExpand={true}
             enableRowActions={false}
             enableAddNew={true}
+            enableTopAddButton={false} // Κρύβουμε το κουμπί προσθήκης στην κορυφή
             onAddNew={handleAddSportCompetitionClick}
             handleEditClick={() => {}}
             handleDelete={() => {}}
@@ -820,8 +980,8 @@ export default function Athlites() {
           handleAddSave={handleAddCompetition}
           fields={competitionFormFields}
           title={editCompetitionData ? "Επεξεργασία Αγώνα" : "Προσθήκη Νέου Αγώνα"}
-          initialValues={editCompetitionData}
-          additionalInfo={currentSportName ? `Άθλημα: ${currentSportName}` : ""}
+          initialValues={memoizedInitialValues}
+          resourceData={competitionResourceData}
         />
 
         <SelectionDialog
@@ -831,8 +991,8 @@ export default function Athlites() {
             if (selectedCompetitionId) setSelectedCompetitionId(null);
           }}
           data={athletesBySport}
-          selectedIds={selectedCompetitionId ? [] : selectedAthletes}
-          onChange={selectedCompetitionId ? null : setSelectedAthletes}
+          selectedIds={selectedAthletes} // Fix: Always pass selectedAthletes, not empty array
+          onChange={(ids) => setSelectedAthletes(ids)} // Fix: Always update selectedAthletes
           onConfirm={selectedCompetitionId ? handleCompetitionAthleteSelection : ids => {
             setSelectedAthletes(ids);
             setOpenAthleteSelectionDialog(false);
@@ -867,16 +1027,6 @@ export default function Athlites() {
             </Button>
           </DialogActions>
         </Dialog>
-        
-        {/* Dialog επιλογής αθλήματος για προσθήκη νέου αγώνα */}
-        <AddDialog
-          open={openAddSportCompetitionDialog}
-          onClose={() => setOpenAddSportCompetitionDialog(false)}
-          handleAddSave={handleAddSportCompetition}
-          fields={sportSelectionFormFields}
-          title="Επιλογή Αθλήματος"
-          additionalInfo="Επιλέξτε άθλημα για τον νέο αγώνα"
-        />
       </Box>
     </LocalizationProvider>
   );

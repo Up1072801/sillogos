@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  TextField, InputAdornment, Typography, Box, Checkbox, FormControlLabel,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper
+  Table, TableHead, TableBody, TableRow, TableCell, Checkbox,
+  Paper, TableContainer, TextField, InputAdornment, Box, Typography
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
+import { Search } from '@mui/icons-material';
 
+/**
+ * Selection Dialog component that allows users to select items from a list
+ */
 const SelectionDialog = ({
   open,
   onClose,
@@ -19,80 +22,76 @@ const SelectionDialog = ({
   searchFields = [],
   noDataMessage = "Δεν υπάρχουν διαθέσιμα δεδομένα"
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectAll, setSelectAll] = useState(false);
-  const [localSelectedIds, setLocalSelectedIds] = useState(selectedIds);
+  const [searchText, setSearchText] = useState('');
+  const [selected, setSelected] = useState([]);
+  const [filteredData, setFilteredData] = useState(data);
 
-  // Φιλτράρισμα δεδομένων με βάση την αναζήτηση
-  const filteredData = data.filter(item => {
-    if (!searchTerm) return true;
-    
-    const searchTermLower = searchTerm.toLowerCase();
-    return searchFields.some(field => {
-      const fieldValue = field.includes('.') 
-        ? field.split('.').reduce((obj, key) => obj?.[key], item) 
-        : item[field];
-      return String(fieldValue || '').toLowerCase().includes(searchTermLower);
-    });
-  });
-
-  // Ενημέρωση του selectAll όταν αλλάζουν τα επιλεγμένα ids
+  // Initialize selected items when dialog opens or data changes
   useEffect(() => {
-    if (filteredData.length > 0) {
-      const allSelected = filteredData.every(item => 
-        localSelectedIds.includes(item[idField])
-      );
-      setSelectAll(allSelected);
-    } else {
-      setSelectAll(false);
-    }
-  }, [localSelectedIds, filteredData, idField]);
-
-  // Αρχικοποίηση των τοπικών επιλεγμένων ids όταν ανοίγει το dialog
-  useEffect(() => {
-    setLocalSelectedIds(selectedIds);
+    setSelected(selectedIds || []);
   }, [selectedIds, open]);
 
-  // Χειρισμός επιλογής/αποεπιλογής όλων
-  const handleSelectAll = () => {
-    if (selectAll) {
-      // Αποεπιλογή όλων των φιλτραρισμένων αντικειμένων
-      const filteredIds = filteredData.map(item => item[idField]);
-      const newSelected = localSelectedIds.filter(id => !filteredIds.includes(id));
-      setLocalSelectedIds(newSelected);
-      onChange && onChange(newSelected);
-    } else {
-      // Επιλογή όλων των φιλτραρισμένων αντικειμένων
-      const filteredIds = filteredData.map(item => item[idField]);
-      const newSelected = [...new Set([...localSelectedIds, ...filteredIds])];
-      setLocalSelectedIds(newSelected);
-      onChange && onChange(newSelected);
+  // Filter data based on search text
+  useEffect(() => {
+    if (!searchText.trim()) {
+      setFilteredData(data);
+      return;
     }
+
+    const lowerCaseSearchText = searchText.toLowerCase();
+    
+    const filtered = data.filter(item => {
+      // Search through all specified search fields
+      return searchFields.some(field => {
+        const fieldValue = field.split('.').reduce((obj, key) => obj?.[key], item);
+        return fieldValue && String(fieldValue).toLowerCase().includes(lowerCaseSearchText);
+      });
+    });
+    
+    setFilteredData(filtered);
+  }, [searchText, data, searchFields]);
+
+  const handleToggle = (id) => {
+    const selectedIndex = selected.indexOf(id);
+    let newSelected = [];
+
+    if (selectedIndex === -1) {
+      newSelected = [...selected, id];
+    } else {
+      newSelected = selected.filter(item => item !== id);
+    }
+
+    setSelected(newSelected);
+    if (onChange) onChange(newSelected);
   };
 
-  // Χειρισμός επιλογής/αποεπιλογής μεμονωμένου στοιχείου
-  const handleToggleItem = (id) => {
-    let newSelected;
-    if (localSelectedIds.includes(id)) {
-      newSelected = localSelectedIds.filter(itemId => itemId !== id);
-    } else {
-      newSelected = [...localSelectedIds, id];
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      const newSelectedIds = filteredData.map(item => item[idField]);
+      setSelected(newSelectedIds);
+      if (onChange) onChange(newSelectedIds);
+      return;
     }
-    setLocalSelectedIds(newSelected);
-    onChange && onChange(newSelected);
+    
+    setSelected([]);
+    if (onChange) onChange([]);
   };
+
+  const handleConfirm = () => {
+    if (onConfirm) onConfirm(selected);
+    onClose();
+  };
+
+  const isSelected = (id) => selected.indexOf(id) !== -1;
+  const numSelected = selected.length;
+  const rowCount = filteredData.length;
 
   return (
-    <Dialog
-      open={open}
+    <Dialog 
+      open={open} 
       onClose={onClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: {
-          maxHeight: '80vh',
-        }
-      }}
     >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
@@ -100,110 +99,85 @@ const SelectionDialog = ({
           <TextField
             fullWidth
             placeholder="Αναζήτηση..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            variant="outlined"
+            size="small"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon />
+                  <Search />
                 </InputAdornment>
               ),
             }}
           />
         </Box>
-        
-        {filteredData.length > 0 ? (
-          <Box>
-            {/* Επιλογή όλων */}
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectAll}
-                  onChange={handleSelectAll}
-                  indeterminate={
-                    localSelectedIds.some(id => 
-                      filteredData.some(item => item[idField] === id)
-                    ) && 
-                    !filteredData.every(item => 
-                      localSelectedIds.includes(item[idField])
-                    )
-                  }
-                />
-              }
-              label={<Typography sx={{ fontWeight: 'bold' }}>Επιλογή όλων</Typography>}
-            />
-            
-            {/* Πίνακας δεδομένων */}
-            <TableContainer 
-              component={Paper} 
-              sx={{ mt: 1, maxHeight: 350, overflow: 'auto' }}
-            >
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell padding="checkbox" style={{ width: '48px' }}></TableCell>
-                    {columns.map((column, index) => (
-                      <TableCell 
-                        key={index}
-                        style={column.width ? { width: column.width } : {}}
-                      >
-                        {column.header}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredData.map((item) => {
-                    const isSelected = localSelectedIds.includes(item[idField]);
-                    
-                    return (
-                      <TableRow 
-                        key={item[idField]}
-                        hover
-                        selected={isSelected}
-                        onClick={() => handleToggleItem(item[idField])}
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        <TableCell padding="checkbox">
-                          <Checkbox
-                            checked={isSelected}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={() => handleToggleItem(item[idField])}
-                          />
-                        </TableCell>
-                        {columns.map((column, index) => (
-                          <TableCell key={index}>
-                            {column.render 
-                              ? column.render(item) 
-                              : column.field.includes('.')
-                                ? column.field.split('.').reduce((obj, key) => obj?.[key], item)
-                                : item[column.field] || '-'}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            
-            {/* Μετρητής επιλεγμένων */}
-            <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
-              Επιλεγμένα: {localSelectedIds.length} από {data.length}
-            </Typography>
-          </Box>
+
+        {data.length === 0 ? (
+          <Typography align="center" sx={{ py: 3 }}>{noDataMessage}</Typography>
+        ) : filteredData.length === 0 ? (
+          <Typography align="center" sx={{ py: 3 }}>Δεν βρέθηκαν αποτελέσματα</Typography>
         ) : (
-          <Typography align="center" sx={{ py: 4 }}>{noDataMessage}</Typography>
+          <TableContainer component={Paper} sx={{ maxHeight: 400, overflow: 'auto' }}>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      indeterminate={numSelected > 0 && numSelected < rowCount}
+                      checked={rowCount > 0 && numSelected === rowCount}
+                      onChange={handleSelectAll}
+                    />
+                  </TableCell>
+                  {columns.map((column, index) => (
+                    <TableCell 
+                      key={index}
+                      style={{ width: column.width }}
+                    >
+                      {column.header}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredData.map((item) => {
+                  const isItemSelected = isSelected(item[idField]);
+                  return (
+                    <TableRow 
+                      hover
+                      onClick={() => handleToggle(item[idField])}
+                      role="checkbox"
+                      aria-checked={isItemSelected}
+                      tabIndex={-1}
+                      key={item[idField]}
+                      selected={isItemSelected}
+                      sx={{ cursor: 'pointer' }}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox checked={isItemSelected} />
+                      </TableCell>
+                      {columns.map((column, index) => (
+                        <TableCell key={index}>
+                          {item[column.field]}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
+        <Box sx={{ mt: 2, textAlign: 'right' }}>
+          <Typography variant="body2">
+            {numSelected} από {rowCount} επιλεγμένα
+          </Typography>
+        </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Ακύρωση</Button>
-        <Button 
-          variant="contained" 
-          onClick={() => onConfirm && onConfirm(localSelectedIds)}
-          disabled={localSelectedIds.length === 0}
-        >
-          Επιλογή
+        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={handleConfirm} variant="contained" color="primary">
+          Επιβεβαίωση
         </Button>
       </DialogActions>
     </Dialog>
