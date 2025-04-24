@@ -10,6 +10,7 @@ import { DatePicker } from '@mui/x-date-pickers';
 import { format, parseISO } from 'date-fns';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
+import LocationEditor from "../LocationEditor";
 
 const AddDialog = ({ 
   open, 
@@ -38,8 +39,12 @@ const AddDialog = ({
   const initialValues = useMemo(() => {
     const values = {};
     fields.forEach(field => {
-      if (field.type === 'tableSelect' || field.type === 'multiSelect') {
+      if (field.type === 'tableSelect') {
+        values[field.accessorKey] = []; // Πάντα αρχικοποίηση ως πίνακας
+      } else if (field.type === 'multiSelect') {
         values[field.accessorKey] = [];
+      } else if (field.defaultValue !== undefined) {
+        values[field.accessorKey] = field.defaultValue;
       } else {
         values[field.accessorKey] = '';
       }
@@ -90,7 +95,23 @@ const AddDialog = ({
     onClose();
   };
 
+  // Αντικείμενο που αντιστοιχεί τύπους πεδίων με components
+  const CUSTOM_COMPONENTS = {
+    locationEditor: (field, formik) => (
+      <LocationEditor
+        value={formik.values[field.accessorKey] || []}
+        onChange={(newValue) => formik.setFieldValue(field.accessorKey, newValue)}
+      />
+    )
+  };
+
   const renderField = (field, index) => {
+    // Πρώτα, έλεγχος αν υπάρχει custom component για αυτόν τον τύπο
+    if (CUSTOM_COMPONENTS[field.type]) {
+      return CUSTOM_COMPONENTS[field.type](field, formik);
+    }
+    
+    // Αν δεν υπάρχει, συνεχίστε με το υπάρχον switch
     switch (field.type) {
       case 'select':
         return (
@@ -191,6 +212,28 @@ const AddDialog = ({
           return `${item.firstName || ''} ${item.lastName || ''}`.trim();
         };
 
+        // Προσθήκη ελέγχου για singleSelect
+        const handleItemSelection = (itemId) => {
+          if (field.singleSelect) {
+            // Για μονή επιλογή αποθηκεύουμε μόνο το ID (όχι σε πίνακα)
+            formik.setFieldValue(field.accessorKey, itemId);
+          } else {
+            // Για πολλαπλή επιλογή διατηρούμε πίνακα
+            const currentValues = Array.isArray(formik.values[field.accessorKey]) 
+              ? formik.values[field.accessorKey] 
+              : [];
+            
+            const index = currentValues.indexOf(itemId);
+            
+            if (index === -1) {
+              formik.setFieldValue(field.accessorKey, [...currentValues, itemId]);
+            } else {
+              currentValues.splice(index, 1);
+              formik.setFieldValue(field.accessorKey, currentValues);
+            }
+          }
+        };
+
         return (
           <Box sx={{ width: '100%' }}>
             <Typography variant="subtitle1" gutterBottom>
@@ -253,18 +296,7 @@ const AddDialog = ({
                       return (
                         <TableRow
                           hover
-                          onClick={() => {
-                            const selectedIds = [...formik.values[field.accessorKey]];
-                            const selectedIndex = selectedIds.indexOf(item.id);
-                            
-                            if (selectedIndex === -1) {
-                              selectedIds.push(item.id);
-                            } else {
-                              selectedIds.splice(selectedIndex, 1);
-                            }
-                            
-                            formik.setFieldValue(field.accessorKey, selectedIds);
-                          }}
+                          onClick={() => handleItemSelection(item.id)}
                           key={item.id}
                           selected={isSelected}
                         >

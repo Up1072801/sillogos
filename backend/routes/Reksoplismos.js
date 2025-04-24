@@ -60,39 +60,27 @@ router.get("/daneismoi", async (_req, res) => {
   try {
     const daneismoi = await prisma.daneizetai.findMany({
       include: {
-        epafes: true,
-        eksoplismos: true
+        epafes: true,         // Προσθήκη συσχέτισης με επαφές
+        eksoplismos: true     // Προσθήκη συσχέτισης με εξοπλισμό
       }
     });
 
-    console.log("Δανεισμοί από τη βάση:", daneismoi.length);
-    
-    // Βελτιωμένη μορφοποίηση δεδομένων για την απάντηση
-    const formattedDaneismoi = daneismoi.map(daneismos => {
-      // Εξασφάλιση ότι όλα τα απαραίτητα πεδία είναι παρόντα
-      const borrowerName = daneismos.epafes ? 
-        `${daneismos.epafes.onoma || ""} ${daneismos.epafes.epitheto || ""}`.trim() 
-        : "Άγνωστο";
-      
-      return {
-        id: daneismos.id,
-        id_epafis: daneismos.id_epafis,
-        id_eksoplismou: daneismos.id_eksoplismou,
-        hmerominia_daneismou: daneismos.hmerominia_daneismou,
-        hmerominia_epistrofis: daneismos.hmerominia_epistrofis,
-        borrowerName: borrowerName,
-        equipmentName: daneismos.eksoplismos?.onoma || "Άγνωστο",
-        epafes: daneismos.epafes,
-        eksoplismos: daneismos.eksoplismos
-      };
-    });
-    
-    console.log("Δείγμα δανεισμού:", formattedDaneismoi[0] ? JSON.stringify({
-      id: formattedDaneismoi[0].id,
-      id_eksoplismou: formattedDaneismoi[0].id_eksoplismou,
-      equipmentName: formattedDaneismoi[0].equipmentName
-    }, null, 2) : "Κανένας δανεισμός");
-    
+    // Διαμόρφωση απάντησης με πλήρη δεδομένα
+    const formattedDaneismoi = daneismoi.map(daneismos => ({
+      id: daneismos.id,
+      id_epafis: daneismos.id_epafis,
+      id_eksoplismou: daneismos.id_eksoplismou,
+      hmerominia_daneismou: daneismos.hmerominia_daneismou,
+      hmerominia_epistrofis: daneismos.hmerominia_epistrofis,
+      // Πρόσθεση πλήρων στοιχείων επαφής και εξοπλισμού
+      borrowerName: daneismos.epafes ? 
+        `${daneismos.epafes.onoma || ''} ${daneismos.epafes.epitheto || ''}`.trim() : 
+        "Άγνωστο",
+      equipmentName: daneismos.eksoplismos?.onoma || "Άγνωστο",
+      epafes: daneismos.epafes,
+      eksoplismos: daneismos.eksoplismos
+    }));
+
     res.json(formattedDaneismoi);
   } catch (error) {
     console.error("Σφάλμα κατά την ανάκτηση των δανεισμών:", error);

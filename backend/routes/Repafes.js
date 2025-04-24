@@ -103,16 +103,29 @@ router.get("/", async (_req, res) => {
   }
 });
 
-// POST: Δημιουργία νέας επαφής
+// Ενημερωμένο τμήμα του router.post για τη δημιουργία επαφής με εκπαιδευτή
+
 router.post("/", async (req, res) => {
   try {
+    const { onoma, epitheto, email, tilefono, idiotita, ekpaideutis } = req.body;
+    
     // Μετατροπή τηλεφώνου σε BigInt αν υπάρχει
     const data = {
-      ...req.body,
-      tilefono: req.body.tilefono ? BigInt(req.body.tilefono) : null,
+      onoma,
+      epitheto,
+      email,
+      tilefono: tilefono ? BigInt(tilefono) : null,
+      idiotita
     };
 
-    // Δημιουργία επαφής
+    // Αν έχουμε στοιχεία εκπαιδευτή, χρησιμοποιούμε το create
+    if (ekpaideutis && ekpaideutis.create) {
+      data.ekpaideutis = {
+        create: ekpaideutis.create
+      };
+    }
+
+    // Δημιουργία επαφής με τον εκπαιδευτή
     const newEpafi = await prisma.epafes.create({ data });
 
     // Υπολογισμός idiotita αν είναι null
@@ -129,6 +142,7 @@ router.post("/", async (req, res) => {
       ...newEpafi,
       tilefono: newEpafi.tilefono ? newEpafi.tilefono.toString() : null,
     };
+    
     res.status(201).json(serializedEpafi);
   } catch (error) {
     console.error("Σφάλμα κατά τη δημιουργία της επαφής:", error);
@@ -298,6 +312,54 @@ router.delete("/:id", async (req, res) => {
       error: "Σφάλμα κατά τη διαγραφή της επαφής",
       details: error.message,
     });
+  }
+});
+
+// Νέο endpoint: GET ekpaideutes-me-sxoles - Εκπαιδευτές με τις σχολές τους
+router.get("/ekpaideutes-me-sxoles", async (req, res) => {
+  try {
+    const ekpaideutes = await prisma.epafes.findMany({
+      where: {
+        ekpaideutis: {
+          isNot: null
+        }
+      },
+      include: {
+        ekpaideutis: {
+          include: {
+            ekpaideuei: {
+              include: {
+                sxoli: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const formattedData = ekpaideutes.map(epafi => ({
+      id_epafis: epafi.id_epafis,
+      id_ekpaideuti: epafi.ekpaideutis?.id_ekpaideuti,
+      onoma: epafi.onoma || "",
+      epitheto: epafi.epitheto || "",
+      email: epafi.email || "",
+      tilefono: epafi.tilefono ? epafi.tilefono.toString() : "",
+      epipedo: epafi.ekpaideutis?.epipedo || "",
+      klados: epafi.ekpaideutis?.klados || "",
+      fullName: `${epafi.onoma || ""} ${epafi.epitheto || ""}`.trim(),
+      sxoles: epafi.ekpaideutis?.ekpaideuei.map(relation => ({
+        id_sxolis: relation.sxoli.id_sxolis,
+        klados: relation.sxoli.klados || "",
+        epipedo: relation.sxoli.epipedo || "",
+        etos: relation.sxoli.etos || "",
+        onoma: `${relation.sxoli.klados || ""} ${relation.sxoli.epipedo || ""} ${relation.sxoli.etos || ""}`.trim()
+      })) || []
+    }));
+
+    res.json(formattedData);
+  } catch (error) {
+    console.error("Σφάλμα στην ανάκτηση εκπαιδευτών με σχολές:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση δεδομένων" });
   }
 });
 

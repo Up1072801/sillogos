@@ -9,6 +9,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { useFormik } from "formik";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import * as yup from "yup";
+import LocationEditor from "../../components/LocationEditor"; // Προσαρμόστε το path ανάλογα
 
 const EditDialog = ({ 
   open, 
@@ -32,12 +33,30 @@ const EditDialog = ({
 
   const formik = useFormik({
     initialValues: {
+      // Χρήση ασφαλούς πρόσβασης με fallback σε κενό αντικείμενο
       ...fields.reduce((values, field) => {
-        values[field.accessorKey] = editValues[field.accessorKey] !== undefined ? 
-          editValues[field.accessorKey] : "";
+        // Διασφαλίζουμε ότι το editValues δεν είναι null/undefined
+        const safeEditValues = editValues || {};
+        
+        if (field.accessorKey.includes('.')) {
+          // Χειρισμός εμφωλευμένων πεδίων
+          const accessorParts = field.accessorKey.split('.');
+          let value = safeEditValues;
+          
+          for (const part of accessorParts) {
+            value = value && typeof value === 'object' ? value[part] : undefined;
+          }
+          
+          values[field.accessorKey] = value !== undefined ? value : "";
+        } else {
+          // Χειρισμός απλών πεδίων
+          values[field.accessorKey] = safeEditValues[field.accessorKey] !== undefined ? 
+            safeEditValues[field.accessorKey] : "";
+        }
+        
         return values;
       }, {}),
-      id: editValues.id || ""  // Προσθήκη του id στα initialValues
+      id: editValues?.id || editValues?.id_sxolis || editValues?.id_epafis || editValues?.id_ekpaideuti || ""
     },
     validationSchema: validationSchema,
     onSubmit: (values) => {
@@ -46,40 +65,48 @@ const EditDialog = ({
   });
 
   useEffect(() => {
-    // Διασφαλίζουμε ότι τα editValues υπάρχουν και ενημερώνουμε το formik
     if (editValues && Object.keys(editValues).length > 0) {
-      console.log("EditDialog received values:", editValues);
+      const updatedValues = {};
       
-      const preparedValues = {};
-      
-      // Επεξεργάζεστε τα πεδία για να βρείτε τιμές ακόμα και σε εμφωλευμένα αντικείμενα
       fields.forEach(field => {
-        const accessorParts = field.accessorKey.split('.');
-        
-        if (accessorParts.length === 1) {
-          // Απλό πεδίο
-          preparedValues[field.accessorKey] = editValues[field.accessorKey];
-        } else {
-          // Εμφωλευμένο πεδίο
+        if (field.accessorKey.includes('.')) {
+          // Χειρισμός εμφωλευμένων πεδίων
+          const accessorParts = field.accessorKey.split('.');
           let value = editValues;
+          
           for (const part of accessorParts) {
-            value = value?.[part];
-            if (value === undefined) break;
+            if (!value) break;
+            value = value[part];
           }
           
-          preparedValues[field.accessorKey] = value;
+          updatedValues[field.accessorKey] = value !== undefined ? value : "";
+        } else {
+          // Χειρισμός απλών πεδίων
+          updatedValues[field.accessorKey] = editValues[field.accessorKey] !== undefined ? 
+            editValues[field.accessorKey] : "";
         }
       });
       
-      console.log("Prepared values for form:", preparedValues);
       formik.setValues({
         ...formik.values,
-        ...preparedValues
+        ...updatedValues,
+        id: editValues.id || editValues.id_sxolis || editValues.id_epafis || editValues.id_ekpaideuti || ""
       });
     }
-  }, [editValues]);
+  }, [editValues, fields]);
 
   const renderField = (field) => {
+    // Έλεγχος για το locationEditor type
+    if (field.type === 'locationEditor') {
+      return (
+        <LocationEditor
+          value={formik.values[field.accessorKey] || []}
+          onChange={(newValue) => formik.setFieldValue(field.accessorKey, newValue)}
+        />
+      );
+    }
+
+    // Το υπάρχον switch μένει ως έχει
     switch (field.type) {
       case 'select':
         return (
