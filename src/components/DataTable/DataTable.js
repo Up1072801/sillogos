@@ -110,13 +110,11 @@ const DataTable = React.memo(({
               // Πρώτα ελέγξτε αν υπάρχει getData συνάρτηση
               if (tableConfig.getData) {
                 tableData = tableConfig.getData(row.original) || [];
-                console.log(`Δεδομένα πίνακα "${tableConfig.title}" από getData:`, tableData);
               }
               // Αν δεν επιστράφηκαν δεδομένα και υπάρχει accessor, δοκιμάστε να πάρετε τα δεδομένα μέσω accessor
               else if (tableConfig.accessor && tableData.length === 0) {
                 const nestedData = tableConfig.accessor.split('.').reduce((o, i) => o?.[i], row.original);
                 tableData = Array.isArray(nestedData) ? nestedData : [];
-                console.log(`Δεδομένα πίνακα "${tableConfig.title}" από accessor:`, tableData);
               }
               
               return (

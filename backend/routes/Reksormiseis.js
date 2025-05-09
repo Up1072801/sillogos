@@ -11,29 +11,43 @@ router.get("/", async (req, res) => {
       include: {
         drastiriotita: {
           include: {
+            vathmos_diskolias: true,
             simmetoxi: true
           }
         }
       }
     });
 
-    const serializedEksormiseis = eksormiseis.map(eksormisi => ({
-      id: eksormisi.id_eksormisis,
-      titlos: eksormisi.titlos,
-      proorismos: eksormisi.proorismos,
-      timi: eksormisi.timi,
-      hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis,
-      hmerominia_afiksis: eksormisi.hmerominia_afiksis,
-      participantsCount: eksormisi.drastiriotita.reduce((total, drastiriotita) => 
-        total + (drastiriotita.simmetoxi?.length || 0), 0),
-      drastiriotites: eksormisi.drastiriotita.map(drastiriotita => ({
-        id: drastiriotita.id_drastiriotitas,
-        titlos: drastiriotita.titlos,
-        hmerominia: drastiriotita.hmerominia,
-        simmetoxi: drastiriotita.simmetoxi
-      }))
-    }));
+    const serializedEksormiseis = eksormiseis.map(eksormisi => {
+      // Υπολογισμός συνολικού αριθμού συμμετεχόντων
+      const participantsCount = eksormisi.drastiriotita?.reduce((total, dr) => 
+        total + (dr.simmetoxi?.length || 0), 0) || 0;
 
+      return {
+        id: eksormisi.id_eksormisis,
+        id_eksormisis: eksormisi.id_eksormisis,
+        titlos: eksormisi.titlos || "",
+        proorismos: eksormisi.proorismos || "",
+        timi: parseInt(eksormisi.timi || 0),
+        hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis,
+        hmerominia_afiksis: eksormisi.hmerominia_afiksis,
+        participantsCount: participantsCount,
+        drastiriotites: eksormisi.drastiriotita?.map(dr => ({
+          id: dr.id_drastiriotitas,
+          id_drastiriotitas: dr.id_drastiriotitas,
+          titlos: dr.titlos || "",
+          hmerominia: dr.hmerominia,
+          vathmos_diskolias: dr.vathmos_diskolias
+            ? {
+                id_vathmou_diskolias: dr.vathmos_diskolias.id_vathmou_diskolias,
+                epipedo: dr.vathmos_diskolias.epipedo
+              }
+            : null
+        })) || []
+      };
+    });
+
+    console.log("API sending data:", serializedEksormiseis);
     res.json(serializedEksormiseis);
   } catch (error) {
     console.error("Σφάλμα κατά την ανάκτηση των εξορμήσεων:", error);
@@ -301,7 +315,7 @@ router.get("/drastiriotita/:id/simmetexontes", async (req, res) => {
         melos: {
           include: {
             epafes: true,
-            vathmos_diskolias: true
+            vathmos_diskolias: true // Σιγουρέψου ότι υπάρχει αυτή η γραμμή
           }
         },
         plironei: true
@@ -356,6 +370,34 @@ router.get("/drastiriotita/:id/simmetexontes", async (req, res) => {
   } catch (error) {
     console.error("Σφάλμα κατά την ανάκτηση των συμμετεχόντων:", error);
     res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση των συμμετεχόντων" });
+  }
+});
+
+// GET: Ανάκτηση συμμετεχόντων δραστηριότητας
+router.get("/eksormiseis/:id/simmetexontes", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID εξόρμησης" });
+    }
+
+    const simmetexontes = await prisma.simmetoxi.findMany({
+      where: { drastiriotita: { id_eksormisis: id } },
+      include: {
+        melos: {
+          include: {
+            epafes: true
+          }
+        },
+        drastiriotita: true,
+        plironei: true // ΠΡΟΣΘΕΣΕ ΑΥΤΟ ΓΙΑ ΝΑ ΕΠΙΣΤΡΕΦΕΙ ΤΙΣ ΠΛΗΡΩΜΕΣ
+      }
+    });
+
+    res.json(simmetexontes);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 

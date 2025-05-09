@@ -11,6 +11,7 @@ const sxolesRoutes = require("./routes/Rsxoles"); // Νέο route για σχο�
 const eksormiseisRoutes = require("./routes/Reksormiseis");
 const vathmoiDiskoliasRouter = require('./routes/vathmoi-diskolias');
 const eidiSindromisRouter = require('./routes/eidi-sindromis');
+const adminRouter = require('./routes/radmin');
 
 const app = express();
 
@@ -40,8 +41,9 @@ app.use("/api/sxoles", sxolesRoutes); // Route για σχολές
 app.use("/api/eksormiseis", eksormiseisRoutes);
 app.use('/api/vathmoi-diskolias', vathmoiDiskoliasRouter);
 app.use('/api/eidi-sindromis', eidiSindromisRouter);
+app.use(adminRouter);
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });

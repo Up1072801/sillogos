@@ -80,11 +80,37 @@ export default function DrastiriotitaDetails() {
       
       // Fetch participants
       try {
-        const participantsResponse = await axios.get(`http://localhost:5000/api/Reksormiseis/drastiriotita/${id}/simmetexontes`);
-        setParticipants(participantsResponse.data);
-        console.log("Participants data:", participantsResponse.data);
+        const participantsResponse = await axios.get(`http://localhost:5000/api/eksormiseis/drastiriotita/${id}/simmetexontes`);
+        
+        // Επεξεργασία συμμετεχόντων για σωστή διαμόρφωση πληρωμών και δραστηριοτήτων
+        const processedParticipants = Array.isArray(participantsResponse.data) 
+          ? participantsResponse.data.map(item => {
+              // Υπολογισμός πληρωμών και υπολοίπου
+              const timi = item.timi || 0;
+              const totalPaid = (item.plironei || []).reduce(
+                (sum, payment) => sum + (payment.poso_pliromis || 0), 0
+              );
+              const ypoloipo = timi - totalPaid;
+
+              return {
+                ...item,
+                id: item.id_simmetoxis, // Διασφάλιση συνέπειας ID
+                memberName: `${item.melos?.epafes?.onoma || ''} ${item.melos?.epafes?.epitheto || ''}`.trim() || "Άγνωστο όνομα",
+                ypoloipo: ypoloipo,
+                plironei: Array.isArray(item.plironei) ? item.plironei : [] // Διασφάλιση ότι το plironei είναι πάντα πίνακας
+              };
+            })
+          : [];
+        
+        setParticipants(processedParticipants);
+        
+        // 2. Αποθήκευση των IDs των συμμετεχόντων για αργότερα
+        const participantsIds = processedParticipants.map(p => p.id_melous);
       } catch (err) {
         console.error("Σφάλμα φόρτωσης συμμετεχόντων:", err);
+        setParticipants([]);
+        // Σε περίπτωση σφάλματος, θέτουμε κενό πίνακα IDs
+        const participantsIds = [];
       }
       
       // Fetch difficulty levels
@@ -100,7 +126,7 @@ export default function DrastiriotitaDetails() {
         const membersResponse = await axios.get("http://localhost:5000/api/melitousillogou");
         
         // Filter out members who are already participants
-        const participantsIds = participantsResponse?.data?.map(p => p.id_melous) || [];
+        // Χρησιμοποιούμε τα participantsIds που ορίσαμε παραπάνω
         const availableMembers = membersResponse.data.filter(
           member => !participantsIds.includes(member.id_melous)
         );
@@ -108,6 +134,7 @@ export default function DrastiriotitaDetails() {
         setAvailableMembers(availableMembers);
       } catch (err) {
         console.error("Σφάλμα φόρτωσης μελών:", err);
+        setAvailableMembers([]);
       }
       
       setLoading(false);
@@ -191,7 +218,7 @@ export default function DrastiriotitaDetails() {
         hmerominia: updatedDrastiriotita.hmerominia
       };
       
-      await axios.put(`http://localhost:5000/api/Reksormiseis/drastiriotita/${updatedDrastiriotita.id}`, formattedData);
+      await axios.put(`http://localhost:5000/api/eksormiseis/drastiriotita/${updatedDrastiriotita.id}`, formattedData);
       
       refreshData();
       setEditDrastiriotitaDialog(false);
@@ -210,7 +237,7 @@ export default function DrastiriotitaDetails() {
     
     try {
       const drastiriotitaId = drastiriotita.id_drastiriotitas || drastiriotita.id;
-      await axios.delete(`http://localhost:5000/api/Reksormiseis/drastiriotita/${drastiriotitaId}`);
+      await axios.delete(`http://localhost:5000/api/eksormiseis/drastiriotita/${drastiriotitaId}`);
       
       // Navigate back to eksormisi page
       if (eksormisi?.id_eksormisis) {
@@ -278,7 +305,7 @@ export default function DrastiriotitaDetails() {
   const handleAddParticipant = async (newParticipant) => {
     try {
       // Call API to add participant to this drastiriotita
-      await axios.post(`http://localhost:5000/api/Reksormiseis/${eksormisi.id_eksormisis}/simmetoxi`, {
+      await axios.post(`http://localhost:5000/api/eksormiseis/${eksormisi.id_eksormisis}/simmetoxi`, {
         id_melous: parseInt(newParticipant.id_melous),
         id_drastiriotitas: parseInt(id),
         timi: parseFloat(newParticipant.timi),
@@ -306,7 +333,7 @@ export default function DrastiriotitaDetails() {
   // Handle saving edited participant
   const handleEditParticipantSave = async (updatedParticipant) => {
     try {
-      await axios.put(`http://localhost:5000/api/Reksormiseis/simmetoxi/${updatedParticipant.id_simmetoxis}`, {
+      await axios.put(`http://localhost:5000/api/eksormiseis/simmetoxi/${updatedParticipant.id_simmetoxis}`, {
         timi: parseFloat(updatedParticipant.timi),
         katastasi: updatedParticipant.katastasi
       });
@@ -328,7 +355,7 @@ export default function DrastiriotitaDetails() {
     
     try {
       const participantId = participant.id_simmetoxis || participant.id;
-      await axios.delete(`http://localhost:5000/api/Reksormiseis/simmetoxi/${participantId}`);
+      await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${participantId}`);
       
       refreshData();
     } catch (error) {
@@ -345,27 +372,27 @@ export default function DrastiriotitaDetails() {
     setPaymentDialog(true);
   };
   
-  // Handle adding payment
-  const handleAddPayment = async (payment) => {
-    try {
-      if (!paymentParticipant) return;
-      
-      await axios.post(
-        `http://localhost:5000/api/Reksormiseis/simmetoxi/${paymentParticipant.id_simmetoxis}/payment`, 
-        { 
-          poso: parseFloat(payment.poso),
-          hmerominia_pliromis: payment.hmerominia_pliromis || new Date().toISOString()
-        }
-      );
-      
-      refreshData();
-      setPaymentDialog(false);
-      setPaymentParticipant(null);
-    } catch (error) {
-      console.error("Σφάλμα κατά την καταχώρηση πληρωμής:", error);
-      alert("Σφάλμα: " + error.message);
-    }
-  };
+  // Ενημερώστε τη συνάρτηση handleAddPayment:
+const handleAddPayment = async (payment) => {
+  try {
+    if (!paymentParticipant) return;
+    
+    await axios.post(
+      `http://localhost:5000/api/eksormiseis/simmetoxi/${paymentParticipant.id_simmetoxis}/payment`, 
+      { 
+        poso_pliromis: parseFloat(payment.poso),
+        hmerominia_pliromis: payment.hmerominia_pliromis || new Date().toISOString()
+      }
+    );
+    
+    refreshData();
+    setPaymentDialog(false);
+    setPaymentParticipant(null);
+  } catch (error) {
+    console.error("Σφάλμα κατά την καταχώρηση πληρωμής:", error);
+    alert("Σφάλμα: " + error.message);
+  }
+};
   
   // Handle removing payment
   const handleRemovePayment = async (paymentId, simmetoxiId) => {
@@ -374,7 +401,7 @@ export default function DrastiriotitaDetails() {
     }
     
     try {
-      await axios.delete(`http://localhost:5000/api/Reksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
+      await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
       refreshData();
     } catch (error) {
       console.error("Σφάλμα κατά την αφαίρεση πληρωμής:", error);
@@ -483,9 +510,12 @@ export default function DrastiriotitaDetails() {
         value: (row) => row.melos?.tipo_melous || "-"
       },
       { 
-        accessor: "melos.vathmos_diskolias.onoma", 
+        accessor: "melos.vathmos_diskolias.epipedo", // Αλλαγή από onoma σε epipedo
         header: "Βαθμός Δυσκολίας Μέλους", 
-        value: (row) => row.melos?.vathmos_diskolias?.onoma || "-"
+        value: (row) => {
+          const epipedo = row.melos?.vathmos_diskolias?.epipedo;
+          return epipedo ? `Βαθμός ${epipedo}` : "-";
+        }
       },
       { 
         accessor: "hmerominia_dilosis", 
@@ -496,26 +526,31 @@ export default function DrastiriotitaDetails() {
     tables: [
       {
         title: "Ιστορικό Πληρωμών",
-        getData: (row) => row.katavalei || [],
+        getData: (row) => {
+          // Διασφάλιση ότι επιστρέφεται πάντα πίνακας, ακόμα κι αν είναι άδειος
+          if (!row.plironei || !Array.isArray(row.plironei)) {
+            return [];
+          }
+          return row.plironei;
+        },
         columns: [
           { 
-            accessorKey: "poso", 
+            accessorKey: "poso_pliromis", 
             header: "Ποσό",
-            Cell: ({ value }) => `${value || 0}€`
+            Cell: ({ row }) => `${row.original.poso_pliromis || 0}€`
           },
           { 
-            accessorKey: "hmerominia_katavolhs", 
+            accessorKey: "hmerominia_pliromis", 
             header: "Ημερομηνία",
-            Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
+            Cell: ({ row }) => row.original.hmerominia_pliromis ? 
+              new Date(row.original.hmerominia_pliromis).toLocaleDateString("el-GR") : "-"
           }
         ],
-        onAddNew: (parentRow) => {
-          handleOpenPaymentDialog(parentRow);
-        },
-        onDelete: (row, parentRow) => {
-          handleRemovePayment(row.id, parentRow.id_simmetoxis);
-        },
-        getRowId: (row) => row.id || `payment_${Math.random().toString(36).substr(2, 9)}`
+        onAddNew: (participant) => handleOpenPaymentDialog(participant),
+        onDelete: (payment, participant) => 
+          handleRemovePayment(payment.id || payment.id_plironei, participant.id_simmetoxis),
+        getRowId: (row) => row.id || row.id_plironei || Math.random().toString(36).substring(2, 9),
+        emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές"
       }
     ]
   };
@@ -600,7 +635,16 @@ export default function DrastiriotitaDetails() {
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2" color="text.secondary">Βαθμός Δυσκολίας</Typography>
-                      <Typography variant="body1">{drastiriotita.vathmos_diskolias?.onoma || '-'}</Typography>
+                      {drastiriotita.vathmos_diskolias ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <HikingIcon sx={{ mr: 0.5, fontSize: 'small', color: 'text.secondary' }} />
+                          <Typography variant="body2">
+                            {`Βαθμός ${drastiriotita.vathmos_diskolias.epipedo || drastiriotita.id_vathmou_diskolias || '-'}`}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body1">-</Typography>
+                      )}
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2" color="text.secondary">Ημερομηνία</Typography>

@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import SchoolDetails from "./pages/schoolDetails";
 import EksormisiDetails from "./pages/EksormisiDetails";
 import DrastiriotitaDetails from "./pages/DrastiriotitaDetails";
+import AdminPage from "./pages/admin"; // Εισαγωγή του νέου component
 
 function App() {
   const [user, setUser] = useState(null);
@@ -108,10 +109,6 @@ function App() {
       </Routes>
     </div>
   );
-}
-
-function AdminPage() {
-  return <h1 style={{ textAlign: "center", marginTop: "100px" }}>Σελίδα Διαχειριστή</h1>;
 }
 
 export default App;
