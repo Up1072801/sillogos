@@ -101,167 +101,174 @@ const DataTable = React.memo(({
           <Grid item xs={12} md={8}>
             {detailPanelConfig?.tables?.map((tableConfig, tableIndex) => {
               let tableData = [];
-              try {
-                tableData = tableConfig.getData(item);
-              } catch (e) {
-                console.error("Error getting table data:", e);
-              }
-            
-              // Πρώτα ελέγξτε αν υπάρχει getData συνάρτηση
-              if (tableConfig.getData) {
-                tableData = tableConfig.getData(row.original) || [];
-              }
-              // Αν δεν επιστράφηκαν δεδομένα και υπάρχει accessor, δοκιμάστε να πάρετε τα δεδομένα μέσω accessor
-              else if (tableConfig.accessor && tableData.length === 0) {
-                const nestedData = tableConfig.accessor.split('.').reduce((o, i) => o?.[i], row.original);
-                tableData = Array.isArray(nestedData) ? nestedData : [];
-              }
               
-              return (
-                <Box key={`table-${tableIndex}`} sx={{ mb: 4 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6" component="div">{tableConfig.title}</Typography>
-                    {tableConfig.onAddNew && (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<Add />}
-                        onClick={() => tableConfig.onAddNew(item.id, item.athlima)}
-                      >
-                        Προσθήκη Νέου
-                      </Button>
+              try {
+                // Πρώτα ελέγχουμε αν υπάρχει getData συνάρτηση
+                if (typeof tableConfig.getData === 'function') {
+                  tableData = tableConfig.getData(row.original) || [];
+                } 
+                // Αν δεν επιστράφηκαν δεδομένα και υπάρχει accessor, δοκιμάζουμε να πάρουμε τα δεδομένα μέσω accessor
+                else if (tableConfig.accessor && tableData.length === 0) {
+                  // Υποστηρίζει και nested accessors με dots (π.χ. "user.address.city")
+                  const nestedData = tableConfig.accessor.split('.').reduce((o, i) => o?.[i], row.original);
+                  tableData = Array.isArray(nestedData) ? nestedData : [];
+                }
+                
+                return (
+                  <Box key={`table-${tableIndex}`} sx={{ mb: 4 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6" component="div">{tableConfig.title}</Typography>
+                      {tableConfig.onAddNew && (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<Add />}
+                          onClick={() => tableConfig.onAddNew(item.id, item.athlima)}
+                        >
+                          Προσθήκη Νέου
+                        </Button>
+                      )}
+                    </Box>
+
+                    {tableData.length === 0 ? (
+                      <Typography variant="body2" component="div">Δεν υπάρχουν δεδομένα</Typography>
+                    ) : (
+                      <TableContainer component={Paper}>
+                        <Table size="small">
+                          <TableHead sx={{ bgcolor: 'grey.100' }}>
+                            <TableRow>
+                              {/* Προσθήκη στήλης για το expand στην αρχή */}
+                              {tableConfig.renderExpandedRow && (
+                                <TableCell padding="checkbox" style={{ width: '48px' }}></TableCell>
+                              )}
+                              {tableConfig.columns.map((column, colIndex) => (
+                                <TableCell key={`header-${colIndex}`}>
+                                  <strong>{column.header}</strong>
+                                </TableCell>
+                              ))}
+                              {/* Στήλη ενεργειών στο τέλος */}
+                              {(tableConfig.onEdit || tableConfig.onDelete) && (
+                                <TableCell align="right" style={{ width: '160px' }}>
+                                  <strong>Ενέργειες</strong>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {tableData.map((rowData, rowIndex) => {
+                              // Προσθήκη ελέγχου για null/undefined
+                              const rowIdValue = ((rowData.id !== undefined && rowData.id !== null) ? rowData.id : 
+                                                  (rowData.id_sxolis !== undefined && rowData.id_sxolis !== null) ? rowData.id_sxolis : 
+                                                  (rowData.id_agona !== undefined && rowData.id_agona !== null) ? rowData.id_agona : 
+                                                  rowIndex);
+                              
+                              return (
+                                <React.Fragment key={`row-${rowIdValue}`}>
+                                  <TableRow 
+                                    hover={!tableConfig.noRowHover}
+                                    sx={{ cursor: tableConfig.noRowClick ? 'default' : 'pointer' }}
+                                  >
+                                    {/* Προσθήκη του κουμπιού expand στην αρχή */}
+                                    {tableConfig.renderExpandedRow && (
+                                      <TableCell padding="checkbox">
+                                        <IconButton
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            // Βεβαιωθείτε ότι χρησιμοποιείτε το σωστό ID για κάθε γραμμή
+                                            const rowId = rowData.id || rowData.id_agona;
+                                            handleRowExpand(rowId);
+                                          }}
+                                        >
+                                          {expandedRows.has(rowData.id || rowData.id_agona) ? 
+                                            <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                                        </IconButton>
+                                      </TableCell>
+                                    )}
+                                    {tableConfig.columns.map((column) => {
+                                      // Έλεγχος αν το accessor είναι string προτού κάνουμε split
+                                      const value = typeof column.accessor === 'string' 
+                                        ? column.accessor.split('.').reduce((o, i) => o?.[i], rowData)
+                                        : column.accessorKey 
+                                          ? rowData[column.accessorKey] 
+                                          : undefined;
+                                      
+                                      return (
+                                        <TableCell key={column.accessor || column.accessorKey}>
+                                          {column.Cell ? column.Cell({ value, row: { original: rowData } }) : 
+                                          (value !== undefined ? value : '-')}
+                                        </TableCell>
+                                      );
+                                    })}
+                                    
+                                    {/* Κουμπιά ενεργειών με εικονίδια */}
+                                    {(tableConfig.onEdit || tableConfig.onDelete) && (
+                                      <TableCell align="right">
+                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                          {tableConfig.onEdit && (
+                                            <IconButton
+                                              size="small"
+                                              color="primary"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                tableConfig.onEdit(rowData);
+                                              }}
+                                            >
+                                              <Edit fontSize="small" />
+                                            </IconButton>
+                                          )}
+                                          {tableConfig.onDelete && (
+                                            <IconButton
+                                              size="small"
+                                              color="error"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                tableConfig.onDelete(rowData, item); // Προσθέτουμε το item ως parentRow
+                                              }}
+                                            >
+                                              <Delete fontSize="small" />
+                                            </IconButton>
+                                          )}
+                                        </Box>
+                                      </TableCell>
+                                    )}
+                                  </TableRow>
+
+                                  {/* Αν η γραμμή είναι επεκταμένη, εμφανίζουμε το περιεχόμενο */}
+                                  {tableConfig.renderExpandedRow && expandedRows.has(rowData.id || rowData.id_agona) && (
+                                    <TableRow key={`expanded-row-${rowData.id || rowData.id_agona}`}>
+                                      <TableCell 
+                                        colSpan={
+                                          tableConfig.columns.length + 
+                                          (tableConfig.renderExpandedRow ? 1 : 0) + 
+                                          ((tableConfig.onEdit || tableConfig.onDelete) ? 1 : 0)
+                                        }
+                                      >
+                                        <Box sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
+                                          {tableConfig.renderExpandedRow(rowData)}
+                                        </Box>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
                     )}
                   </Box>
-
-                  {tableData.length === 0 ? (
-                    <Typography variant="body2" component="div">Δεν υπάρχουν δεδομένα</Typography>
-                  ) : (
-                    <TableContainer component={Paper}>
-                      <Table size="small">
-                        <TableHead sx={{ bgcolor: 'grey.100' }}>
-                          <TableRow>
-                            {/* Προσθήκη στήλης για το expand στην αρχή */}
-                            {tableConfig.renderExpandedRow && (
-                              <TableCell padding="checkbox" style={{ width: '48px' }}></TableCell>
-                            )}
-                            {tableConfig.columns.map((column, colIndex) => (
-                              <TableCell key={`header-${colIndex}`}>
-                                <strong>{column.header}</strong>
-                              </TableCell>
-                            ))}
-                            {/* Στήλη ενεργειών στο τέλος */}
-                            {(tableConfig.onEdit || tableConfig.onDelete) && (
-                              <TableCell align="right" style={{ width: '160px' }}>
-                                <strong>Ενέργειες</strong>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {tableData.map((rowData, rowIndex) => {
-                            // Προσθήκη ελέγχου για null/undefined
-                            const rowIdValue = ((rowData.id !== undefined && rowData.id !== null) ? rowData.id : 
-                                                (rowData.id_sxolis !== undefined && rowData.id_sxolis !== null) ? rowData.id_sxolis : 
-                                                (rowData.id_agona !== undefined && rowData.id_agona !== null) ? rowData.id_agona : 
-                                                rowIndex);
-                            
-                            return (
-                              <React.Fragment key={`row-${rowIdValue}`}>
-                                <TableRow 
-                                  hover
-                                  sx={{ cursor: 'pointer' }}
-                                >
-                                  {/* Προσθήκη του κουμπιού expand στην αρχή */}
-                                  {tableConfig.renderExpandedRow && (
-                                    <TableCell padding="checkbox">
-                                      <IconButton
-                                        size="small"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          // Βεβαιωθείτε ότι χρησιμοποιείτε το σωστό ID για κάθε γραμμή
-                                          const rowId = rowData.id || rowData.id_agona;
-                                          handleRowExpand(rowId);
-                                        }}
-                                      >
-                                        {expandedRows.has(rowData.id || rowData.id_agona) ? 
-                                          <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                                      </IconButton>
-                                    </TableCell>
-                                  )}
-                                  {tableConfig.columns.map((column) => {
-                                    // Έλεγχος αν το accessor είναι string προτού κάνουμε split
-                                    const value = typeof column.accessor === 'string' 
-                                      ? column.accessor.split('.').reduce((o, i) => o?.[i], rowData)
-                                      : column.accessorKey 
-                                        ? rowData[column.accessorKey] 
-                                        : undefined;
-                                    
-                                    return (
-                                      <TableCell key={column.accessor || column.accessorKey}>
-                                        {column.Cell ? column.Cell({ value, row: { original: rowData } }) : 
-                                        (value !== undefined ? value : '-')}
-                                      </TableCell>
-                                    );
-                                  })}
-                                  
-                                  {/* Κουμπιά ενεργειών με εικονίδια */}
-                                  {(tableConfig.onEdit || tableConfig.onDelete) && (
-                                    <TableCell align="right">
-                                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                        {tableConfig.onEdit && (
-                                          <IconButton
-                                            size="small"
-                                            color="primary"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              tableConfig.onEdit(rowData);
-                                            }}
-                                          >
-                                            <Edit fontSize="small" />
-                                          </IconButton>
-                                        )}
-                                        {tableConfig.onDelete && (
-                                          <IconButton
-                                            size="small"
-                                            color="error"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              tableConfig.onDelete(rowData, item); // Προσθέτουμε το item ως parentRow
-                                            }}
-                                          >
-                                            <Delete fontSize="small" />
-                                          </IconButton>
-                                        )}
-                                      </Box>
-                                    </TableCell>
-                                  )}
-                                </TableRow>
-
-                                {/* Αν η γραμμή είναι επεκταμένη, εμφανίζουμε το περιεχόμενο */}
-                                {tableConfig.renderExpandedRow && expandedRows.has(rowData.id || rowData.id_agona) && (
-                                  <TableRow key={`expanded-row-${rowData.id || rowData.id_agona}`}>
-                                    <TableCell 
-                                      colSpan={
-                                        tableConfig.columns.length + 
-                                        (tableConfig.renderExpandedRow ? 1 : 0) + 
-                                        ((tableConfig.onEdit || tableConfig.onDelete) ? 1 : 0)
-                                      }
-                                    >
-                                      <Box sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
-                                        {tableConfig.renderExpandedRow(rowData)}
-                                      </Box>
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  )}
-                </Box>
-              );
+                );
+              } catch (error) {
+                console.error("Error getting table data:", error);
+                return (
+                  <Box sx={{ p: 2 }}>
+                    <Typography color="error">
+                      Αδυναμία εμφάνισης δεδομένων. Παρακαλώ προσπαθήστε ξανά.
+                    </Typography>
+                  </Box>
+                );
+              }
             })}
           </Grid>
         </Grid>
@@ -358,6 +365,18 @@ const DataTable = React.memo(({
         state={state}
         getRowId={getRowId}
         positionActionsColumn="last"
+        muiTableProps={{
+          sx: { tableLayout: 'fixed' }
+        }}
+        muiTableHeadCellProps={{
+          sx: {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            whiteSpace: 'nowrap'
+          }
+        }}
+        muiTableBodyCellProps={{
+          sx: { whiteSpace: 'nowrap' }
+        }}
         localization={{
           muiTablePagination: {
             labelRowsPerPage: 'Εγγραφές ανά σελίδα:',

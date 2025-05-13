@@ -8,13 +8,22 @@ BigInt.prototype.toJSON = function() {
   return this.toString();
 };
 
+// Βοηθητική συνάρτηση για έλεγχο αν η ημερομηνία είναι μετά την 1η Ιουνίου
+function isAfterJuneFirst(date) {
+  const juneFirst = new Date(date.getFullYear(), 5, 1); // JavaScript μήνες: 0-11
+  return date >= juneFirst;
+}
+
 // Middleware για ενημέρωση καταστάσεων συνδρομών
 router.use(async (req, res, next) => {
   try {
     const currentYear = new Date().getFullYear();
-    const cutoffDate = new Date(`${currentYear}-06-01`);
+    const currentDate = new Date();
     
-    // Find members with active subscriptions that need to be expired
+    // Βρες μέλη με ενεργές συνδρομές που πρέπει να λήξουν
+    // 1. Όσες ξεκίνησαν πριν την αρχή του τρέχοντος έτους
+    // 2. ΚΑΙ δεν ξεκίνησαν μετά την 1η Ιουνίου του προηγούμενου έτους
+    // (δηλαδή δεν πληρούν τον κανόνα του 1.5 έτους)
     const membersToExpire = await prisma.esoteriko_melos.findMany({
       where: {
         sindromitis: {
@@ -23,7 +32,7 @@ router.use(async (req, res, next) => {
             some: {
               sindromi: {
                 hmerominia_enarksis: {
-                  lt: new Date(`${currentYear}-01-01`)
+                  lt: new Date(`${currentYear}-01-01`) // Ξεκίνησαν πριν την αρχή του τρέχοντος έτους
                 }
               }
             }
@@ -33,8 +42,8 @@ router.use(async (req, res, next) => {
               some: {
                 sindromi: {
                   hmerominia_enarksis: {
-                    gte: new Date(`${currentYear-1}-06-01`),
-                    lt: new Date(`${currentYear}-01-01`)
+                    gte: new Date(`${currentYear-1}-06-01`), // Ξεκίνησαν μετά την 1η Ιουνίου του προηγούμενου έτους
+                    lt: new Date(`${currentYear}-01-01`)     // και πριν την αρχή του τρέχοντος έτους
                   }
                 }
               }
@@ -47,7 +56,7 @@ router.use(async (req, res, next) => {
       }
     });
 
-    // Update their subscription status
+    // Ενημέρωση της κατάστασης συνδρομής σε "Ληγμένη"
     await prisma.sindromitis.updateMany({
       where: {
         id_sindromiti: {
@@ -161,16 +170,21 @@ router.post("/", async (req, res) => {
         data: epafes
       });
 
-      // 2. Δημιουργία του μέλους
+      // Στο backend, αρχείο Rmelitousillogou.js
+      // Στο σημείο δημιουργίας του μέλους:
+
+      // Έλεγχος για έγκυρο ID βαθμού δυσκολίας
+      const vathmosId = melos.vathmos_diskolias?.id_vathmou_diskolias || 1; // Προεπιλογή στο 1
+
       const newMelos = await prismaTransaction.melos.create({
         data: {
-          tipo_melous: "esoteriko",
+          tipo_melous: melos.tipo_melous || "esoteriko",
           epafes: {
             connect: { id_epafis: newEpafi.id_epafis }
           },
           vathmos_diskolias: {
             connect: { 
-              id_vathmou_diskolias: melos.vathmos_diskolias.epipedo 
+              id_vathmou_diskolias: vathmosId
             }
           }
         }
@@ -184,11 +198,17 @@ router.post("/", async (req, res) => {
         }
       });
 
+      // Προσθέστε αυτό πριν τη δημιουργία του sindromitis
+      const startDate = new Date(sindromitis.exei.sindromi.hmerominia_enarksis);
+      const isExtendedSubscription = isAfterJuneFirst(startDate);
+      const subscriptionStatus = sindromitis.katastasi_sindromis || "Ενεργή"; // Πάντα ξεκινάει ως ενεργή
+      
       // 4. Δημιουργία του συνδρομητή
       const newSindromitis = await prismaTransaction.sindromitis.create({
         data: {
           id_sindromiti: newEsoterikoMelos.id_es_melous,
-          katastasi_sindromis: sindromitis.katastasi_sindromis
+          katastasi_sindromis: subscriptionStatus
+          // Αφαιρέστε το πεδίο sxolia που δημιουργεί το σφάλμα
         }
       });
 
@@ -280,64 +300,126 @@ const newSindromi = await prismaTransaction.sindromi.create({
 // PUT: Update member
 router.put("/:id", async (req, res) => {
   try {
-    const { epafes, vathmos_diskolias, katastasi_sindromis, eidosSindromis, ...memberData } = req.body;
+    const { epafes, vathmos_diskolias, sindromitis, eidosSindromis, hmerominia_enarksis, hmerominia_pliromis, ...memberData } = req.body;
     const id = parseInt(req.params.id);
 
     if (isNaN(id)) {
       return res.status(400).json({ error: "Invalid ID format" });
     }
 
+    // Ελέγξτε και μετατρέψτε το tilefono
     if (epafes?.tilefono) {
       epafes.tilefono = BigInt(epafes.tilefono);
     }
 
-    // Check if status is being changed to active
+    // Διασφάλιση ότι το arithmos_mitroou είναι αριθμός
+    if (memberData.arithmos_mitroou !== undefined) {
+      memberData.arithmos_mitroou = parseInt(memberData.arithmos_mitroou);
+      if (isNaN(memberData.arithmos_mitroou)) {
+        delete memberData.arithmos_mitroou;
+      }
+    }
+
+    // Διασφάλιση ότι το tk είναι αριθμός
+    if (memberData.tk !== undefined) {
+      memberData.tk = parseInt(memberData.tk);
+      if (isNaN(memberData.tk)) {
+        delete memberData.tk;
+      }
+    }
+
+    // Έλεγχος του τρέχοντος μέλους
     const currentMember = await prisma.esoteriko_melos.findUnique({
       where: { id_es_melous: id },
       include: {
         melos: true,
         sindromitis: {
           include: {
-            exei: true
+            exei: {
+              include: {
+                sindromi: true
+              }
+            }
           }
         }
       }
     });
 
-    const isStatusChangedToActive = 
-      katastasi_sindromis === "Ενεργή" && 
-      currentMember.sindromitis?.katastasi_sindromis !== "Ενεργή";
+    if (!currentMember) {
+      return res.status(404).json({ error: "Member not found" });
+    }
 
-    // Remove hmerominia_pliromis from memberData as it's not a direct field
-    const { hmerominia_pliromis, ...cleanMemberData } = memberData;
-
+    // Δεδομένα ενημέρωσης
     const updateData = {
-      ...cleanMemberData,
+      ...memberData,
       melos: {
         update: {
           epafes: epafes ? { update: epafes } : undefined,
           vathmos_diskolias: vathmos_diskolias ? {
-            upsert: {
-              where: { id_vathmou_diskolias: currentMember.melos?.id_vathmou_diskolias || 1 },
-              update: { epipedo: vathmos_diskolias.epipedo },
-              create: { epipedo: vathmos_diskolias.epipedo },
-            }
-          } : undefined,
-        },
-      },
-      sindromitis: currentMember.sindromitis ? {
-        update: {
-          katastasi_sindromis: katastasi_sindromis,
-          exei: isStatusChangedToActive ? {
-            updateMany: {
-              where: { id_sindromiti: id },
-              data: { hmerominia_pliromis: new Date() }
-            }
+            connect: { id_vathmou_diskolias: parseInt(vathmos_diskolias.id_vathmou_diskolias) }
           } : undefined
         }
-      } : undefined
+      }
     };
 
+    // Προσθήκη ενημέρωσης συνδρομιτή αν υπάρχει
+    if (sindromitis || eidosSindromis || hmerominia_enarksis || hmerominia_pliromis) {
+      // Αν υπάρχει sindromitis
+      if (currentMember.sindromitis) {
+        updateData.sindromitis = {
+          update: {
+            katastasi_sindromis: sindromitis?.katastasi_sindromis
+          }
+        };
+
+        // Αν υπάρχει exei σχέση
+        const exeiRelation = currentMember.sindromitis.exei?.[0];
+        if (exeiRelation) {
+          // Ενημέρωση της υπάρχουσας σχέσης exei
+          updateData.sindromitis.update.exei = {
+            update: {
+              data: {
+                hmerominia_pliromis: hmerominia_pliromis ? new Date(hmerominia_pliromis) : undefined
+              },
+              where: { 
+                id_sindromiti_id_sindromis: {
+                  id_sindromiti: id,
+                  id_sindromis: exeiRelation.id_sindromis
+                }
+              }
+            }
+          };
+
+          // Ενημέρωση της συνδρομής εάν ζητείται
+          if (hmerominia_enarksis || eidosSindromis) {
+            const sindromisUpdate = {};
+            
+            if (hmerominia_enarksis) {
+              sindromisUpdate.hmerominia_enarksis = new Date(hmerominia_enarksis);
+            }
+            
+            if (eidosSindromis) {
+              // Βρείτε το ID του είδους συνδρομής με βάση το όνομα
+              const subscriptionType = await prisma.eidos_sindromis.findFirst({
+                where: { titlos: eidosSindromis }
+              });
+              
+              if (subscriptionType) {
+                sindromisUpdate.id_eidous_sindromis = subscriptionType.id_eidous_sindromis;
+              }
+            }
+            
+            // Προσθέστε την ενημέρωση της συνδρομής
+            await prisma.sindromi.update({
+              where: { id_sindromis: exeiRelation.id_sindromis },
+              data: sindromisUpdate
+            });
+          }
+        }
+      }
+    }
+
+    // Εκτέλεση της ενημέρωσης
     const updatedMember = await prisma.esoteriko_melos.update({
       where: { id_es_melous: id },
       data: updateData,
@@ -345,8 +427,8 @@ router.put("/:id", async (req, res) => {
         melos: {
           include: {
             epafes: true,
-            vathmos_diskolias: true,
-          },
+            vathmos_diskolias: true
+          }
         },
         sindromitis: {
           include: {
@@ -354,14 +436,14 @@ router.put("/:id", async (req, res) => {
               include: {
                 sindromi: {
                   include: {
-                    eidos_sindromis: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+                    eidos_sindromis: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     });
 
     const responseMember = {

@@ -537,6 +537,178 @@ router.post("/:id/payment", async (req, res) => {
   }
 });
 
+// PUT: Ενημέρωση πληρωμής
+router.put("/:id/payment/:paymentId", async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const paymentId = parseInt(req.params.paymentId);
+    const { poso, hmerominia } = req.body;
+    
+    if (isNaN(bookingId) || isNaN(paymentId) || !poso || poso <= 0) {
+      return res.status(400).json({ 
+        error: "Μη έγκυρα δεδομένα. Απαιτούνται έγκυρα IDs και ποσό πληρωμής." 
+      });
+    }
+    
+    // Έλεγχος αν η κράτηση υπάρχει
+    const existingBooking = await prisma.kratisi_katafigiou.findUnique({
+      where: { id_kratisis: bookingId }
+    });
+    
+    if (!existingBooking) {
+      return res.status(404).json({ error: "Η κράτηση δεν βρέθηκε" });
+    }
+    
+    // Έλεγχος αν η πληρωμή υπάρχει και ανήκει στην κράτηση
+    const existingPayment = await prisma.eksoflei.findFirst({
+      where: { 
+        AND: [
+          { id: paymentId },
+          { id_kratisis: bookingId }
+        ]
+      }
+    });
+    
+    if (!existingPayment) {
+      return res.status(404).json({ error: "Η πληρωμή δεν βρέθηκε ή δεν ανήκει στην κράτηση" });
+    }
+    
+    // Ενημέρωση πληρωμής
+    const updatedPayment = await prisma.eksoflei.update({
+      where: { id: paymentId },
+      data: {
+        poso: parseInt(poso),
+        hmerominia_eksoflisis: hmerominia ? new Date(hmerominia) : existingPayment.hmerominia_eksoflisis
+      }
+    });
+    
+    // Ανανέωση πληρωμών της κράτησης
+    const payments = await prisma.eksoflei.findMany({
+      where: { id_kratisis: bookingId }
+    });
+    
+    const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
+    
+    // Ενημέρωση υπολοίπου
+    const updatedBooking = await prisma.kratisi_katafigiou.update({
+      where: { id_kratisis: bookingId },
+      data: {
+        ypoloipo: existingBooking.sinoliki_timh - totalPaid
+      },
+      include: {
+        eksoflei: true,
+        katafigio: true,
+        epafes: true
+      }
+    });
+    
+    res.json({
+      payment: {
+        id: updatedPayment.id,
+        amount: updatedPayment.poso,
+        date: updatedPayment.hmerominia_eksoflisis
+      },
+      booking: {
+        id: updatedBooking.id_kratisis,
+        totalPaid,
+        balance: updatedBooking.ypoloipo,
+        payments: updatedBooking.eksoflei.map(payment => ({
+          id: payment.id,
+          amount: payment.poso,
+          date: payment.hmerominia_eksoflisis
+        }))
+      }
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση πληρωμής:", error);
+    res.status(500).json({ 
+      error: "Σφάλμα κατά την ενημέρωση πληρωμής", 
+      details: error.message 
+    });
+  }
+});
+
+// DELETE: Διαγραφή πληρωμής
+router.delete("/:id/payment/:paymentId", async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const paymentId = parseInt(req.params.paymentId);
+    
+    if (isNaN(bookingId) || isNaN(paymentId)) {
+      return res.status(400).json({ 
+        error: "Μη έγκυρα IDs κράτησης ή πληρωμής" 
+      });
+    }
+    
+    // Έλεγχος αν η κράτηση υπάρχει
+    const existingBooking = await prisma.kratisi_katafigiou.findUnique({
+      where: { id_kratisis: bookingId }
+    });
+    
+    if (!existingBooking) {
+      return res.status(404).json({ error: "Η κράτηση δεν βρέθηκε" });
+    }
+    
+    // Έλεγχος αν η πληρωμή υπάρχει και ανήκει στην κράτηση
+    const existingPayment = await prisma.eksoflei.findFirst({
+      where: { 
+        AND: [
+          { id: paymentId },
+          { id_kratisis: bookingId }
+        ]
+      }
+    });
+    
+    if (!existingPayment) {
+      return res.status(404).json({ error: "Η πληρωμή δεν βρέθηκε ή δεν ανήκει στην κράτηση" });
+    }
+    
+    // Διαγραφή πληρωμής
+    await prisma.eksoflei.delete({
+      where: { id: paymentId }
+    });
+    
+    // Ανανέωση πληρωμών της κράτησης
+    const payments = await prisma.eksoflei.findMany({
+      where: { id_kratisis: bookingId }
+    });
+    
+    const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
+    
+    // Ενημέρωση υπολοίπου
+    const updatedBooking = await prisma.kratisi_katafigiou.update({
+      where: { id_kratisis: bookingId },
+      data: {
+        ypoloipo: existingBooking.sinoliki_timh - totalPaid
+      },
+      include: {
+        eksoflei: true
+      }
+    });
+    
+    res.json({
+      deleted: true,
+      paymentId: paymentId,
+      booking: {
+        id: updatedBooking.id_kratisis,
+        totalPaid,
+        balance: updatedBooking.ypoloipo,
+        payments: updatedBooking.eksoflei.map(payment => ({
+          id: payment.id,
+          amount: payment.poso,
+          date: payment.hmerominia_eksoflisis
+        }))
+      }
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά τη διαγραφή πληρωμής:", error);
+    res.status(500).json({ 
+      error: "Σφάλμα κατά τη διαγραφή πληρωμής", 
+      details: error.message 
+    });
+  }
+});
+
 // PUT: Ακύρωση κράτησης
 router.put("/:id/cancel", async (req, res) => {
   try {

@@ -52,6 +52,8 @@ const detailPanelConfig = {
         { accessor: "timi", header: "Τιμή" },
         { accessor: "ypoloipo", header: "Υπόλοιπο" },
       ],
+      noRowHover: true,
+      noRowClick: true
     },
     {
       title: "Σχολές",
@@ -59,11 +61,10 @@ const detailPanelConfig = {
       columns: [
         { accessor: "sxoli.epipedo", header: "Επίπεδο" },
         { accessor: "sxoli.klados", header: "Κλάδος" },
-        { accessor: "sxoli.etos", header: "Έτος" },
-        { accessor: "katastasi", header: "Κατάσταση" },
-        { accessor: "timi", header: "Τιμή" },
-        { accessor: "ypoloipo", header: "Υπόλοιπο" },
+        { accessor: "sxoli.etos", header: "Έτος" }
       ],
+      noRowHover: true,
+      noRowClick: true
     },
   ],
 };

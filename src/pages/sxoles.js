@@ -107,7 +107,18 @@ const extractId = (obj) => {
       accessorKey: "onoma", 
       header: "Όνομα",
       Cell: ({ row }) => (
-        <Link to={`/sxoles/${row.original.id_sxolis}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <Link 
+          to={`/sxoles/${row.original.id_sxolis}`} 
+          style={{ 
+            color: '#1976d2',  // Χρώμα συνδέσμου
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            '&:hover': {
+              textDecoration: 'underline'
+            }
+          }}
+        >
           {row.original.onoma}
         </Link>
       )
@@ -291,8 +302,6 @@ const extractId = (obj) => {
             }
           }
         ],
-        onEdit: (rowData, parentRow) => handleEditTopothesia(rowData, parentRow),
-        onDelete: (rowData, parentRow) => handleDeleteTopothesia(rowData, parentRow),
         onAddNew: (parentRow) => {
           console.log("onAddNew called for locations with parentRow:", parentRow);
           
@@ -305,7 +314,8 @@ const extractId = (obj) => {
           
           // Διαβεβαίωση ότι περνάμε το σωστό αντικείμενο
           handleAddTopothesia(parentRow);
-        }
+        },
+        addNewButtonLabel: "ΕΠΕΞΕΡΓΑΣΙΑ"
       },
     ]
   };
@@ -859,69 +869,49 @@ const handleAddTopothesia = async (parentRow) => {
 
     console.log("Extracted school ID for adding location:", schoolId);
 
-    // Άνοιγμα διαλόγου για προσθήκη τοποθεσίας
-    setEditingSchoolForLocation(schoolId);
-    setCurrentLocations([]);  // Καθάρισμα παλιών τοποθεσιών
-    setLocationDialogOpen(true);
-  } catch (error) {
-    console.error("Σφάλμα κατά την προσθήκη τοποθεσίας:", error);
-    alert("Σφάλμα: " + error.message);
-  }
-};
-
-  // Αντικατάσταση της συνάρτησης handleEditTopothesia για να ανοίγει τον διάλογο LocationEditorDialog
-const handleEditTopothesia = async (rowData, parentRow) => {
-  try {
-    if (!parentRow) {
-      alert("Δεν επιλέχθηκε σχολή");
-      return;
-    }
-
-    const schoolId = parentRow.id_sxolis || parentRow.id;
-
-    if (!schoolId) {
-      alert("Δεν βρέθηκε ID σχολής");
-      return;
-    }
-
-    // Ανάκτηση δεδομένων σχολής
+    // Φόρτωση υπάρχουσων τοποθεσιών για τη σχολή
     const response = await axios.get(`http://localhost:5000/api/sxoles/${schoolId}`);
     const school = response.data;
-
-    // Εξαγωγή τοποθεσιών
-    let topothesiaData = school.topothesies || school.topothesia || (school.details && school.details.topothesia);
-
-    let currentTopothesies = [];
+    
+    let existingLocations = [];
+    
+    // Εξαντλητική αναζήτηση για τοποθεσίες σε όλα τα πιθανά πεδία
+    let topothesiaData = school.topothesies || school.topothesia || 
+                       (school.details && school.details.topothesia);
+                       
     if (topothesiaData) {
       try {
         // Αν είναι string, μετατροπή σε JSON
         if (typeof topothesiaData === 'string') {
-          currentTopothesies = JSON.parse(topothesiaData);
+          existingLocations = JSON.parse(topothesiaData);
         } else {
-          currentTopothesies = topothesiaData;
+          existingLocations = topothesiaData;
         }
-
-        // Μορφοποίηση τοποθεσιών
-        currentTopothesies = currentTopothesies.map((loc, idx) => ({
+        
+        // Βεβαιώνουμε ότι είναι πίνακας
+        if (!Array.isArray(existingLocations)) {
+          existingLocations = [existingLocations];
+        }
+        
+        // Μορφοποίηση τοποθεσιών με IDs για το frontend
+        existingLocations = existingLocations.map((loc, idx) => ({
           id: idx,
           topothesia: loc.topothesia || "",
           start: loc.start || loc.hmerominia_enarksis || "",
           end: loc.end || loc.hmerominia_liksis || ""
         }));
       } catch (e) {
-        console.error("Σφάλμα ανάλυσης JSON:", e);
-        currentTopothesies = [];
+        console.error("Σφάλμα ανάλυσης τοποθεσιών:", e);
+        existingLocations = [];
       }
     }
 
-    console.log("Μορφοποιημένες τοποθεσίες για επεξεργασία:", currentTopothesies);
-
     // Άνοιγμα διαλόγου με τις υπάρχουσες τοποθεσίες
-    setCurrentLocations(currentTopothesies);
+    setCurrentLocations(existingLocations);
     setEditingSchoolForLocation(schoolId);
     setLocationDialogOpen(true);
   } catch (error) {
-    console.error("Σφάλμα κατά την προετοιμασία επεξεργασίας τοποθεσιών:", error);
+    console.error("Σφάλμα κατά την προσθήκη τοποθεσίας:", error);
     alert("Σφάλμα: " + error.message);
   }
 };
@@ -937,6 +927,7 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
       return;
     }
     
+    // Ασφαλής εξαγωγή schoolId
     const schoolId = typeof parentRow === 'object' ? 
       (parentRow.id_sxolis || parentRow.id) : 
       parentRow;
@@ -957,33 +948,37 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
     const response = await axios.get(`http://localhost:5000/api/sxoles/${schoolId}`);
     const school = response.data;
     
-    // Εξαντλητική αναζήτηση για τοποθεσίες σε όλα τα πιθανά πεδία
-    let topothesiaData = school.topothesies || 
-                         school.topothesia || 
-                         (school.details && school.details.topothesia);
+    // Εξαγωγή τοποθεσιών
+    let topothesiaData = school.topothesies;
+    
+    // Αν δεν υπάρχουν τοποθεσίες, έλεγξε εναλλακτικά ονόματα πεδίων
+    if (!topothesiaData) {
+      topothesiaData = school.topothesia || (school.details && school.details.topothesia);
+    }
+    
+    if (!topothesiaData) {
+      alert("Δεν βρέθηκαν τοποθεσίες για διαγραφή");
+      return;
+    }
     
     let currentTopothesies = [];
     
+    // Μετατροπή των τοποθεσιών σε πίνακα JavaScript
     try {
-      if (topothesiaData) {
-        // Αν είναι string, μετατροπή σε JSON
-        if (typeof topothesiaData === 'string') {
-          currentTopothesies = JSON.parse(topothesiaData);
-        } else {
-          currentTopothesies = topothesiaData;
-        }
-        
-        if (!Array.isArray(currentTopothesies)) {
-          // Αν δεν είναι πίνακας, το μετατρέπουμε σε πίνακα με ένα στοιχείο
-          currentTopothesies = [{ 
-            topothesia: typeof currentTopothesies === 'string' ? 
-              currentTopothesies : JSON.stringify(currentTopothesies) 
-          }];
-        }
+      if (typeof topothesiaData === 'string') {
+        currentTopothesies = JSON.parse(topothesiaData);
+      } else {
+        currentTopothesies = topothesiaData;
+      }
+      
+      // Διασφάλιση ότι είναι πίνακας
+      if (!Array.isArray(currentTopothesies)) {
+        currentTopothesies = [currentTopothesies];
       }
     } catch (e) {
       console.error("Σφάλμα ανάλυσης JSON:", e);
-      currentTopothesies = [];
+      alert("Σφάλμα επεξεργασίας τοποθεσιών");
+      return;
     }
     
     console.log("Τοποθεσίες πριν τη διαγραφή:", currentTopothesies);
@@ -1001,8 +996,8 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
       timi: school.timi,
       etos: school.etos,
       seira: school.seira,
-      // Ενημέρωση μόνο των τοποθεσιών
-      topothesia: JSON.stringify(updatedTopothesies)
+      // Αποθήκευση του τροποποιημένου πίνακα τοποθεσιών
+      topothesies: updatedTopothesies
     };
     
     // Ενημέρωση της σχολής
@@ -1019,7 +1014,10 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
   // Χειρισμός αποθήκευσης τοποθεσιών
 const handleSaveLocations = async (locations) => {
   try {
-    if (!editingSchoolForLocation) return;
+    if (!editingSchoolForLocation) {
+      alert("Δεν επιλέχθηκε σχολή για αποθήκευση τοποθεσιών");
+      return;
+    }
     
     // Φέρνουμε τα τρέχοντα δεδομένα της σχολής
     const schoolResponse = await axios.get(`http://localhost:5000/api/sxoles/${editingSchoolForLocation}`);
@@ -1041,23 +1039,20 @@ const handleSaveLocations = async (locations) => {
       timi: currentSchoolData.timi,
       etos: currentSchoolData.etos,
       seira: currentSchoolData.seira,
-      // Αποθήκευση των τοποθεσιών απευθείας στο πεδίο topothesies αντί για topothesia
-      topothesies: formattedLocations // Αποθήκευση ως αντικείμενο, όχι ως string
+      // Σημαντικό: Αποθηκεύουμε τον πίνακα τοποθεσιών
+      topothesies: formattedLocations
     };
-    
-    console.log("Αποστολή δεδομένων για ενημέρωση:", updateData);
     
     // Αποστολή στο API
     await axios.put(`http://localhost:5000/api/sxoles/${editingSchoolForLocation}`, updateData);
     
-    // Ανανέωση δεδομένων και κλείσιμο διαλόγου
     refreshData();
     setLocationDialogOpen(false);
     setEditingSchoolForLocation(null);
     alert("Οι τοποθεσίες αποθηκεύτηκαν με επιτυχία!");
   } catch (error) {
     console.error("Σφάλμα κατά την αποθήκευση τοποθεσιών:", error);
-    alert("Σφάλμα κατά την αποθήκευση: " + error.message);
+    alert("Σφάλμα: " + error.message);
   }
 };
 
@@ -1766,7 +1761,7 @@ const handleDeleteEkpaideutis = async (id) => {
       onSave={handleSaveLocations}
       title="Διαχείριση Τοποθεσιών"
     />
-    
+
   </LocalizationProvider>
   );
 }

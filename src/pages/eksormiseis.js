@@ -41,37 +41,71 @@ export default function Eksormiseis() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [currentEksormisi, setCurrentEksormisi] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [addActivityDialogOpen, setAddActivityDialogOpen] = useState(false);
+  const [editActivityDialogOpen, setEditActivityDialogOpen] = useState(false);
+  const [currentActivity, setCurrentActivity] = useState(null);
+  const [currentEksormisiForActivity, setCurrentEksormisiForActivity] = useState(null);
+  const [difficultyLevels, setDifficultyLevels] = useState([]);
   
   // Φόρτωση δεδομένων
   useEffect(() => {
     fetchData();
   }, [refreshTrigger]);
   
-  // Fetch data from API - Διορθώθηκε το URL
+  // Fetch data from API
   const fetchData = async () => {
     try {
       setLoading(true);
       const response = await axios.get("http://localhost:5000/api/eksormiseis");
-      console.log("Ακατέργαστα δεδομένα εξορμήσεων:", response.data);
-
-      // Αντικαταστήστε το κομμάτι επεξεργασίας δεδομένων με αυτό το κώδικα:
+      
+      // Debug the first eksormisi to see its structure
+      if (response.data.length > 0) {
+        console.log("First eksormisi data:", response.data[0]);
+      }
+      
       const processedData = response.data.map(eksormisi => {
-        // Διασφαλίζουμε ότι το id υπάρχει πάντα
         const id = eksormisi.id_eksormisis || eksormisi.id;
-          
+        
+        // Create a Set of unique member IDs to count unique participants
+        const uniqueParticipantIds = new Set();
+        
+        // Check if we have simmetoxi directly in the eksormisi object
+        if (eksormisi.simmetoxi && Array.isArray(eksormisi.simmetoxi)) {
+          eksormisi.simmetoxi.forEach(s => {
+            if (s.id_melous) {
+              uniqueParticipantIds.add(s.id_melous);
+            }
+          });
+        }
+        
+        // Also check in drastiriotites as before
+        if (eksormisi.drastiriotites && Array.isArray(eksormisi.drastiriotites)) {
+          eksormisi.drastiriotites.forEach(dr => {
+            if (dr.simmetoxi && Array.isArray(dr.simmetoxi)) {
+              dr.simmetoxi.forEach(s => {
+                if (s.id_melous) {
+                  uniqueParticipantIds.add(s.id_melous);
+                }
+              });
+            }
+          });
+        }
+        
+        // Log the participants found for debugging
+        console.log(`Eksormisi ${id} (${eksormisi.titlos}) has ${uniqueParticipantIds.size} unique participants`);
+        
+        // Count of unique participants
+        const uniqueParticipantsCount = uniqueParticipantIds.size;
+        
         return {
           id: id,
           id_eksormisis: id,
           titlos: String(eksormisi.titlos || "Χωρίς Τίτλο"),
           proorismos: String(eksormisi.proorismos || "Χωρίς Προορισμό"),
-          // Διασφάλιση ότι το timi είναι πάντα αριθμός
           timi: Number(eksormisi.timi || 0),
-          // Διασφάλιση ότι οι ημερομηνίες είναι σωστές
           hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis ? new Date(eksormisi.hmerominia_anaxorisis) : null,
           hmerominia_afiksis: eksormisi.hmerominia_afiksis ? new Date(eksormisi.hmerominia_afiksis) : null,
-          // Διασφάλιση ότι το participantsCount είναι αριθμός
-          participantsCount: Number(eksormisi.participantsCount || 0),
-          // Διασφάλιση σωστής δομής για τις δραστηριότητες
+          participantsCount: uniqueParticipantsCount, // Use our calculated unique count
           drastiriotites: (eksormisi.drastiriotites || []).map(dr => ({
             id: dr.id_drastiriotitas || dr.id,
             id_drastiriotitas: dr.id_drastiriotitas || dr.id,
@@ -83,18 +117,16 @@ export default function Eksormiseis() {
         };
       });
 
-      console.log("Επεξεργασμένα δεδομένα εξορμήσεων:", processedData);
-      console.log("Παράδειγμα τιμής:", processedData[0]?.timi, typeof processedData[0]?.timi);
       setEksormiseisData(processedData);
       setLoading(false);
     } catch (error) {
-      console.error("Σφάλμα κατά τη φόρτωση εξορμήσεων:", error);
       setError("Σφάλμα κατά τη φόρτωση δεδομένων. Παρακαλώ δοκιμάστε ξανά αργότερα.");
       setLoading(false);
+      console.error("Error fetching data:", error);
     }
   };
   
-  // Προσθήκη νέας εξόρμησης - Διορθώθηκε το URL
+  // Προσθήκη νέας εξόρμησης
   const handleAddEksormisi = async (newEksormisi) => {
     try {
       const formattedData = {
@@ -105,14 +137,12 @@ export default function Eksormiseis() {
         hmerominia_afiksis: newEksormisi.hmerominia_afiksis
       };
       
-      const response = await axios.post("http://localhost:5000/api/eksormiseis", formattedData);
-      console.log("Νέα εξόρμηση:", response.data);
+      await axios.post("http://localhost:5000/api/eksormiseis", formattedData);
       
       // Ανανέωση της λίστας
       setRefreshTrigger(prev => prev + 1);
       setAddDialogOpen(false);
     } catch (error) {
-      console.error("Σφάλμα κατά την προσθήκη εξόρμησης:", error);
       alert("Σφάλμα κατά την προσθήκη εξόρμησης. Παρακαλώ δοκιμάστε ξανά.");
     }
   };
@@ -141,40 +171,52 @@ export default function Eksormiseis() {
         hmerominia_afiksis: editedEksormisi.hmerominia_afiksis
       };
       
-      await axios.put(`http://localhost:5000/api/eksormiseis/${editedEksormisi.id}`, formattedData);      
-      // Ανανέωση της λίστας
+      await axios.put(`http://localhost:5000/api/eksormiseis/${editedEksormisi.id}`, formattedData);
       setRefreshTrigger(prev => prev + 1);
       setEditDialogOpen(false);
       setCurrentEksormisi(null);
     } catch (error) {
-      console.error("Σφάλμα κατά την επεξεργασία εξόρμησης:", error);
       alert("Σφάλμα κατά την επεξεργασία εξόρμησης. Παρακαλώ δοκιμάστε ξανά.");
     }
   };
   
-  // Διαγραφή εξόρμησης - Διορθώθηκε το URL
+  // Διαγραφή εξόρμησης
   const handleDelete = async (row) => {
-    if (window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εξόρμηση;")) {
-      try {
-        const id = row.id || row.id_eksormisis;
-        await axios.delete(`http://localhost:5000/api/eksormiseis/${id}`);
-        
-        setRefreshTrigger(prev => prev + 1);
-      } catch (error) {
-        console.error("Σφάλμα κατά τη διαγραφή εξόρμησης:", error);
-        alert("Σφάλμα κατά τη διαγραφή εξόρμησης. Παρακαλώ δοκιμάστε ξανά.");
-      }
+    let id;
+    
+    if (typeof row === 'number' || typeof row === 'string') {
+      id = row;
+    } 
+    else if (row && typeof row === 'object') {
+      id = row.id || row.id_eksormisis;
+    }
+  
+    if (!row) {
+      alert("Σφάλμα: Δεν παρασχέθηκαν δεδομένα για διαγραφή.");
+      return;
+    }
+  
+    if (!id && id !== 0) {
+      alert("Σφάλμα: Δεν βρέθηκε έγκυρο ID εξόρμησης για διαγραφή.");
+      return;
+    }
+  
+    try {
+      await axios.delete(`http://localhost:5000/api/eksormiseis/${id}`);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      alert("Σφάλμα κατά τη διαγραφή εξόρμησης. Παρακαλώ δοκιμάστε ξανά.");
     }
   };
   
   // Πεδία φόρμας για εξόρμηση
-  const eksormisiFields = [
+  const eksormisiFields = React.useMemo(() => [
     { accessorKey: "titlos", header: "Τίτλος", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "proorismos", header: "Προορισμός", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Η τιμή δεν μπορεί να είναι αρνητική") },
     { accessorKey: "hmerominia_anaxorisis", header: "Ημερομηνία Αναχώρησης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "hmerominia_afiksis", header: "Ημερομηνία Άφιξης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") }
-  ];
+  ], []);
   
   // Στήλες πίνακα
   const columns = [
@@ -182,9 +224,6 @@ export default function Eksormiseis() {
       accessorKey: "titlos", 
       header: "Τίτλος",
       Cell: ({ row }) => {
-        // Καλύτερο debug για να δείξει τι έρχεται πραγματικά
-        console.log("Titlos cell row data:", row.original);
-        
         return (
           <Box 
             sx={{ 
@@ -232,7 +271,6 @@ export default function Eksormiseis() {
         const amount = Number(row.original.timi || 0);
         return (
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <AttachMoneyIcon sx={{ mr: 0.5, fontSize: 'small', color: 'text.secondary' }} />
             {`${amount}€`}
           </Box>
         );
@@ -244,40 +282,33 @@ export default function Eksormiseis() {
       Cell: ({ row }) => {
         const count = Number(row.original.participantsCount || 0);
         return (
-          <Chip
-            icon={<GroupIcon />}
-            label={count}
-            size="small"
-            color="primary"
-            variant="outlined"
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="body2">
+              {count === 0 ? '0' : 
+               count === 1 ? '1' : 
+               `${count}`}
+            </Typography>
+          </Box>
         );
       }
     }
   ];
   
-  // Προσθέστε τα παρακάτω states στην αρχή της συνάρτησης Eksormiseis
-  const [addActivityDialogOpen, setAddActivityDialogOpen] = useState(false);
-  const [editActivityDialogOpen, setEditActivityDialogOpen] = useState(false);
-  const [currentActivity, setCurrentActivity] = useState(null);
-  const [currentEksormisiForActivity, setCurrentEksormisiForActivity] = useState(null);
-  const [difficultyLevels, setDifficultyLevels] = useState([]);
-
-  // Προσθέστε στο useEffect για άντληση των επιπέδων δυσκολίας
+  // Άντληση των επιπέδων δυσκολίας
   useEffect(() => {
     const fetchDifficultyLevels = async () => {
       try {
         const response = await axios.get("http://localhost:5000/api/vathmoi-diskolias");
         setDifficultyLevels(response.data);
       } catch (error) {
-        console.error("Σφάλμα φόρτωσης επιπέδων δυσκολίας:", error);
+        // Αποτυχία φόρτωσης επιπέδων δυσκολίας
       }
     };
     
     fetchDifficultyLevels();
   }, []);
 
-  // Προσθέστε τα πεδία φόρμας για δραστηριότητα
+  // Πεδία φόρμας για δραστηριότητα
   const activityFields = [
     { accessorKey: "titlos", header: "Τίτλος", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { 
@@ -296,26 +327,17 @@ export default function Eksormiseis() {
     { accessorKey: "hmerominia", header: "Ημερομηνία", type: "date" }
   ];
 
-  // Προσθέστε τους handlers για τις λειτουργίες
+  // Handlers για τις λειτουργίες δραστηριοτήτων
   const handleAddActivity = (parentRow) => {
-    console.log("Adding activity with parent row:", parentRow);
-    
-    // Προσθέτουμε περισσότερη λογική για να βρούμε το parentRow
     if (!parentRow) {
-      console.log("Trying to find parent row from detail panel config");
       if (detailPanelConfig?.tables?.[0]?.meta?.parentRow) {
         parentRow = detailPanelConfig.tables[0].meta.parentRow;
-        console.log("Found parent row from meta:", parentRow);
       } else if (eksormiseisData.length > 0) {
-        // Αν δεν υπάρχει άλλος τρόπος, χρησιμοποιούμε την πρώτη εγγραφή
         parentRow = eksormiseisData[0];
-        console.log("Using first eksormisi as parent row:", parentRow);
       }
     }
     
-    // Έλεγχος για έγκυρο parentRow
     if (!parentRow || (!parentRow.id && !parentRow.id_eksormisis)) {
-      console.error("No valid parent eksormisi found for adding activity");
       alert("Σφάλμα: Δεν βρέθηκε έγκυρο ID εξόρμησης για προσθήκη δραστηριότητας");
       return;
     }
@@ -326,21 +348,16 @@ export default function Eksormiseis() {
 
   const handleAddActivitySave = async (newActivity) => {
     try {
-      // Έλεγχος αν έχουμε έγκυρο ID εξόρμησης
       if (!currentEksormisiForActivity) {
-        alert("Δεν έχει επιλεγεί εξόρμηση για τη δραστηριότητα");
+        alert("Σφάλμα: Δεν έχει επιλεγεί εξόρμηση για τη δραστηριότητα");
         return;
       }
       
       const eksormisiId = currentEksormisiForActivity.id || currentEksormisiForActivity.id_eksormisis;
-      
       if (!eksormisiId) {
-        console.error("Missing eksormisi ID:", currentEksormisiForActivity);
         alert("Σφάλμα: Δεν βρέθηκε έγκυρο ID εξόρμησης");
         return;
       }
-      
-      console.log("Adding activity to eksormisi ID:", eksormisiId, "with data:", newActivity);
       
       const formattedData = {
         titlos: newActivity.titlos,
@@ -358,7 +375,6 @@ export default function Eksormiseis() {
       setAddActivityDialogOpen(false);
       setCurrentEksormisiForActivity(null);
     } catch (error) {
-      console.error("Σφάλμα κατά την προσθήκη δραστηριότητας:", error);
       alert("Σφάλμα: " + error.message);
     }
   };
@@ -396,7 +412,6 @@ export default function Eksormiseis() {
       setCurrentActivity(null);
       setCurrentEksormisiForActivity(null);
     } catch (error) {
-      console.error("Σφάλμα κατά την επεξεργασία δραστηριότητας:", error);
       alert("Σφάλμα: " + error.message);
     }
   };
@@ -410,18 +425,13 @@ export default function Eksormiseis() {
         // Ανανέωση δεδομένων
         setRefreshTrigger(prev => prev + 1);
       } catch (error) {
-        console.error("Σφάλμα κατά τη διαγραφή δραστηριότητας:", error);
         alert("Σφάλμα: " + error.message);
       }
     }
   };
 
-  // Τώρα ενημερώστε το detailPanelConfig για να συμπεριλάβει τις νέες λειτουργίες
-  // 1. Πρώτα, εισάγουμε το useEffect για να ενημερώνουμε το parentRow
+  // Ενημέρωση του parentRow
   useEffect(() => {
-    console.log("Current eksormiseis data for activities:", eksormiseisData);
-    
-    // Ενημέρωση του parentRow για κάθε εξόρμηση
     if (detailPanelConfig && detailPanelConfig.tables && detailPanelConfig.tables.length > 0) {
       const firstTable = detailPanelConfig.tables[0];
       eksormiseisData.forEach(eksormisi => {
@@ -429,11 +439,10 @@ export default function Eksormiseis() {
           firstTable.meta.parentRow = eksormisi;
         }
       });
-      console.log("Updated detail panel config:", detailPanelConfig);
     }
   }, [eksormiseisData]);
 
-  // 2. Τροποποιούμε το detailPanelConfig.tables[0] για να χρησιμοποιεί τις ίδιες παραμέτρους με το athlites.js
+  // Detail panel configuration
   const detailPanelConfig = {
     mainDetails: [
       { accessor: "titlos", header: "Τίτλος" },
@@ -457,10 +466,9 @@ export default function Eksormiseis() {
       }
     ],
     tables: [
-      {
+      { 
         title: "Δραστηριότητες",
         getData: (row) => {
-          console.log("Getting activities data for:", row.titlos);
           return row.drastiriotites || [];
         },
         columns: [
@@ -474,7 +482,7 @@ export default function Eksormiseis() {
                   color: "primary.main",
                   fontWeight: "medium",
                   "&:hover": { textDecoration: "underline" } 
-                }}
+                }} 
                 onClick={(e) => {
                   e.stopPropagation();
                   const id = row.original.id || row.original.id_drastiriotitas;
@@ -489,7 +497,6 @@ export default function Eksormiseis() {
             accessorKey: "vathmos_diskolias", 
             header: "Βαθμός Δυσκολίας",
             Cell: ({ row }) => {
-              // Απλοποιημένη έκδοση χωρίς console.log
               if (!row.original.vathmos_diskolias) return "-";
               const vathmosEpipedo = row.original.vathmos_diskolias.epipedo;
               return (
@@ -499,23 +506,17 @@ export default function Eksormiseis() {
                 </Box>
               );
             }
-          },
+          }
         ],
         getRowId: (row) => row.id || row.id_drastiriotitas,
-        enableRowActions: true,
-        // Προσθέτουμε αυτά τα πεδία - είναι πιο απλά και λειτουργούν καλύτερα με το DataTable
-        onAddNew: (parentRow) => handleAddActivity(parentRow),
-        onEdit: (row, parentRow) => handleEditActivity(row, parentRow),
-        onDelete: (row) => handleDeleteActivity(row),
-        addNewButtonText: "Προσθήκη Δραστηριότητας",
-        // Αφαιρούμε τα renderRowActions και renderTopToolbarCustomActions
+        enableRowActions: false,
         meta: {
-          parentRow: null // Θα ενημερωθεί δυναμικά
+          parentRow: null
         }
       }
     ]
   };
-  
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '70vh' }}>
@@ -524,23 +525,17 @@ export default function Eksormiseis() {
     );
   }
 
-  // Προσθέστε αυτό το log πριν επιστρέψετε το JSX με το DataTable
-  console.log("Τελικά δεδομένα πριν το DataTable:", eksormiseisData);
-
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
           Διαχείριση Εξορμήσεων
         </Typography>
-        
         <Box sx={{ mb: 4 }}>
           <Typography variant="h5" sx={{ mb: 2 }}>
             Εξορμήσεις ({eksormiseisData.length})
           </Typography>
-          
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          
           <DataTable 
             data={eksormiseisData}
             columns={columns}
@@ -549,7 +544,6 @@ export default function Eksormiseis() {
               return row.id || row.id_eksormisis;
             }}
             handleRowClick={(row) => {
-              console.log("Row clicked:", row);
               navigate(`/eksormisi/${row.id || row.id_eksormisis}`);
             }}
             handleEditClick={handleEditClick}
@@ -560,7 +554,6 @@ export default function Eksormiseis() {
             enableAddNew={true}
             onAddNew={() => setAddDialogOpen(true)}
             onDetailPanelRender={(row) => {
-              // Ενημέρωση του parentRow όταν ανοίγει το detail panel
               if (detailPanelConfig?.tables?.[0]) {
                 detailPanelConfig.tables[0].meta = { 
                   ...detailPanelConfig.tables[0].meta,
@@ -570,7 +563,6 @@ export default function Eksormiseis() {
             }}
           />
         </Box>
-        
         <AddDialog
           open={addDialogOpen}
           onClose={() => setAddDialogOpen(false)}
@@ -579,7 +571,6 @@ export default function Eksormiseis() {
           title="Προσθήκη Νέας Εξόρμησης"
           fields={eksormisiFields}
         />
-
         {currentEksormisi && (
           <EditDialog
             open={editDialogOpen}
@@ -594,7 +585,6 @@ export default function Eksormiseis() {
           />
         )}
       </Box>
-
       {/* Dialogs για δραστηριότητες */}
       <AddDialog
         open={addActivityDialogOpen}
@@ -611,7 +601,6 @@ export default function Eksormiseis() {
         title="Προσθήκη Νέας Δραστηριότητας"
         fields={activityFields}
       />
-      
       {currentActivity && (
         <EditDialog
           open={editActivityDialogOpen}

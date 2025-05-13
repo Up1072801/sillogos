@@ -14,6 +14,8 @@
   --font-size-large: 1.5rem;
   --font-size-medium: 1.25rem;
   --font-size-small: 0.875rem;
+  --focus-outline: 2px solid #4a90e2;
+  --focus-transition: outline-color 0.2s ease-in-out;
 }
 
 /* Global Styles */
@@ -27,6 +29,8 @@
 
 html {
   font-size: var(--font-size-base);
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
@@ -149,6 +153,22 @@ body {
   background-color: #fff;
 }
 
+/* Βελτιώσεις για DataTable */
+.MuiDataGrid-root {
+  border: none !important;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.MuiDataGrid-cell {
+  padding: 8px 16px !important;
+}
+
+.MuiDataGrid-columnHeader {
+  background-color: var(--table-header-bg);
+  font-weight: 600 !important;
+}
+
 /* Dialog */
 .dialog {
   max-width: 600px;
@@ -182,6 +202,39 @@ textarea:focus,
 select:focus {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
+}
+
+/* Βελτιωμένα focus states για προσβασιμότητα */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}
+
+/* Βελτιωμένη οπτική ένδειξη στοιχείων με hover */
+a:hover,
+button:hover:not(:disabled),
+.clickable:hover {
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+/* Βελτιώσεις για screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 /* Media Queries */
@@ -331,16 +384,349 @@ select:focus {
   overflow-x: auto !important;
   width: 100% !important;
   max-width: 100% !important;
+  max-height: none !important;
 }
 
+/* Προσθήκες στο App.css - Ενιαίο στυλ για κοινά στοιχεία */
+/* Ενιαία cards για όλα τα περιεχόμενα */
+.content-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.content-card:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Ενιαία headers για τμήματα */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--table-border-color);
+}
+
+/* Ενιαίο στυλ για action buttons */
+.action-button {
+  font-weight: 500;
+  text-transform: none;
+  min-width: 100px;
+  padding: 0.5rem 1rem;
+}
+
+.action-button-icon {
+  margin-right: 0.5rem;
+}
+
+/* Ενιαία load/error states */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+.error-message {
+  color: #d32f2f;
+  background-color: rgba(211, 47, 47, 0.1);
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin: 1rem 0;
+}
+
+/* Βελτιώσεις για φόρμες */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.form-field {
+  margin-bottom: 1.5rem;
+}
+
+.form-field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+/* Responsive πίνακες που προσαρμόζονται καλύτερα στο πλάτος */
+
+/* Βασικές βελτιώσεις για όλους τους πίνακες */
+table {
+  width: 100%;
+  table-layout: auto;
+  min-width: auto !important;
+  margin: 0;
+}
+
+/* Για πίνακες Material UI - Βελτιωμένη συμπεριφορά στο zoom */
+.MuiDataGrid-root, .MuiTable-root {
+  width: 100% !important;
+  overflow: visible !important;
+  max-width: none !important;
+}
+
+/* Container για πίνακες για καλύτερο έλεγχο του overflow */
 .table-container {
   width: 100%;
   overflow-x: auto;
-  padding: 10px 0;
+  display: block;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  padding: 0;
+  margin: 0;
 }
 
-.calendar-container {
+/* Αφαίρεση περιορισμών στύλης που δημιουργούν προβλήματα σε zoom */
+.MuiTableCell-root {
+  white-space: normal !important;
+  word-break: break-word !important;
+  padding: 8px 12px !important;
+  max-width: none !important; /* Αφαίρεση του σταθερού max-width */
+  box-sizing: border-box;
+}
+
+/* Βελτίωση διαχείρισης χώρου σε MUI Grid και Table */
+.MuiDataGrid-columnHeader, .MuiTableCell-head {
+  overflow: visible !important;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  background-color: var(--table-header-bg);
+}
+
+/* Μεγαλύτερη ευελιξία στα κελιά για καλύτερο wrapping */
+.MuiDataGrid-cell, .MuiTableCell-body {
+  overflow: visible !important;
+  max-height: none !important;
+  line-height: 1.5;
+  padding: 8px 12px !important;
+}
+
+/* Βελτίωση των data tables του Material UI για ανταπόκριση στο zoom */
+.MuiDataGrid-root .MuiDataGrid-columnHeaders {
+  min-height: 48px !important;
+  overflow: visible !important;
+}
+
+.MuiDataGrid-root .MuiDataGrid-cell {
+  max-height: none !important;
+  overflow-wrap: break-word !important;
+  white-space: normal !important;
+  min-height: 40px !important;
+}
+
+/* Για το MUI Paper που περιέχει πίνακες */
+.MuiPaper-root {
+  overflow: visible !important;
   width: 100%;
-  margin-top: 20px;
+}
+
+/* Καλύτερες αναλογίες για κελιά */
+.MuiTableCell-sizeSmall {
+  padding: 6px 8px !important;
+}
+
+/* Για καλύτερη προσαρμογή του app container */
+.App {
+  max-width: 100vw;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Για container με οριζόντια scrollbars όταν πραγματικά χρειάζεται */
+.scrollable-container {
+  max-width: 100%;
   overflow-x: auto;
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+/* Γενικές βελτιώσεις για το φαινόμενο του zoom */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Βελτίωση για το container με το δεξί μέρος */
+.MuiContainer-root {
+  max-width: 100% !important;
+  width: 100%;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  box-sizing: border-box;
+}
+
+/* Αφαίρεση περιορισμών μεγέθους που μπορεί να επηρεάζουν το zoom */
+.MuiTableContainer-root {
+  width: 100% !important;
+  overflow-x: auto !important;
+  max-height: none !important;
+  max-width: 100% !important;
+}
+
+/* Βελτίωση διαχείρισης του χώρου για header κελιά */
+.MuiTableCell-head {
+  position: sticky !important;
+  top: 0;
+  z-index: 2;
+  background-color: var(--table-header-bg);
+}
+
+/* Όταν η οθόνη είναι μικρή, κρύψε λιγότερο σημαντικές στήλες */
+@media (max-width: 960px) {
+  .MuiTableCell-hiddenAtMobile,
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* Πιο μικρό padding σε μικρές οθόνες */
+@media (max-width: 600px) {
+  .MuiTableCell-root {
+    padding: 6px 8px !important;
+  }
+}
+
+/* Responsive container για όλους τους πίνακες */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch; /* Καλύτερο scrolling σε iOS */
+}
+
+/* Μικρότερη γραμματοσειρά σε μικρές οθόνες */
+@media (max-width: 960px) {
+  .MuiTableCell-root,
+  .MuiTypography-root {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Βάλε πλευρικά περιθώρια στο κύριο περιεχόμενο */
+.App {
+  max-width: 100vw;
+  overflow-x: hidden; /* Αποτροπή οριζόντιου scrollbar στο επίπεδο εφαρμογής */
+}
+
+/* Προσαρμογή περιθωρίων ανάλογα με το πλάτος */
+@media (max-width: 1200px) {
+  .container, .MuiContainer-root {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
+/* Προσθέτουμε flex-wrap ώστε τα στοιχεία να 'σπάνε' σε νέα γραμμή όταν χρειάζεται */
+.flex-container {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+}
+
+/* Βελτίωση των data tables του Material UI */
+.MuiDataGrid-root .MuiDataGrid-columnHeaders {
+  min-height: 48px !important;
+}
+
+.MuiDataGrid-root .MuiDataGrid-cell {
+  max-height: none !important;
+  overflow-wrap: break-word !important;
+  white-space: normal !important;
+  min-height: 40px !important;
+}
+
+/* Όλα τα container να έχουν max-width */
+div[class*="container"] {
+  max-width: 100%;
+}
+
+/* Styling για το popover των στηλών */
+.MuiPopover-paper .MuiDataGrid-columnsPanel {
+  max-height: 400px !important;
+  max-width: 300px !important;
+  width: auto !important;
+  overflow-y: auto !important;
+}
+
+/* Βελτιώσεις για το columns menu */
+.MuiDataGrid-panelWrapper {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+}
+
+.MuiDataGrid-columnsPanel .MuiDataGrid-panelHeader {
+  padding: 8px 12px !important;
+}
+
+/* Μικρότερο μέγεθος για τα checkboxes των στηλών */
+.MuiDataGrid-columnsPanel .MuiCheckbox-root {
+  padding: 4px !important;
+}
+
+/* Περιορίζουμε το μέγεθος του κειμένου των headers */
+.MuiDataGrid-columnsPanel .MuiTypography-root {
+  font-size: 0.875rem !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 220px;
+}
+
+/* Αφαίρεση cursor pointer από τους εμφωλευμένους πίνακες στο detail panel */
+.table-no-hover tr {
+  cursor: default !important;
+}
+
+/* Βελτιώσεις για τα modals στο zoom */
+
+/* Διόρθωση για τα Dialog modals */
+.MuiDialog-paper {
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+  max-width: 600px !important;
+  width: 100% !important;
+}
+
+/* Το περιεχόμενο των dialog να έχει επίσης scroll */
+.MuiDialogContent-root {
+  overflow-y: auto !important;
+  max-height: calc(80vh - 120px) !important; /* Αφήνουμε χώρο για header και footer */
+  padding: 16px !important;
+}
+
+/* Μικρότερο padding για όλα τα πεδία φόρμας στο modal */
+.MuiDialog-paper .MuiBox-root {
+  margin-bottom: 12px !important;
+}
+
+/* Προσαρμογή για το παράθυρο επιλογής στηλών */
+.MuiPopover-paper {
+  max-height: 400px !important;
+  max-width: 300px !important;
+  overflow-y: auto !important;
+}
+
+/* Όταν γίνεται zoom, βεβαιωνόμαστε ότι η γραμματοσειρά παραμένει ευανάγνωστη */
+@media screen and (max-width: 768px), screen and (max-height: 600px) {
+  .MuiTypography-root, .MuiInputBase-root {
+    font-size: 14px !important;
+  }
+  
+  .MuiDialog-paper {
+    margin: 10px !important;
+  }
 }

@@ -10,7 +10,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import el from 'date-fns/locale/el';
 import { differenceInDays } from 'date-fns';
-import { Box, Typography, Paper } from '@mui/material';
+import { Box, Typography, Paper, Button } from '@mui/material';
 
 // Στυλ για τη βελτίωση της εμφάνισης της σελίδας
 const styles = {
@@ -103,6 +103,17 @@ export default function Katafigio() {
   const [editBookingData, setEditBookingData] = useState(null);
   const [addPaymentDialogOpen, setAddPaymentDialogOpen] = useState(false);
   const [currentBookingId, setCurrentBookingId] = useState(null);
+  const [dateFilter, setDateFilter] = useState(null); // για να αποθηκεύουμε το επιλεγμένο διάστημα
+  const [filteredBookings, setFilteredBookings] = useState([]); // για τις φιλτραρισμένες κρατήσεις
+  const [isFiltering, setIsFiltering] = useState(false); // για να δείχνουμε αν το φίλτρο είναι ενεργό
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // Τρέχων μήνας (1-12)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Τρέχον έτος
+  const [availableYears] = useState(() => 
+    Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i)
+  );
+  const calendarRef = React.useRef();
+  const [editPaymentDialogOpen, setEditPaymentDialogOpen] = useState(false);
+  const [editPaymentData, setEditPaymentData] = useState(null);
 
   // Φόρτωση δεδομένων από το backend
   useEffect(() => {
@@ -197,7 +208,9 @@ export default function Katafigio() {
             Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
           }
         ],
-        onAddNew: (bookingId) => handleAddPayment(bookingId)
+        onAddNew: (bookingId) => handleAddPayment(bookingId),
+        onEdit: (payment) => handleEditPayment(payment),
+        onDelete: (payment) => handleDeletePayment(payment)
       }
     ]
   };
@@ -206,13 +219,19 @@ export default function Katafigio() {
   const bookingFormFields = [
     { 
       accessorKey: "id_epafis", 
-      header: "Άτομο Επικοινωνίας", 
-      type: "select", // Αλλαγή από tableSelect σε select
-      options: contacts.map(contact => ({ 
-        value: contact.id_epafis.toString(), 
-        label: `${contact.fullName} (${contact.email || contact.tilefono || 'Χωρίς στοιχεία'})` 
-      })),
-      validation: yup.string().required("Παρακαλώ επιλέξτε άτομο επικοινωνίας")
+      header: "Επαφή",
+      type: "tableSelect",               // Αλλαγή από "select" σε "tableSelect"
+      dataKey: "contactsList",           // Πρέπει να αντιστοιχεί στο κλειδί στο resourceData
+      singleSelect: true,                // Ενεργοποίηση μονής επιλογής
+      pageSize: 5,                       // 5 επαφές ανά σελίδα
+      columns: [                         // Ορισμός στηλών που θα εμφανίζονται
+        { field: "fullName", header: "Ονοματεπώνυμο" },
+        { field: "email", header: "Email" },
+        { field: "tilefono", header: "Τηλέφωνο" }
+      ],
+      searchFields: ["fullName", "email", "tilefono"], // Πεδία για αναζήτηση
+      noDataMessage: "Δεν βρέθηκαν επαφές",
+      validation: yup.mixed().required("Παρακαλώ επιλέξτε επαφή")
     },
     { 
       accessorKey: "id_katafigiou", 
@@ -266,8 +285,34 @@ export default function Katafigio() {
     }
   ];
 
-  // Create a separate fields array for the edit dialog
-  const editBookingFormFields = [...bookingFormFields]; // Copy all fields including initialPayment
+// Δημιουργία περιορισμένης λίστας επεξεργάσιμων πεδίων για κρατήσεις
+const editBookingFormFields = [
+  // Μόνο τα παρακάτω πεδία θα είναι διαθέσιμα για επεξεργασία
+  { 
+    accessorKey: "hmerominia_afiksis", 
+    header: "Ημερομηνία Άφιξης", 
+    type: "date",
+    validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία άφιξης")
+  },
+  { 
+    accessorKey: "hmerominia_epistrofis", 
+    header: "Ημερομηνία Αναχώρησης", 
+    type: "date",
+    validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία αναχώρησης")
+  },
+  { 
+    accessorKey: "arithmos_melwn", 
+    header: "Αριθμός Μελών", 
+    type: "number",
+    validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Παρακαλώ συμπληρώστε αριθμό μελών")
+  },
+  { 
+    accessorKey: "arithmos_mi_melwn", 
+    header: "Αριθμός Μη Μελών", 
+    type: "number",
+    validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Παρακαλώ συμπληρώστε αριθμό μη μελών")
+  }
+];
 
   // Πεδία φόρμας για τις πληρωμές
   const paymentFormFields = [
@@ -276,6 +321,12 @@ export default function Katafigio() {
       header: "Ποσό Πληρωμής", 
       type: "number",
       validation: yup.number().min(1, "Το ποσό πρέπει να είναι μεγαλύτερο του 0").required("Παρακαλώ εισάγετε ποσό")
+    },
+    {
+      accessorKey: "hmerominia", 
+      header: "Ημερομηνία Πληρωμής", 
+      type: "date",
+      defaultValue: new Date().toISOString().split('T')[0]
     }
   ];
 
@@ -309,64 +360,51 @@ export default function Katafigio() {
     }
   };
 
-  // Update the edit booking handler to handle initialPayment separately as a new payment
-  const handleEditBooking = async (editedBooking) => {
-    try {
-      if (!editBookingData || !editBookingData.id) {
-        throw new Error("Δεν υπάρχουν δεδομένα για επεξεργασία");
-      }
-      
-      // Διαχωρίζουμε το initialPayment από τα δεδομένα της κράτησης
-      const { initialPayment, ...bookingData } = editedBooking;
-      
-      // Διαμόρφωση δεδομένων κράτησης για το API
-      const formattedBooking = {
-        id_epafis: parseInt(bookingData.id_epafis),
-        id_katafigiou: parseInt(bookingData.id_katafigiou),
-        hmerominia_afiksis: bookingData.hmerominia_afiksis,
-        hmerominia_epistrofis: bookingData.hmerominia_epistrofis,
-        arithmos_melwn: parseInt(bookingData.arithmos_melwn || 0),
-        arithmos_mi_melwn: parseInt(bookingData.arithmos_mi_melwn || 0),
-        eksoterikos_xoros: bookingData.eksoterikos_xoros || "Όχι"
-      };
-      
-      // Αποστολή ενημέρωσης κράτησης στο API
-      const response = await axios.put(`http://localhost:5000/api/katafigio/${editBookingData.id}`, formattedBooking);
-      
-      // Αν παρέχεται initialPayment, προσθέτουμε νέα πληρωμή
-      let updatedBooking = response.data;
-      if (initialPayment && parseInt(initialPayment) > 0) {
-        const paymentData = {
-          id_epafis: parseInt(bookingData.id_epafis),
-          poso: parseInt(initialPayment)
-        };
-        
-        // Προσθέτουμε την πληρωμή χρησιμοποιώντας το endpoint πληρωμών
-        const paymentResponse = await axios.post(
-          `http://localhost:5000/api/katafigio/${editBookingData.id}/payment`, 
-          paymentData
-        );
-        
-        // Χρησιμοποιούμε τα ενημερωμένα δεδομένα από την απάντηση της πληρωμής
-        updatedBooking = paymentResponse.data;
-      }
-      
-      // Ενημέρωση των τοπικών δεδομένων
-      setBookings(prevBookings => 
-        prevBookings.map(booking => 
-          booking.id === editBookingData.id ? updatedBooking : booking
-        )
-      );
-      
-      // Κλείσιμο του dialog
-      setEditBookingDialogOpen(false);
-      setEditBookingData(null);
-      
-    } catch (error) {
-      console.error("Σφάλμα κατά την επεξεργασία κράτησης:", error);
-      alert(`Σφάλμα κατά την επεξεργασία κράτησης: ${error.message}`);
+// Αντικαταστήστε τη συνάρτηση handleEditBooking με την παρακάτω
+
+const handleEditBooking = async (editedBooking) => {
+  try {
+    if (!editBookingData || !editBookingData.id) {
+      throw new Error("Δεν υπάρχουν δεδομένα για επεξεργασία");
     }
-  };
+    
+    // Διαμόρφωση δεδομένων κράτησης για το API
+    // Διατηρούμε τα αρχικά δεδομένα για τα μη επεξεργάσιμα πεδία
+    const formattedBooking = {
+      // Διατηρούμε τις αρχικές τιμές από το editBookingData
+      id_epafis: parseInt(editBookingData.id_epafis),
+      id_katafigiou: parseInt(editBookingData.id_katafigiou),
+      eksoterikos_xoros: editBookingData.eksoterikos_xoros || "Όχι",
+      
+      // Επιτρέπουμε την επεξεργασία αυτών των πεδίων
+      hmerominia_afiksis: editedBooking.hmerominia_afiksis,
+      hmerominia_epistrofis: editedBooking.hmerominia_epistrofis,
+      arithmos_melwn: parseInt(editedBooking.arithmos_melwn || 0),
+      arithmos_mi_melwn: parseInt(editedBooking.arithmos_mi_melwn || 0)
+    };
+    
+    // Αποστολή ενημέρωσης κράτησης στο API
+    const response = await axios.put(`http://localhost:5000/api/katafigio/${editBookingData.id}`, formattedBooking);
+    
+    // ΔΕΝ επεξεργαζόμαστε πλέον την αρχική πληρωμή στην επεξεργασία κράτησης
+    let updatedBooking = response.data;
+    
+    // Ενημέρωση των τοπικών δεδομένων
+    setBookings(prevBookings => 
+      prevBookings.map(booking => 
+        booking.id === editBookingData.id ? updatedBooking : booking
+      )
+    );
+    
+    // Κλείσιμο του dialog
+    setEditBookingDialogOpen(false);
+    setEditBookingData(null);
+    
+  } catch (error) {
+    console.error("Σφάλμα κατά την επεξεργασία κράτησης:", error);
+    alert(`Σφάλμα κατά την επεξεργασία κράτησης: ${error.message}`);
+  }
+};
 
   // Χειριστής διαγραφής κράτησης - αφαίρεση του διπλού ελέγχου επιβεβαίωσης
 const handleDeleteBooking = async (id) => {
@@ -410,7 +448,8 @@ const handleSubmitPayment = async (paymentData) => {
     // Διαμόρφωση δεδομένων για το API
     const formattedPayment = {
       id_epafis: currentBooking.id_epafis,
-      poso: parseInt(paymentData.poso)
+      poso: parseInt(paymentData.poso),
+      hmerominia: paymentData.hmerominia || new Date().toISOString().split('T')[0]
     };
     
     // Αποστολή στο API
@@ -429,7 +468,7 @@ const handleSubmitPayment = async (paymentData) => {
                   response.data.payments[response.data.payments.length - 1].id : 
                   Date.now()), // Use timestamp instead of Math.random() as last resort
             amount: parseInt(paymentData.poso),
-            date: new Date().toISOString()
+            date: paymentData.hmerominia || new Date().toISOString()
           };
           
           // Έλεγχος και ενημέρωση του πίνακα πληρωμών
@@ -459,6 +498,197 @@ const handleSubmitPayment = async (paymentData) => {
     alert(`Σφάλμα κατά την προσθήκη πληρωμής: ${error.message}`);
   }
 };
+
+// Προσθέστε αυτή τη συνάρτηση μετά το handleSubmitPayment
+const handleEditPayment = (payment) => {
+  try {
+    // Εύρεση της κράτησης στην οποία ανήκει η πληρωμή
+    const bookingWithPayment = bookings.find(
+      booking => booking.payments?.some(p => p.id === payment.id)
+    );
+
+    if (!bookingWithPayment) {
+      throw new Error("Δεν βρέθηκε η κράτηση που περιέχει την πληρωμή");
+    }
+
+    // Προετοιμασία των δεδομένων της πληρωμής για επεξεργασία
+    setEditPaymentData({
+      id: payment.id,
+      poso: payment.amount,
+      hmerominia: payment.date ? new Date(payment.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+    });
+    
+    setCurrentBookingId(bookingWithPayment.id);
+    setEditPaymentDialogOpen(true);
+  } catch (error) {
+    console.error("Σφάλμα κατά την προετοιμασία επεξεργασίας πληρωμής:", error);
+    alert(`Σφάλμα: ${error.message}`);
+  }
+};
+
+const handleSaveEditedPayment = async (editedPayment) => {
+  try {
+    // Διασφάλιση ότι έχουμε τα απαραίτητα δεδομένα
+    if (!editPaymentData || !currentBookingId) {
+      throw new Error("Λείπουν απαραίτητα δεδομένα για την επεξεργασία");
+    }
+
+    const formattedPayment = {
+      poso: parseInt(editedPayment.poso),
+      hmerominia: editedPayment.hmerominia
+    };
+
+    // Κλήση στο API για επεξεργασία πληρωμής
+    const response = await axios.put(
+      `http://localhost:5000/api/katafigio/${currentBookingId}/payment/${editPaymentData.id}`, 
+      formattedPayment
+    );
+
+    // Ενημέρωση τοπικών δεδομένων
+    setBookings(prevBookings => 
+      prevBookings.map(booking => {
+        if (booking.id === currentBookingId) {
+          const updatedPayments = booking.payments.map(p => 
+            p.id === editPaymentData.id 
+              ? { ...p, amount: parseInt(editedPayment.poso), date: editedPayment.hmerominia }
+              : p
+          );
+          
+          // Ενημέρωση υπολοίπου
+          const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+          const updatedBalance = booking.totalPrice - totalPaid;
+          
+          return {
+            ...booking,
+            payments: updatedPayments,
+            balance: updatedBalance
+          };
+        }
+        return booking;
+      })
+    );
+
+    // Κλείσιμο του dialog
+    setEditPaymentDialogOpen(false);
+    setEditPaymentData(null);
+    setCurrentBookingId(null);
+
+  } catch (error) {
+    console.error("Σφάλμα κατά την επεξεργασία πληρωμής:", error);
+    alert(`Σφάλμα: ${error.message}`);
+  }
+};
+
+const handleDeletePayment = async (payment) => {
+  try {
+    if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτήν την πληρωμή;")) {
+      return;
+    }
+
+    // Εύρεση της κράτησης στην οποία ανήκει η πληρωμή
+    const bookingWithPayment = bookings.find(
+      booking => booking.payments?.some(p => p.id === payment.id)
+    );
+
+    if (!bookingWithPayment) {
+      throw new Error("Δεν βρέθηκε η κράτηση που περιέχει την πληρωμή");
+    }
+
+    // Κλήση του API για διαγραφή της πληρωμής
+    await axios.delete(`http://localhost:5000/api/katafigio/${bookingWithPayment.id}/payment/${payment.id}`);
+
+    // Ενημέρωση των τοπικών δεδομένων
+    setBookings(prevBookings => 
+      prevBookings.map(booking => {
+        if (booking.id === bookingWithPayment.id) {
+          // Αφαίρεση της πληρωμής
+          const updatedPayments = booking.payments.filter(p => p.id !== payment.id);
+          // Ενημέρωση υπολοίπου
+          const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+          const updatedBalance = booking.totalPrice - totalPaid;
+          
+          return {
+            ...booking,
+            payments: updatedPayments,
+            balance: updatedBalance
+          };
+        }
+        return booking;
+      })
+    );
+  } catch (error) {
+    console.error("Σφάλμα κατά τη διαγραφή πληρωμής:", error);
+    alert(`Σφάλμα: ${error.message}`);
+  }
+};
+
+  // Προσθέστε αυτήν τη συνάρτηση για να ενημερώνετε τον πίνακα με βάση το επιλεγμένο διάστημα
+const handleCalendarDateChange = (startDate, endDate) => {
+  // Αν δεν έχουμε ημερομηνίες, επιστρέφουμε όλες τις κρατήσεις
+  if (!startDate || !endDate) {
+    setFilteredBookings(bookings);
+    setIsFiltering(false);
+    return;
+  }
+  
+  // Μετατροπή των ημερομηνιών σε αντικείμενα Date για σωστή σύγκριση
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+  
+  // Φιλτράρισμα κρατήσεων βασισμένο στο αν επικαλύπτονται με το επιλεγμένο διάστημα
+  const filtered = bookings.filter(booking => {
+    if (!booking.arrival || !booking.departure) return false;
+    
+    const arrivalDate = new Date(booking.arrival);
+    const departureDate = new Date(booking.departure);
+    
+    // Ελέγχουμε αν η κράτηση επικαλύπτεται με το επιλεγμένο διάστημα
+    return (
+      (arrivalDate >= start && arrivalDate <= end) || // Άφιξη μέσα στο διάστημα
+      (departureDate >= start && departureDate <= end) || // Αναχώρηση μέσα στο διάστημα
+      (arrivalDate <= start && departureDate >= end) // Κράτηση καλύπτει όλο το διάστημα
+    );
+  });
+  
+  setFilteredBookings(filtered);
+  setDateFilter({ start, end });
+  setIsFiltering(true);
+};
+
+// Συνάρτηση για καθαρισμό του φίλτρου
+const clearDateFilter = () => {
+  setFilteredBookings(bookings);
+  setDateFilter(null);
+  setIsFiltering(false);
+};
+
+// Προσθέστε αυτήν τη συνάρτηση μετά το clearDateFilter αλλά πριν το useEffect
+const applyDateFilter = () => {
+  // Δημιουργία της πρώτης και τελευταίας ημέρας του επιλεγμένου μήνα και έτους
+  const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+  const endDate = new Date(selectedYear, selectedMonth, 0); // Τελευταία ημέρα του μήνα
+  
+  // Εφαρμογή του φίλτρου με τη χρήση της υπάρχουσας συνάρτησης
+  handleCalendarDateChange(startDate, endDate);
+  
+  // Ενημέρωση του ημερολογίου αν έχει το συγκεκριμένο ref
+  if (calendarRef.current && typeof calendarRef.current.updateCalendarView === 'function') {
+    calendarRef.current.updateCalendarView(selectedMonth, selectedYear);
+  }
+};
+
+// Προσθέστε αυτό το useEffect για να ενημερώνετε το filteredBookings όταν αλλάζουν τα bookings
+useEffect(() => {
+  if (isFiltering && dateFilter) {
+    // Αν υπάρχει ενεργό φίλτρο, εφαρμόζουμε ξανά το φίλτρο στα νέα δεδομένα
+    handleCalendarDateChange(dateFilter.start, dateFilter.end);
+  } else {
+    // Διαφορετικά εμφανίζουμε όλες τις κρατήσεις
+    setFilteredBookings(bookings);
+  }
+}, [bookings]);
 
   // Προσαρμογή του χειριστή για το άνοιγμα του dialog επεξεργασίας κράτησης
 
@@ -491,94 +721,282 @@ const handleEditBookingClick = (booking) => {
     hmerominia_epistrofis: formatDate(booking.departure),
     arithmos_melwn: booking.members || 0,
     arithmos_mi_melwn: booking.nonMembers || 0,
-    eksoterikos_xoros: booking.externalSpace === "Αίθουσα 1" ? "Ναι" : booking.externalSpace || "Όχι"
+    eksoterikos_xoros: booking.externalSpace === "Αίθουσα 1" ? "Ναι" : booking.externalSpace || "Όχι",
+    // Προσθήκη της συνολικής τιμής για εύκολη αναφορά
+    totalPrice: booking.totalPrice
   };
+  
+  console.log("Επεξεργασία κράτησης με αρχικό κόστος:", booking.totalPrice);
   
   setEditBookingData(bookingData);
   setEditBookingDialogOpen(true);
 };
 
-  return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
-      <Box sx={styles.container}>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h5" sx={styles.header}>
-            Διαχείριση Κρατήσεων Καταφυγίου <span style={{color: '#666', fontSize: '0.9rem'}}>({bookings.length})</span>
-          </Typography>
+// Αντικαταστήστε τη συνάρτηση calculateBookingCost με αυτή:
+
+const calculateBookingCost = (formValues, resourceData) => {
+  try {
+    console.log("Υπολογισμός κόστους με:", formValues);
+    console.log("Διαθέσιμα resourceData:", Object.keys(resourceData));
+
+    // Αντίγραφο των formValues για ασφαλή τροποποίηση
+    let values = { ...formValues };
+    
+    // Ειδική περίπτωση για τις περιορισμένες επεξεργάσιμες φόρμες
+    if (!values.id_katafigiou && resourceData?.currentBookingData) {
+      console.log("Χρήση currentBookingData για συμπλήρωση ελλείποντων πεδίων:", resourceData.currentBookingData);
+      
+      // Προσθήκη του id_katafigiou από το currentBookingData
+      values.id_katafigiou = resourceData.currentBookingData.id_katafigiou;
+      console.log("Συμπλήρωση id_katafigiou:", values.id_katafigiou);
+    }
+
+    // Έλεγχος ξανά μετά τη συμπλήρωση
+    if (!values.id_katafigiou || !values.hmerominia_afiksis || !values.hmerominia_epistrofis) {
+      console.log("Λείπουν απαραίτητα δεδομένα:", { 
+        id_katafigiou: values.id_katafigiou, 
+        arrival: values.hmerominia_afiksis, 
+        departure: values.hmerominia_epistrofis 
+      });
+      return null;
+    }
+    
+    // Εύρεση του επιλεγμένου καταφυγίου
+    const sheltersList = resourceData?.sheltersList || [];
+    const selectedShelter = sheltersList.find(s => 
+      s.id_katafigiou.toString() === values.id_katafigiou.toString()
+    );
+    
+    if (!selectedShelter) {
+      console.log("Δεν βρέθηκε το καταφύγιο με ID:", values.id_katafigiou);
+      return null;
+    }
+    
+    console.log("Επιλεγμένο καταφύγιο:", selectedShelter);
+    
+    // Υπόλοιπος κώδικας όπως είναι...
+    const arrival = new Date(values.hmerominia_afiksis);
+    const departure = new Date(values.hmerominia_epistrofis);
+    
+    if (isNaN(arrival.getTime()) || isNaN(departure.getTime())) {
+      console.log("Μη έγκυρες ημερομηνίες:", { arrival, departure });
+      return null;
+    }
+    
+    const days = Math.max(1, differenceInDays(departure, arrival) + 1);
+    const members = parseInt(values.arithmos_melwn) || 0;
+    const nonMembers = parseInt(values.arithmos_mi_melwn) || 0;
+    
+    const memberPrice = members * selectedShelter.timi_melous * days;
+    const nonMemberPrice = nonMembers * selectedShelter.timi_mi_melous * days;
+    const totalPrice = memberPrice + nonMemberPrice;
+    
+    console.log("Επιτυχής υπολογισμός κόστους:", { 
+      days, 
+      members, 
+      nonMembers, 
+      memberPrice, 
+      nonMemberPrice, 
+      totalPrice 
+    });
+    
+    return {
+      days,
+      memberPrice,
+      nonMemberPrice,
+      totalPrice
+    };
+  } catch (error) {
+    console.error("Σφάλμα στον υπολογισμό κόστους:", error);
+    return null;
+  }
+};
+
+  // Αλλάξτε το JSX ξεκινώντας μετά το Box με την κλάση sx={{ mb: 3 }} που περιέχει τον τίτλο
+return (
+  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
+    <Box sx={styles.container}>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" sx={styles.header}>
+          Διαχείριση Κρατήσεων Καταφυγίου 
+          <span style={{color: '#666', fontSize: '0.9rem'}}>
+            ({filteredBookings.length}/{bookings.length})
+          </span>
+        </Typography>
+        
+        {/* Νέο φίλτρο ημερομηνίας */}
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
+            <Typography variant="body2" sx={{ mr: 1 }}>Μήνας:</Typography>
+            <select 
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc' }}
+            >
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {new Date(0, i).toLocaleString("el-GR", { month: "long" })}
+                </option>
+              ))}
+            </select>
+          </Box>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
+            <Typography variant="body2" sx={{ mr: 1 }}>Έτος:</Typography>
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc' }}
+            >
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </Box>
+          
+          <Button 
+            variant="contained" 
+            color="primary"
+            size="small"
+            onClick={applyDateFilter}
+            sx={{ mr: 2 }}
+          >
+            Προβολή Κρατήσεων
+          </Button>
+          
+          {isFiltering && (
+            <Button 
+              size="small" 
+              variant="outlined" 
+              onClick={clearDateFilter}
+            >
+              Καθαρισμός Φίλτρου
+            </Button>
+          )}
         </Box>
         
-        <Paper sx={styles.tableContainer}>
-          <DataTable
-            data={bookings}
-            columns={columns}
-            detailPanelConfig={bookingDetailPanelConfig}
-            getRowId={(row) => row.id}
-            initialState={{
-              columnVisibility: { id: false },
-              sorting: [{ id: 'arrival', desc: false }]
-            }}
-            state={{ isLoading: loading }}
-            enableExpand={true}
-            enableRowActions={true}
-            enableAddNew={true}
-            onAddNew={() => setAddBookingDialogOpen(true)}
-            handleEditClick={handleEditBookingClick}
-            handleDelete={handleDeleteBooking}
-            maxHeight="600px" // Προσθήκη μέγιστου ύψους με scroll
-            density="compact" // Πιο συμπαγής εμφάνιση
-          />
-        </Paper>
-        
-        <Box sx={{ mt: 4, mb: 2 }}>
-          <Typography variant="h5" sx={styles.header}>
-            Ημερολόγιο Διαθεσιμότητας
+        {/* Ένδειξη ενεργού φίλτρου */}
+        {isFiltering && (
+          <Typography variant="body2" color="primary" sx={{ my: 1 }}>
+            Φιλτράρισμα: {dateFilter?.start.toLocaleDateString('el-GR')} - {dateFilter?.end.toLocaleDateString('el-GR')}
           </Typography>
-        </Box>
-        
-        <Paper sx={styles.calendarContainer}>
-          <CustomCalendar bookings={bookings} shelters={shelters} />
-        </Paper>
-        
-        {/* Τα dialogs παραμένουν ως έχουν */}
-        <AddDialog
-          open={addBookingDialogOpen}
-          onClose={() => setAddBookingDialogOpen(false)}
-          handleAddSave={handleAddBooking}  // Changed from onSubmit to handleAddSave
-          title="Προσθήκη Νέας Κράτησης"
-          fields={bookingFormFields}
-          resourceData={{
-            contactsList: contacts,
-            sheltersList: shelters
-          }}
-        />
-        
-        <AddDialog
-          open={editBookingDialogOpen}
-          onClose={() => {
-            setEditBookingDialogOpen(false);
-            setEditBookingData(null);
-          }}
-          handleAddSave={handleEditBooking}  // Changed from onSubmit to handleAddSave
-          initialValues={editBookingData}
-          title="Επεξεργασία Κράτησης"
-          fields={editBookingFormFields}
-          resourceData={{
-            contactsList: contacts,
-            sheltersList: shelters
-          }}
-        />
-        
-        <AddDialog
-          open={addPaymentDialogOpen}
-          onClose={() => {
-            setAddPaymentDialogOpen(false);
-            setCurrentBookingId(null);
-          }}
-          handleAddSave={handleSubmitPayment}  // Changed from onSubmit to handleAddSave
-          title="Προσθήκη Πληρωμής"
-          fields={paymentFormFields}
-        />
+        )}
       </Box>
-    </LocalizationProvider>
-  );
+      
+      <Paper sx={styles.tableContainer}>
+        <DataTable
+          data={filteredBookings} // Χρησιμοποιούμε τις φιλτραρισμένες κρατήσεις αντί για όλες
+          columns={columns}
+          detailPanelConfig={bookingDetailPanelConfig}
+          getRowId={(row) => row.id}
+          initialState={{
+            columnVisibility: { id: false },
+            sorting: [{ id: 'arrival', desc: false }]
+          }}
+          state={{ isLoading: loading }}
+          enableExpand={true}
+          enableRowActions={true}
+          enableAddNew={true}
+          onAddNew={() => setAddBookingDialogOpen(true)}
+          handleEditClick={handleEditBookingClick}
+          handleDelete={handleDeleteBooking}
+          maxHeight="600px"
+          density="compact"
+        />
+      </Paper>
+      
+      <Box sx={{ mt: 4, mb: 2 }}>
+        <Typography variant="h5" sx={styles.header}>
+          Ημερολόγιο Διαθεσιμότητας
+        </Typography>
+      </Box>
+      
+      <Paper sx={styles.calendarContainer}>
+        <CustomCalendar 
+          ref={calendarRef}
+          bookings={bookings} 
+          shelters={shelters} 
+          onDateRangeChange={handleCalendarDateChange} // Προσθήκη του callback
+        />
+      </Paper>
+      
+      {/* Τα υπόλοιπα dialogs παραμένουν ως έχουν */}
+      <AddDialog
+        open={addBookingDialogOpen}
+        onClose={() => setAddBookingDialogOpen(false)}
+        handleAddSave={handleAddBooking}
+        title="Προσθήκη Νέας Κράτησης"
+        fields={bookingFormFields}
+        resourceData={{
+          contactsList: contacts, // Το κλειδί "contactsList" πρέπει να αντιστοιχεί στο dataKey του πεδίου
+          sheltersList: shelters,
+          enableCostCalculation: true,         // Ενεργοποίηση υπολογισμού κόστους
+          calculateCost: calculateBookingCost  // Πέρασμα συνάρτησης υπολογισμού
+        }}
+      />
+      
+      <AddDialog
+        open={editBookingDialogOpen}
+        onClose={() => {
+          setEditBookingDialogOpen(false);
+          setEditBookingData(null);
+        }}
+        handleAddSave={handleEditBooking}
+        initialValues={editBookingData}
+        title="Επεξεργασία Κράτησης"
+        fields={editBookingFormFields} // Χρησιμοποιούμε τα περιορισμένα πεδία
+        resourceData={{
+          contactsList: contacts,
+          sheltersList: shelters,
+          enableCostCalculation: true,
+          calculateCost: calculateBookingCost,
+          showCostCalculation: true,
+          // Κρίσιμη αλλαγή: Περνάμε το πλήρες αντικείμενο αντί μόνο το ID
+          currentBookingData: editBookingData
+        }}
+        additionalInfo={
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" color="primary" fontWeight="bold">
+              Πληροφορίες Κόστους:
+            </Typography>
+            <Typography variant="body2">
+              • Μέλη πληρώνουν {shelters.find(s => s.id_katafigiou.toString() === editBookingData?.id_katafigiou?.toString())?.timi_melous || '?'}€ ανά διανυκτέρευση
+            </Typography>
+            <Typography variant="body2">
+              • Μη μέλη πληρώνουν {shelters.find(s => s.id_katafigiou.toString() === editBookingData?.id_katafigiou?.toString())?.timi_mi_melous || '?'}€ ανά διανυκτέρευση
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Αλλαγές στις ημερομηνίες ή στον αριθμό ατόμων θα επηρεάσουν το συνολικό κόστος.
+            </Typography>
+          </Box>
+        }
+      />
+      
+      <AddDialog
+        open={addPaymentDialogOpen}
+        onClose={() => {
+          setAddPaymentDialogOpen(false);
+          setCurrentBookingId(null);
+        }}
+        handleAddSave={handleSubmitPayment}  // Changed from onSubmit to handleAddSave
+        title="Προσθήκη Πληρωμής"
+        fields={paymentFormFields}
+      />
+      <AddDialog
+        open={editPaymentDialogOpen}
+        onClose={() => {
+          setEditPaymentDialogOpen(false);
+          setEditPaymentData(null);
+          setCurrentBookingId(null);
+        }}
+        handleAddSave={handleSaveEditedPayment}
+        initialValues={editPaymentData}
+        title="Επεξεργασία Πληρωμής"
+        fields={paymentFormFields}
+      />
+    </Box>
+  </LocalizationProvider>
+);
 }

@@ -19,9 +19,16 @@ router.get("/", async (req, res) => {
     });
 
     const serializedEksormiseis = eksormiseis.map(eksormisi => {
-      // Υπολογισμός συνολικού αριθμού συμμετεχόντων
-      const participantsCount = eksormisi.drastiriotita?.reduce((total, dr) => 
-        total + (dr.simmetoxi?.length || 0), 0) || 0;
+      // Υπολογισμός μοναδικών συμμετεχόντων
+      const uniqueParticipantIds = new Set();
+      eksormisi.drastiriotita?.forEach(dr => {
+        dr.simmetoxi?.forEach(sim => {
+          if (sim.id_melous) {
+            uniqueParticipantIds.add(sim.id_melous);
+          }
+        });
+      });
+      const participantsCount = uniqueParticipantIds.size;
 
       return {
         id: eksormisi.id_eksormisis,
@@ -32,11 +39,14 @@ router.get("/", async (req, res) => {
         hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis,
         hmerominia_afiksis: eksormisi.hmerominia_afiksis,
         participantsCount: participantsCount,
+        // ΣΗΜΑΝΤΙΚΟ: Μετονομασία δραστηριοτήτων σε "drastiriotites" όπως περιμένει το frontend
         drastiriotites: eksormisi.drastiriotita?.map(dr => ({
           id: dr.id_drastiriotitas,
           id_drastiriotitas: dr.id_drastiriotitas,
           titlos: dr.titlos || "",
           hmerominia: dr.hmerominia,
+          // Συμπερίληψη των δεδομένων συμμετοχής για κάθε δραστηριότητα
+          simmetoxi: dr.simmetoxi || [],
           vathmos_diskolias: dr.vathmos_diskolias
             ? {
                 id_vathmou_diskolias: dr.vathmos_diskolias.id_vathmou_diskolias,
@@ -254,18 +264,18 @@ router.get("/:id/simmetexontes", async (req, res) => {
         const totalPaid = memberSimmetoxes.reduce((sum, s) => 
           sum + s.plironei.reduce((pSum, p) => pSum + (p.poso_pliromis || 0), 0), 0);
         
-        // Υπολογίζουμε το συνολικό κόστος συμμετοχής
-        const totalCost = memberSimmetoxes.reduce((sum, s) => sum + (s.timi || 0), 0);
+        // Χρησιμοποιούμε την τιμή από την πρώτη συμμετοχή ως σταθερή τιμή
+        const fixedPrice = memberSimmetoxes[0].timi || 0;
         
-        // Υπολογίζουμε το υπόλοιπο
-        const ypoloipo = totalCost - totalPaid;
+        // Υπολογίζουμε το υπόλοιπο χρησιμοποιώντας τη σταθερή τιμή
+        const ypoloipo = fixedPrice - totalPaid;
 
         // Δημιουργούμε ένα αντικείμενο για το μέλος με όλες τις συμμετοχές του
         groupedSimmetexontes.push({
           id_simmetoxis: memberSimmetoxes[0].id_simmetoxis, // Χρησιμοποιούμε το ID της πρώτης συμμετοχής
           id_melous: memberId,
-          timi: totalCost,
-          ypoloipo: ypoloipo,
+          timi: fixedPrice, // Χρησιμοποιούμε τη σταθερή τιμή
+          ypoloipo: ypoloipo < 0 ? 0 : ypoloipo,
           katastasi: memberSimmetoxes[0].katastasi || "Ενεργή", // Χρησιμοποιούμε την κατάσταση της πρώτης συμμετοχής
           hmerominia_dilosis: memberSimmetoxes[0].hmerominia_dilosis,
           memberName: `${simmetoxi.melos.epafes?.onoma || ''} ${simmetoxi.melos.epafes?.epitheto || ''}`.trim() || "Άγνωστο",
@@ -279,7 +289,13 @@ router.get("/:id/simmetexontes", async (req, res) => {
             drastiriotita: s.drastiriotita
               ? {
                   id_drastiriotitas: s.drastiriotita.id_drastiriotitas,
-                  titlos: s.drastiriotita.titlos
+                  titlos: s.drastiriotita.titlos,
+                  hmerominia: s.drastiriotita.hmerominia,
+                  vathmos_diskolias: s.drastiriotita.vathmos_diskolias
+                    ? {
+                        epipedo: s.drastiriotita.vathmos_diskolias.epipedo
+                      }
+                    : null
                 }
               : null
           })),

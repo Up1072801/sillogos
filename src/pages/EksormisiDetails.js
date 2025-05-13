@@ -5,7 +5,7 @@ import {
   Box, Typography, Paper, Container, Divider, Grid,
   IconButton, Button, TableContainer, Table, 
   TableHead, TableRow, TableCell, TableBody, 
-  CircularProgress, Alert, Chip, TextField, Breadcrumbs, Link
+  CircularProgress, Alert, Chip, TextField, Breadcrumbs, Link, Dialog, DialogTitle, DialogContent
 } from "@mui/material";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -20,12 +20,30 @@ import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import HomeIcon from '@mui/icons-material/Home';
-
 import DataTable from "../components/DataTable/DataTable";
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
 import Layout from "../components/Layout";
 import * as yup from "yup";
+import SelectionDialog from "../components/SelectionDialog";
+
+// Utility function to safely format difficulty level - μετακινήθηκε στην αρχή του component
+const formatDifficultyLevel = (data) => {
+  // If data is null/undefined
+  if (data === null || data === undefined) return "Άγνωστο";
+
+  // If data is a string/number, just return formatted string
+  if (typeof data !== 'object') return `Βαθμός ${data}`;
+
+  // If data is an object with epipedo property
+  if (data.epipedo) return `Βαθμός ${data.epipedo}`;
+
+  // If data is an object with id_vathmou_diskolias property
+  if (data.id_vathmou_diskolias) return `Βαθμός ${data.id_vathmou_diskolias}`;
+
+  // If we couldn't extract meaningful data
+  return "Άγνωστο";
+};
 
 export default function EksormisiDetails() {
   const { id } = useParams();
@@ -53,6 +71,20 @@ export default function EksormisiDetails() {
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [paymentParticipant, setPaymentParticipant] = useState(null);
 
+  // Add these states
+  const [memberSelectionDialogOpen, setMemberSelectionDialogOpen] = useState(false);
+  const [activitySelectionDialogOpen, setActivitySelectionDialogOpen] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const [selectedActivityIds, setSelectedActivityIds] = useState([]);
+  const [newParticipantData, setNewParticipantData] = useState({
+    timi: eksormisi?.timi || 0,
+    katastasi: "Ενεργή"
+  });
+
+  // Προσθήκη νέων state variables στην αρχή του component
+  const [addActivityParticipantDialog, setAddActivityParticipantDialog] = useState(false);
+  const [selectedActivityForParticipant, setSelectedActivityForParticipant] = useState(null);
+
   // Refresh data function
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
@@ -79,29 +111,54 @@ export default function EksormisiDetails() {
       // Fetch drastiriotites
       try {
         const drastiriotitesResponse = await axios.get(`http://localhost:5000/api/eksormiseis/${id}/drastiriotites`);
-        
-        // Ελέγχουμε αν τα δεδομένα είναι πίνακας
         if (Array.isArray(drastiriotitesResponse.data)) {
-          // Προσθέτουμε έλεγχο για κάθε στοιχείο και εξασφαλίζουμε ότι έχει όλα τα απαραίτητα πεδία
-          const formattedDrastiriotites = drastiriotitesResponse.data.map(item => ({
-            id_drastiriotitas: item.id_drastiriotitas || item.id,
-            id: item.id_drastiriotitas || item.id, // Διπλή εκχώρηση για συμβατότητα
-            titlos: item.titlos || "Χωρίς Τίτλο",
-            hmerominia: item.hmerominia || null,
-            ores_poreias: item.ores_poreias || null,
-            diafora_ipsous: item.diafora_ipsous || null,
-            megisto_ipsometro: item.megisto_ipsometro || null,
-            id_vathmou_diskolias: item.id_vathmou_diskolias || null,
-            vathmos_diskolias: item.vathmos_diskolias || null
-          }));
-          
-          setDrastiriotites(formattedDrastiriotites);
+          // Φόρτωσε συμμετέχοντες για κάθε δραστηριότητα
+          const drastiriotitesWithParticipants = await Promise.all(
+            drastiriotitesResponse.data.map(async (item) => {
+              let vathmos_diskolias = null;
+              if (item.vathmos_diskolias) {
+                vathmos_diskolias = item.vathmos_diskolias;
+              } else if (item.id_vathmou_diskolias) {
+                vathmos_diskolias = {
+                  id_vathmou_diskolias: item.id_vathmou_diskolias,
+                  epipedo: item.id_vathmou_diskolias
+                };
+              }
+              // Φέρε συμμετέχοντες για κάθε δραστηριότητα
+              let simmetexontes = [];
+              try {
+                const resp = await axios.get(`http://localhost:5000/api/eksormiseis/drastiriotita/${item.id_drastiriotitas || item.id}/simmetexontes`);
+                if (Array.isArray(resp.data)) {
+                  simmetexontes = resp.data.map(s => ({
+                    ...s,
+                    memberName: `${s.melos?.epafes?.onoma || ''} ${s.melos?.epafes?.epitheto || ''}`.trim() || "Άγνωστο όνομα",
+                    email: s.melos?.epafes?.email || "-",
+                    katastasi: s.katastasi || "Ενεργή",
+                    timi: s.timi || 0
+                  }));
+                }
+              } catch (e) {
+                simmetexontes = [];
+              }
+              return {
+                id_drastiriotitas: item.id_drastiriotitas || item.id,
+                id: item.id_drastiriotitas || item.id,
+                titlos: item.titlos || "Χωρίς Τίτλο",
+                hmerominia: item.hmerominia || null,
+                ores_poreias: item.ores_poreias || null,
+                diafora_ipsous: item.diafora_ipsous || null,
+                megisto_ipsometro: item.megisto_ipsometro || null,
+                id_vathmou_diskolias: item.id_vathmou_diskolias || null,
+                vathmos_diskolias: vathmos_diskolias,
+                simmetexontes // <-- προσθήκη συμμετεχόντων
+              };
+            })
+          );
+          setDrastiriotites(drastiriotitesWithParticipants);
         } else {
-          console.error("Μη αναμενόμενο format δεδομένων:", drastiriotitesResponse.data);
           setDrastiriotites([]);
         }
       } catch (err) {
-        console.error("Σφάλμα φόρτωσης δραστηριοτήτων:", err);
         setDrastiriotites([]);
       }
       
@@ -114,6 +171,7 @@ export default function EksormisiDetails() {
             console.log("plironei για συμμετοχή", item.id_simmetoxis, item.plironei);
         
             // Calculate payment info
+            // Use the price as it is, even if the member participates in multiple activities
             const timi = item.timi || 0;
             const totalPaid = (item.plironei || []).reduce(
               (sum, payment) => sum + (payment.poso_pliromis || 0), 0
@@ -137,7 +195,11 @@ export default function EksormisiDetails() {
               memberName: `${item.melos?.epafes?.onoma || ''} ${item.melos?.epafes?.epitheto || ''}`.trim() || "Άγνωστο όνομα",
               drastiriotitaTitlos,
               ypoloipo,
-              plironei: Array.isArray(item.plironei) ? item.plironei : [] // Ensure plironei is always an array
+              plironei: Array.isArray(item.katavalei) ? item.katavalei.map(p => ({
+                id: p.id,
+                poso_pliromis: p.poso,
+                hmerominia_pliromis: p.hmerominia_katavolhs
+              })) : (Array.isArray(item.plironei) ? item.plironei : []) // Ensure plironei is always an array
             };
           });
       
@@ -160,13 +222,25 @@ export default function EksormisiDetails() {
       // Fetch available members
       try {
         const membersResponse = await axios.get("http://localhost:5000/api/melitousillogou");
-        // Φιλτράρισμα για να αφαιρέσουμε μέλη που ήδη συμμετέχουν σε κάποια δραστηριότητα
-        const existingMemberIds = new Set(participants.map(p => p.id_melous));
         
-        const filteredMembers = membersResponse.data.filter(member => {
-          const memberId = member.id_es_melous || member.id;
-          return !existingMemberIds.has(memberId);
-        });
+        // Create a Set of the IDs of members who are already participants
+        const existingMemberIds = new Set(
+          participants.map(p => parseInt(p.id_melous))
+        );
+        
+        const filteredMembers = membersResponse.data
+          .filter(member => {
+            const memberId = parseInt(member.id_es_melous || member.id);
+            // Only include members that aren't already participants
+            return !existingMemberIds.has(memberId);
+          })
+          .map(member => ({
+            ...member,
+            id: member.id_es_melous || member.id,
+            fullName: `${member.melos?.epafes?.onoma || ""} ${member.melos?.epafes?.epitheto || ""}`.trim(),
+            // Make sure we include the subscription status
+            status: member.sindromitis?.katastasi_sindromis || (member.athlitis ? "Αθλητής" : "-")
+          }));
         
         setAvailableMembers(filteredMembers);
       } catch (err) {
@@ -352,45 +426,74 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
   // ========== PARTICIPANT MANAGEMENT HANDLERS ==========
   
   // Fields for participant forms
-  const participantFormFields = [
-    { 
-      accessorKey: "id_melous", 
-      header: "Μέλος", 
-      type: "select",
-      options: availableMembers.map(member => ({ 
-        value: member.id_es_melous || member.id, 
-        label: `${member.melos?.epafes?.onoma || ''} ${member.melos?.epafes?.epitheto || ''}`.trim() || "Άγνωστο μέλος"
-      })),
-      validation: yup.string().required("Παρακαλώ επιλέξτε μέλος")
-    },
-    { 
-      accessorKey: "id_drastiriotitas", 
-      header: "Δραστηριότητα", 
-      type: "select",
-      options: drastiriotites.map(dr => ({ 
-        value: dr.id_drastiriotitas || dr.id, 
-        label: dr.titlos || "Άγνωστη δραστηριότητα"
-      })),
-      validation: yup.string().required("Παρακαλώ επιλέξτε δραστηριότητα")
-    },
-    { 
-      accessorKey: "timi", 
-      header: "Τιμή", 
-      type: "number",
-      validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική")
-    },
-    { 
-      accessorKey: "katastasi", 
-      header: "Κατάσταση", 
-      type: "select",
-      options: [
-        { value: "Ενεργή", label: "Ενεργή" },
-        { value: "Ακυρωμένη", label: "Ακυρωμένη" }
-      ],
-      defaultValue: "Ενεργή"
-    }
-  ];
-  
+const participantFormFields = [
+  { 
+    accessorKey: "id_melous", 
+    header: "Μέλος",
+    type: "tableSelect",               
+    dataKey: "membersList",           
+    singleSelect: true,                
+    pageSize: 5,                       
+    columns: [                         
+      { field: "fullName", header: "Ονοματεπώνυμο" },
+      { field: "status", header: "Κατάσταση Συνδρομής" }
+    ],
+    searchFields: ["fullName"], 
+    noDataMessage: "Δεν βρέθηκαν μέλη",
+    validation: yup.mixed().required("Παρακαλώ επιλέξτε μέλος")
+  },
+  { 
+    accessorKey: "id_drastiriotitas", 
+    header: "Δραστηριότητες", 
+    type: "tableSelect",
+    dataKey: "drastiriotitesList",
+    multiSelect: true,
+    pageSize: 5,
+    columns: [
+      { field: "titlos", header: "Τίτλος" },
+      { field: "hmerominia", header: "Ημερομηνία" },
+      { 
+        field: "vathmos_diskolias", 
+        header: "Βαθμός Δυσκολίας",
+        Cell: ({ row }) => {
+          // Ασφαλής απόδοση του βαθμού δυσκολίας ως κείμενο
+          const value = row.original.vathmos_diskolias;
+          if (!value) return "-";
+          // Αν είναι ήδη string, το επιστρέφουμε ως έχει
+          if (typeof value === "string") return value;
+          // Αν είναι αντικείμενο, προσπαθούμε να εξάγουμε χρήσιμες πληροφορίες
+          if (typeof value === "object") {
+            if (value.epipedo) return `Βαθμός ${value.epipedo}`;
+            if (value.id_vathmou_diskolias) return `Βαθμός ${value.id_vathmou_diskolias}`;
+          }
+          // Fallback
+          return String(value);
+        }
+      }
+    ],
+    // ...Άλλα πεδία...
+  },
+  { 
+    accessorKey: "timi", 
+    header: "Τιμή", 
+    type: "number",
+    defaultValue: eksormisi?.timi || 0,
+    validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική")
+  },
+  { 
+    accessorKey: "katastasi", 
+    header: "Κατάσταση", 
+    type: "select",
+    options: [
+      { value: "Ενεργή", label: "Ενεργή" },
+      { value: "Εκκρεμής", label: "Εκκρεμής" },
+      { value: "Ολοκληρωμένη", label: "Ολοκληρωμένη" },
+      { value: "Ακυρωμένη", label: "Ακυρωμένη" }
+    ],
+    defaultValue: "Ενεργή"
+  }
+];
+
   // Fields for payment form
   const paymentFormFields = [
     { 
@@ -409,26 +512,58 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
     }
   ];
   
-  // Handle adding participant
-  const handleAddParticipant = async (newParticipant) => {
-    try {
+  // Handle adding participant - now with multiple activities
+const handleAddParticipant = async (formData) => {
+  try {
+    // Check if user has selected a member
+    if (!formData.id_melous) {
+      alert("Πρέπει να επιλέξετε μέλος");
+      return;
+    }
+
+    // Convert the id_drastiriotitas from tableSelect to an array if it's not already
+    const activityIds = Array.isArray(formData.id_drastiriotitas) 
+      ? formData.id_drastiriotitas 
+      : [formData.id_drastiriotitas];
+
+    // Check if user has selected at least one activity
+    if (activityIds.length === 0) {
+      alert("Πρέπει να επιλέξετε τουλάχιστον μία δραστηριότητα");
+      return;
+    }
+
+    // Create a participation entry for each selected activity
+    const successResults = [];
+    const fixedPrice = parseFloat(formData.timi); // Get the price once for all activities
+    
+    for (const activityId of activityIds) {
       const formattedData = {
-        id_melous: parseInt(newParticipant.id_melous),
-        id_drastiriotitas: parseInt(newParticipant.id_drastiriotitas),
-        timi: parseFloat(newParticipant.timi),
-        katastasi: newParticipant.katastasi || "Ενεργή"
+        id_melous: typeof formData.id_melous === 'object' ? formData.id_melous.id : parseInt(formData.id_melous),
+        id_drastiriotitas: parseInt(activityId),
+        timi: fixedPrice, // Use the same fixed price for all activities
+        katastasi: formData.katastasi || "Ενεργή"
       };
       
-      await axios.post(`http://localhost:5000/api/eksormiseis/${id}/simmetoxi`, formattedData);
-      
+      try {
+        const response = await axios.post(`http://localhost:5000/api/eksormiseis/${id}/simmetoxi`, formattedData);
+        successResults.push(response.data);
+      } catch (err) {
+        console.error(`Error adding participation for activity ${activityId}:`, err);
+      }
+    }
+    
+    if (successResults.length > 0) {
       refreshData();
       setAddParticipantDialog(false);
-    } catch (error) {
-      console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα:", error);
-      alert("Σφάλμα: " + error.message);
+    } else {
+      alert("Δεν ήταν δυνατή η προσθήκη συμμετοχών.");
     }
-  };
-  
+  } catch (error) {
+    console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα:", error);
+    alert("Σφάλμα: " + error.message);
+  }
+};
+
   // Handle editing participant
   const handleEditParticipantClick = (participant) => {
     setCurrentParticipant({
@@ -459,74 +594,160 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
   };
   
   // Handle removing participant
-  const handleRemoveParticipant = async (participant) => {
-    if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον συμμετέχοντα;")) {
-      return;
-    }
+const handleRemoveParticipant = async (participant) => {
+  // Σιγουρευόμαστε ότι έχουμε έγκυρο participant
+  if (!participant) {
+    alert("Σφάλμα: Δεν βρέθηκε συμμετέχων για διαγραφή");
+    return;
+  }
+  
+  // Προσπαθούμε να βρούμε το ID με διάφορους τρόπους
+  let participantId;
+  
+  if (typeof participant === 'object') {
+    participantId = participant.id_simmetoxis || participant.id;
     
-    try {
-      const participantId = participant.id_simmetoxis || participant.id;
-      await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${participantId}`);
-      
-      refreshData();
-    } catch (error) {
-      console.error("Σφάλμα κατά την αφαίρεση συμμετέχοντα:", error);
-      alert("Σφάλμα: " + error.message);
+    // Αν έχουμε original (από DataTable)
+    if (participant.original) {
+      participantId = participantId || participant.original.id_simmetoxis || participant.original.id;
     }
-  };
+  } else {
+    participantId = participant; // Αν είναι κατευθείαν το ID
+  }
+  
+  // Έλεγχος αν βρήκαμε έγκυρο ID (προσοχή στο 0 που είναι έγκυρο)
+  if (participantId === undefined || participantId === null) {
+    alert("Σφάλμα: Δεν βρέθηκε έγκυρο ID συμμετοχής");
+    return;
+  }
+
+  if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον συμμετέχοντα;")) {
+    return;
+  }
+  
+  try {
+    await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${participantId}`);
+    refreshData();
+  } catch (error) {
+    console.error("Σφάλμα κατά την αφαίρεση συμμετέχοντα:", error);
+    alert("Σφάλμα: " + error.message);
+  }
+};
 
   // ========== PAYMENT MANAGEMENT HANDLERS ==========
   
   // Handle opening payment dialog
-  const handleOpenPaymentDialog = (participant) => {
-    // Εδώ βεβαιώσου ότι περνάς το σωστό αντικείμενο με id_simmetoxis
-    setPaymentParticipant({
-      ...participant,
-      id_simmetoxis: participant.id_simmetoxis || participant.id // fallback αν χρειαστεί
-    });
-    setPaymentDialog(true);
-  };
+// Στο handleOpenPaymentDialog, πρόσθεσε περισσότερα διαγνωστικά
+const handleOpenPaymentDialog = (participant) => {
+  console.log("handleOpenPaymentDialog called with participant:", participant);
   
-  // Handle adding payment
-  const handleAddPayment = async (payment) => {
-    try {
-      if (!paymentParticipant) return;
-      
-      const formattedData = {
-        poso_pliromis: parseFloat(payment.poso_pliromis),
-        hmerominia_pliromis: payment.hmerominia_pliromis || new Date().toISOString()
-      };
-      
-      await axios.post(
-        `http://localhost:5000/api/eksormiseis/simmetoxi/${paymentParticipant.id_simmetoxis}/payment`, 
-        formattedData
-      );
-      
-      refreshData();
-      setPaymentDialog(false);
-      setPaymentParticipant(null);
-    } catch (error) {
-      console.error("Σφάλμα κατά την καταχώρηση πληρωμής:", error);
-      alert("Σφάλμα: " + error.message);
-    }
-  };
+  // Βεβαιώσου ότι έχεις πρόσβαση σε όλα τα δεδομένα
+  let simmetoxiId = null;
   
-  // Handle removing payment
-  const handleRemovePayment = async (paymentId, simmetoxiId) => {
-    if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτή την πληρωμή;")) {
+  // Έλεγχος για API response structure
+  if (participant.id_simmetoxis) {
+    simmetoxiId = participant.id_simmetoxis;
+  } 
+  // Έλεγχος για MUI DataGrid row model
+  else if (participant.id) {
+    simmetoxiId = participant.id;
+  }
+  // Έλεγχος για συμμετοχές στο detail panel
+  else if (participant.simmetoxes && participant.simmetoxes.length > 0) {
+    simmetoxiId = participant.simmetoxes[0].id_simmetoxis;
+  }
+  // Έλεγχος για το row.original του dataTable
+  else if (participant.original) {
+    simmetoxiId = participant.original.id_simmetoxis || participant.original.id;
+  }
+  
+  console.log("Εξαγόμενο simmetoxiId:", simmetoxiId);
+  
+  if (!simmetoxiId) {
+    console.error("ΠΡΟΣΟΧΗ: Δεν βρέθηκε έγκυρο ID συμμετοχής", participant);
+    alert("Σφάλμα: Δεν βρέθηκε ID συμμετοχής.");
+    return;
+  }
+
+  setPaymentParticipant({
+    ...participant,
+    id_simmetoxis: simmetoxiId,
+    memberName: participant.memberName || 
+      `${participant.melos?.epafes?.onoma || ''} ${participant.melos?.epafes?.epitheto || ''}`.trim() || 
+      "Άγνωστο όνομα"
+  });
+  setPaymentDialog(true);
+};
+
+  // Βελτιωμένη συνάρτηση handleAddPayment με περισσότερη διαγνωστική πληροφορία
+const handleAddPayment = async (payment) => {
+  try {
+    if (!paymentParticipant) {
+      console.error("paymentParticipant είναι null ή undefined");
       return;
     }
     
-    try {
-      await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
-      refreshData();
-    } catch (error) {
-      console.error("Σφάλμα κατά την αφαίρεση πληρωμής:", error);
-      alert("Σφάλμα: " + error.message);
+    console.log("DEBUG paymentParticipant:", paymentParticipant);
+    
+    // Βελτιωμένη λογική για εύρεση του ID συμμετοχής
+    const simmetoxiId = paymentParticipant.id_simmetoxis || 
+                       paymentParticipant.id ||
+                       (paymentParticipant.simmetoxes && paymentParticipant.simmetoxes.length > 0 ? 
+                        paymentParticipant.simmetoxes[0].id_simmetoxis : null);
+    
+    console.log("DEBUG simmetoxiId:", simmetoxiId);
+    
+    // Έλεγχος αν βρέθηκε έγκυρο ID
+    if (!simmetoxiId) {
+      alert("Σφάλμα: Δεν βρέθηκε ID συμμετοχής για καταχώρηση πληρωμής.");
+      return;
     }
-  };
+    
+    const formattedData = {
+      poso: parseFloat(payment.poso_pliromis),
+      hmerominia_pliromis: payment.hmerominia_pliromis || new Date().toISOString()
+    };
+    
+    console.log(`Αποστολή πληρωμής στο: /api/eksormiseis/simmetoxi/${simmetoxiId}/payment`, formattedData);
+    
+    await axios.post(
+      `http://localhost:5000/api/eksormiseis/simmetoxi/${simmetoxiId}/payment`, 
+      formattedData
+    );
+    
+    refreshData();
+    setPaymentDialog(false);
+    setPaymentParticipant(null);
+  } catch (error) {
+    console.error("Σφάλμα κατά την καταχώρηση πληρωμής:", error);
+    alert("Σφάλμα: " + error.message);
+  }
+};
+  
+  // Handle removing payment
+const handleRemovePayment = async (paymentId, simmetoxiId) => {
+  if (!paymentId || !simmetoxiId) {
+    console.error("Μη έγκυρες παράμετροι για διαγραφή πληρωμής:", { paymentId, simmetoxiId });
+    alert("Σφάλμα: Ελλιπή στοιχεία πληρωμής προς διαγραφή");
+    return;
+  }
 
-  // Διορθωμένα columns για τον πίνακα δραστηριοτήτων
+  console.log("Διαγραφή πληρωμής με paymentId:", paymentId, "και simmetoxiId:", simmetoxiId);
+  
+  if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτή την πληρωμή;")) {
+    return;
+  }
+  
+  try {
+    await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
+    refreshData();
+  } catch (error) {
+    console.error("Σφάλμα κατά την αφαίρεση πληρωμής:", error);
+    alert("Σφάλμα: " + error.message);
+  }
+};
+
+  // Διορθωμένες στήλες για τον πίνακα δραστηριοτήτων
 const drastiriotitesColumns = [
   { accessorKey: "id_drastiriotitas", header: "ID", enableHiding: true },
   { 
@@ -562,58 +783,26 @@ const drastiriotitesColumns = [
       if (!date) return "-";
       
       try {
+        // Πιο εύρωστη εμφάνιση ημερομηνίας
         return new Date(date).toLocaleDateString('el-GR');
       } catch (error) {
         console.error("Σφάλμα μετατροπής ημερομηνίας:", error);
-        return "-";
+        return date; // Εμφάνιση της ημερομηνίας ως έχει αν αποτύχει η μετατροπή
       }
     }
   },
   { accessorKey: "ores_poreias", header: "Ώρες Πορείας" },
-  { accessorKey: "diafora_ipsous", header: "Διαφορά Ύψους (μ)" },
-  { accessorKey: "megisto_ipsometro", header: "Μέγιστο Υψόμετρο (μ)" },
-  { 
+  {
     accessorKey: "vathmos_diskolias", 
     header: "Βαθμός Δυσκολίας",
     Cell: ({ row }) => {
-      // Βελτιωμένος έλεγχος για το vathmos_diskolias
       const vathmos = row.original.vathmos_diskolias;
-      
-      if (!vathmos) {
-        // Αν δεν υπάρχει το αντικείμενο vathmos_diskolias
-        if (row.original.id_vathmou_diskolias) {
-          // Εάν υπάρχει ένα id_vathmou_diskolias μπορούμε να το χρησιμοποιήσουμε
-          return (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <HikingIcon sx={{ mr: 0.5, fontSize: 'small', color: 'text.secondary' }} />
-              {`Βαθμός ${row.original.id_vathmou_diskolias}`}
-            </Box>
-          );
-        }
-        return "Άγνωστο";
-      }
-      
-      // Αναζήτηση του επιπέδου με διάφορους τρόπους
-      let vathmosValue;
-      
-      if (typeof vathmos.epipedo !== 'undefined' && vathmos.epipedo !== null) {
-        vathmosValue = vathmos.epipedo;
-      } else if (typeof vathmos.id_vathmou_diskolias !== 'undefined' && vathmos.id_vathmou_diskolias !== null) {
-        vathmosValue = vathmos.id_vathmou_diskolias;
-      } else {
-        // Αναζήτηση σε οποιοδήποτε πεδίο που θα μπορούσε να περιέχει το επίπεδο
-        for (const key in vathmos) {
-          if (vathmos[key] && typeof vathmos[key] !== 'object') {
-            vathmosValue = vathmos[key];
-            break;
-          }
-        }
-      }
+      const formattedLevel = formatDifficultyLevel(vathmos);
       
       return (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <HikingIcon sx={{ mr: 0.5, fontSize: 'small', color: 'text.secondary' }} />
-          {vathmosValue !== undefined && vathmosValue !== null ? `Βαθμός ${vathmosValue}` : "Άγνωστο"}
+          {formattedLevel}
         </Box>
       );
     }
@@ -644,26 +833,16 @@ const participantsColumns = [
     Cell: ({ row }) => row.original.melos?.epafes?.tilefono || "-"
   },
   { 
-    // Use a direct accessor to the pre-processed field instead of the nested path
-    accessorKey: "drastiriotitaTitlos", 
-    header: "Δραστηριότητα",
-    Cell: ({ row }) => (
-      <Typography variant="body2">
-        {row.original.drastiriotitaTitlos || "-"}
-      </Typography>
-    )
-  },
-  { 
     accessorKey: "ypoloipo", 
     header: "Υπόλοιπο",
     Cell: ({ row }) => {
-      // Use the pre-calculated ypoloipo from the formatted data if available
-      // Otherwise recalculate it
-      const ypoloipo = typeof row.original.ypoloipo === 'number' ? 
-        row.original.ypoloipo : 
-        (row.original.timi || 0) - ((row.original.plironei || []).reduce(
-          (sum, payment) => sum + (payment.poso_pliromis || 0), 0
-        ));
+      // For each member, use the first activity's price as the total price
+      // This ensures we're not summing up prices across activities
+      const timi = row.original.timi || 0;
+      const totalPaid = (row.original.plironei || []).reduce(
+        (sum, payment) => sum + (payment.poso_pliromis || 0), 0
+      );
+      const ypoloipo = timi - totalPaid;
 
       return (
         <Box sx={{ 
@@ -708,43 +887,519 @@ const participantsColumns = [
 ];
 
   // Detail panel configuration for participants
-  const participantDetailPanel = {
+const participantDetailPanel = {
   mainDetails: [
     { accessor: "memberName", header: "Ονοματεπώνυμο" },
     { accessor: "melos.epafes.email", header: "Email" },
     { accessor: "melos.epafes.tilefono", header: "Τηλέφωνο" },
-    { accessor: "drastiriotitaTitlos", header: "Δραστηριότητα" }, 
     { accessor: "timi", header: "Τιμή", format: (value) => `${value || 0}€` },
     { accessor: "katastasi", header: "Κατάσταση" },
     { accessor: "ypoloipo", header: "Υπόλοιπο", format: (value) => `${value || 0}€` }
   ],
   tables: [
     {
-      title: "Ιστορικό Πληρωμών",
+      title: "Δραστηριότητες",
       getData: (row) => {
-        if (!row.plironei || !Array.isArray(row.plironei)) {
+        try {
+          // Always ensure we return a valid array
+          if (!row) return [];
+          
+          // Handle various data structures with proper null checks
+          if (row.simmetoxes && Array.isArray(row.simmetoxes)) {
+            const result = row.simmetoxes
+              .map(s => s?.drastiriotita)
+              .filter(Boolean); // Remove null/undefined items
+            return result;
+          }
+          
+          if (row.drastiriotita) {
+            if (Array.isArray(row.drastiriotita)) {
+              return row.drastiriotita.filter(Boolean);
+            } else {
+              return [row.drastiriotita].filter(Boolean);
+            }
+          }
+          
+          if (row.katanemimeno_se && Array.isArray(row.katanemimeno_se)) {
+            const result = row.katanemimeno_se
+              .map(k => k?.drastiriotita)
+              .filter(Boolean);
+            return result;
+          }
+          
+          return [];
+        } catch (error) {
+          console.error("Error in getData for activities:", error);
           return [];
         }
-        return row.plironei;
+      },
+      columns: [
+        { 
+          accessorKey: "titlos", 
+          header: "Τίτλος",
+          Cell: ({ row }) => {
+            if (!row?.original) return "-";
+            
+            const id = row.original.id_drastiriotitas || row.original.id;
+            return (
+              <Box 
+                sx={{ 
+                  cursor: "pointer", 
+                  color: "primary.main", 
+                  fontWeight: "medium",
+                  "&:hover": { textDecoration: "underline" } 
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/drastiriotita/${id}`);
+                }}
+              >
+                {row.original.titlos || "Άγνωστο"}
+              </Box>
+            );
+          }
+        },
+        { 
+          accessorKey: "hmerominia", 
+          header: "Ημερομηνία",
+          Cell: ({ row }) => {
+            if (!row?.original?.hmerominia) return "-";
+            try {
+              return new Date(row.original.hmerominia).toLocaleDateString("el-GR");
+            } catch (e) {
+              return "-";
+            }
+          }
+        },
+        {
+          accessorKey: "vathmos_diskolias", 
+          header: "Βαθμός Δυσκολίας",
+          Cell: ({ row }) => {
+            if (!row?.original) return "Άγνωστο";
+            
+            const vathmos = row.original.vathmos_diskolias;
+            if (!vathmos) return "Άγνωστο";
+            
+            // Convert object to string safely
+            if (typeof vathmos === 'object') {
+              return `Βαθμός ${vathmos.epipedo || ""}`;
+            }
+            
+            return `Βαθμός ${String(vathmos)}`;
+          }
+        }
+      ],
+      getRowId: (row) => {
+        if (!row) return `random-${Math.random().toString(36).substring(2)}`;
+        return row.id_drastiriotitas || row.id || `random-${Math.random().toString(36).substring(2)}`;
+      },
+      emptyMessage: "Δεν συμμετέχει σε καμία δραστηριότητα"
+    },
+    {
+      title: "Ιστορικό Πληρωμών",
+      getData: (row) => {
+        try {
+          if (!row) return [];
+          if (!row.plironei) return [];
+          if (!Array.isArray(row.plironei)) return [];
+          return [...row.plironei];
+        } catch (error) {
+          console.error("Error in getData for payments:", error);
+          return [];
+        }
       },
       columns: [
         { 
           accessorKey: "poso_pliromis", 
           header: "Ποσό",
-          Cell: ({ row }) => `${row.original.poso_pliromis || 0}€`
+          Cell: ({ row }) => {
+            if (!row?.original) return "0€";
+            return `${row.original.poso_pliromis || 0}€`;
+          }
         },
         { 
           accessorKey: "hmerominia_pliromis", 
           header: "Ημερομηνία",
-          Cell: ({ row }) => row.original.hmerominia_pliromis ? 
-            new Date(row.original.hmerominia_pliromis).toLocaleDateString("el-GR") : "-"
+          Cell: ({ row }) => {
+            if (!row?.original?.hmerominia_pliromis) return "-";
+            try {
+              return new Date(row.original.hmerominia_pliromis).toLocaleDateString("el-GR");
+            } catch (e) {
+              return "-";
+            }
+          }
         }
       ],
-      onDelete: (payment, participant) => 
-        handleRemovePayment(payment.id || payment.id_plironei, participant.id_simmetoxis),
-      onAddNew: (participant) => handleOpenPaymentDialog(participant),
-      getRowId: (row) => row.id || row.id_plironei || Math.random().toString(36).substring(2),
+      onDelete: (payment, participant) => {
+        if (!payment || !participant) return;
+        const paymentId = payment.id || payment.id_plironei;
+        const participantId = participant.id_simmetoxis;
+        
+        if (!paymentId || !participantId) {
+          console.error("Missing ID for payment or participant");
+          return;
+        }
+        
+        handleRemovePayment(paymentId, participantId);
+      },
+      onAddNew: (rowOrId, meta) => {
+        if (!rowOrId) return;
+        
+        console.log("Payment onAddNew called with:", rowOrId, meta);
+        
+        let simmetoxiId;
+        let participantObject;
+        
+        // Case 1: We might have the parent row as meta parameter
+        if (meta && typeof meta === 'object' && (meta.id_simmetoxis || meta.id)) {
+          simmetoxiId = meta.id_simmetoxis || meta.id;
+          participantObject = meta;
+        }
+        // Case 2: We might have just received a numeric ID
+        else if (typeof rowOrId === 'number' || typeof rowOrId === 'string') {
+          simmetoxiId = rowOrId;
+          // Find the complete participant data from the participants array
+          participantObject = participants.find(p => 
+            p.id_simmetoxis == simmetoxiId || p.id == simmetoxiId
+          );
+        }
+        // Case 3: We received an object with ID
+        else if (rowOrId && typeof rowOrId === 'object') {
+          simmetoxiId = rowOrId.id_simmetoxis || rowOrId.id;
+          participantObject = rowOrId;
+        }
+        
+        if (!simmetoxiId) {
+          console.error("No valid ID found for participant", rowOrId);
+          alert("Σφάλμα: Δεν βρέθηκε ID συμμετοχής.");
+          return;
+        }
+        
+        // If we found the ID but not the full object, create a minimal one
+        if (!participantObject) {
+          participantObject = {
+            id_simmetoxis: simmetoxiId,
+            memberName: "Συμμετέχων #" + simmetoxiId
+          };
+        }
+        
+        // Make sure ID is included in the object we're passing
+        handleOpenPaymentDialog({
+          ...participantObject,
+          id_simmetoxis: simmetoxiId
+        });
+      },
+      getRowId: (row) => {
+        if (!row) return `payment-${Math.random().toString(36).substring(2)}`;
+        return row.id || row.id_plironei || `payment-${Math.random().toString(36).substring(2)}`;
+      },
       emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές"
+    }
+  ]
+};
+
+  // Custom form for participant addition with tables for member selection and activity selection
+const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [selectedActivities, setSelectedActivities] = useState([]);
+  const [price, setPrice] = useState(eksormisi.timi || 0);
+  const [status, setStatus] = useState("Ενεργή");
+  
+  // Define columns for the member selection table
+  const memberColumns = [
+    {
+      accessorKey: "fullName", 
+      header: "Ονοματεπώνυμο",
+      Cell: ({ row }) => {
+        return row.original.fullName || "-";
+      }
+    },
+    {
+      accessorKey: "status", 
+      header: "Κατάσταση Συνδρομής",
+      Cell: ({ row }) => row.original.athlitis ? "Αθλητής" : row.original.sindromitis?.katastasi_sindromis || '-'
+    }
+  ];
+  
+  // Define columns for the activity selection table
+  const activityColumns = [
+    {
+      accessorKey: "titlos",
+      header: "Τίτλος"
+    },
+    {
+      accessorKey: "hmerominia",
+      header: "Ημερομηνία",
+      Cell: ({ row }) => row.original.hmerominia ? new Date(row.original.hmerominia).toLocaleDateString('el-GR') : "-"
+    },
+    {
+      accessorKey: "vathmos_diskolias",
+      header: "Βαθμός Δυσκολίας",
+      Cell: ({ row }) => {
+        const vathmos = row.original.vathmos_diskolias;
+        if (!vathmos) return "Άγνωστο";
+        
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <HikingIcon sx={{ mr: 0.5, fontSize: 'small', color: 'text.secondary' }} />
+            {`Βαθμός ${vathmos.epipedo || ""}`}
+          </Box>
+        );
+      }
+    }
+  ];
+  
+  const handleSubmit = () => {
+    if (!selectedMember) {
+      alert("Πρέπει να επιλέξετε μέλος");
+      return;
+    }
+    
+    if (selectedActivities.length === 0) {
+      alert("Πρέπει να επιλέξετε τουλάχιστον μία δραστηριότητα");
+      return;
+    }
+    
+    onSubmit({
+      id_melous: selectedMember.id_es_melous || selectedMember.id,
+      selectedActivities,
+      timi: price,
+      katastasi: status
+    });
+  };
+  
+  return (
+    <Box sx={{ width: "100%" }}>
+      {/* Member Selection */}
+      <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+        Επιλογή Μέλους
+      </Typography>
+      <Box sx={{ mb: 3, border: '1px solid #ddd', borderRadius: 1 }}>
+        <DataTable
+          data={availableMembers}
+          columns={memberColumns}
+          getRowId={(row) => row.id_es_melous || row.id}
+          enableRowSelection
+          onRowSelectionModelChange={(ids) => {
+            if (ids.length > 0) {
+              setSelectedMember(availableMembers.find(m => 
+                (m.id_es_melous || m.id) === ids[0]
+              ));
+            } else {
+              setSelectedMember(null);
+            }
+          }}
+          state={{
+            rowSelection: selectedMember ? {
+              [(selectedMember.id_es_melous || selectedMember.id)]: true
+            } : {}
+          }}
+          enablePagination={true}
+          density="compact"
+          enableToolbarInternalActions={false}
+          enableColumnActions={false}
+        />
+      </Box>
+      
+      {/* Activities Selection */}
+      <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+        Επιλογή Δραστηριοτήτων
+      </Typography>
+      <Box sx={{ mb: 3, border: '1px solid #ddd', borderRadius: 1 }}>
+        <DataTable
+          data={drastiriotites}
+          columns={activityColumns}
+          getRowId={(row) => row.id_drastiriotitas || row.id}
+          enableRowSelection
+          enableMultiRowSelection
+          onRowSelectionModelChange={(ids) => {
+            setSelectedActivities(ids);
+          }}
+          state={{
+            rowSelection: selectedActivities.reduce((acc, id) => {
+              acc[id] = true;
+              return acc;
+            }, {})
+          }}
+          enablePagination={true}
+          density="compact"
+          enableToolbarInternalActions={false}
+          enableColumnActions={false}
+        />
+      </Box>
+      
+      {/* Price and Status */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label="Τιμή"
+            type="number"
+            value={price}
+            onChange={(e) => setPrice(parseFloat(e.target.value))}
+            InputProps={{
+              startAdornment: <AttachMoneyIcon position="start" />
+            }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            select
+            fullWidth
+            label="Κατάσταση"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="Ενεργή">Ενεργή</option>
+            <option value="Εκκρεμής">Εκκρεμής</option>
+            <option value="Ολοκληρωμένη">Ολοκληρωμένη</option>
+            <option value="Ακυρωμένη">Ακυρωμένη</option>
+          </TextField>
+        </Grid>
+      </Grid>
+      
+      {/* Action Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Button variant="outlined" onClick={onCancel}>
+          Ακύρωση
+        </Button>
+        <Button variant="contained" onClick={handleSubmit}>
+          Αποθήκευση
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
+  // Add this function to open the member selection dialog
+const handleAddParticipantClick = () => {
+  setAddParticipantDialog(true);
+};
+
+  // Χειριστής προσθήκης συμμετέχοντα σε συγκεκριμένη δραστηριότητα
+const handleAddActivityParticipant = async (formData) => {
+  try {
+    if (!selectedActivityForParticipant) {
+      alert("Δεν έχει επιλεγεί δραστηριότητα.");
+      return;
+    }
+    
+    const activityId = selectedActivityForParticipant.id_drastiriotitas || selectedActivityForParticipant.id;
+    
+    // Better handling of member ID
+    let memberId;
+    if (typeof formData.id_melous === 'object') {
+      // First try to get the melos.id_melous if available
+      if (formData.id_melous.melos && formData.id_melous.melos.id_melous) {
+        memberId = formData.id_melous.melos.id_melous;
+      } else {
+        // Fall back to the selected ID
+        memberId = formData.id_melous.id;
+      }
+    } else {
+      memberId = parseInt(formData.id_melous);
+    }
+    
+    console.log("Selected member ID:", memberId);
+    
+    const formattedData = {
+      id_melous: memberId,
+      id_drastiriotitas: parseInt(activityId),
+      timi: parseFloat(formData.timi),
+      katastasi: formData.katastasi || "Ενεργή"
+    };
+    
+    console.log("Sending data:", formattedData);
+    
+    await axios.post(`http://localhost:5000/api/eksormiseis/${id}/simmetoxi`, formattedData);
+    
+    refreshData();
+    setAddActivityParticipantDialog(false);
+    setSelectedActivityForParticipant(null);
+  } catch (error) {
+    console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα στη δραστηριότητα:", error);
+    // Show more detailed error message if available
+    if (error.response?.data?.error) {
+      alert("Σφάλμα: " + error.response.data.error);
+    } else {
+      alert("Σφάλμα: " + error.message);
+    }
+  }
+};
+
+  // ΠΡΟΣΘΗΚΗ: Μετακίνηση του drastiriotitaDetailPanel μέσα στο component
+  // πριν το return statement
+  const drastiriotitaDetailPanel = {
+  mainDetails: [
+    { accessor: "titlos", header: "Τίτλος" },
+    { 
+      accessor: "hmerominia", 
+      header: "Ημερομηνία", 
+      format: (value) => {
+        if (!value) return "-";
+        try {
+          return new Date(value).toLocaleDateString('el-GR');
+        } catch (e) {
+          return "-";
+        }
+      }
+    },
+    { accessor: "ores_poreias", header: "Ώρες Πορείας", format: (value) => value || "-" },
+    { accessor: "diafora_ipsous", header: "Διαφορά Ύψους (μ)", format: (value) => value || "-" },
+    { accessor: "megisto_ipsometro", header: "Μέγιστο Υψόμετρο (μ)", format: (value) => value || "-" },
+    { 
+      accessor: "vathmos_diskolias", 
+      header: "Βαθμός Δυσκολίας", 
+      format: (value) => formatDifficultyLevel(value)
+    }
+  ],
+  tables: [
+    {
+      title: "Συμμετέχοντες",
+      getData: (row) => {
+        // Επιστρέφει τους συμμετέχοντες που έχουν φορτωθεί στο αντικείμενο
+        if (!Array.isArray(row?.simmetexontes)) return [];
+        
+        return row.simmetexontes.map(s => ({
+          ...s,
+          tilefono: s.melos?.epafes?.tilefono || "-"
+        }));
+      },
+      loadData: async (row) => {
+        if (!row) return [];
+        
+        try {
+          const id = row.id_drastiriotitas || row.id;
+          if (!id) return [];
+          
+          const response = await axios.get(`http://localhost:5000/api/eksormiseis/drastiriotita/${id}/simmetexontes`);
+          
+          if (Array.isArray(response.data)) {
+            return response.data.map(item => ({
+              id: item.id_simmetoxis,
+              id_simmetoxis: item.id_simmetoxis,
+              id_melous: item.id_melous,
+              memberName: `${item.melos?.epafes?.onoma || ''} ${item.melos?.epafes?.epitheto || ''}`.trim() || "Άγνωστο όνομα",
+              timi: item.timi || 0,
+              katastasi: item.katastasi || "Ενεργή",
+              email: item.melos?.epafes?.email || "-",
+              tilefono: item.melos?.epafes?.tilefono || "-"
+            }));
+          }
+          return [];
+        } catch (error) {
+          console.error("Σφάλμα φόρτωσης συμμετεχόντων:", error);
+          return [];
+        }
+      },
+      columns: [
+        { accessorKey: "memberName", header: "Ονοματεπώνυμο" },
+        { accessorKey: "email", header: "Email" },
+        { accessorKey: "tilefono", header: "Τηλέφωνο" } // Άλλαξε από "katastasi" σε "tilefono"
+      ],
+      // Removed onDelete and onAddNew handlers
+      getRowId: (row) => row?.id_simmetoxis || row?.id || `participant-${Math.random().toString(36).substring(2)}`,
+      emptyMessage: "Δεν υπάρχουν συμμετέχοντες σε αυτή τη δραστηριότητα"
     }
   ]
 };
@@ -892,6 +1547,8 @@ const participantsColumns = [
               tableName="drastiriotites"
               density="compact"
               enableAddNew={false}
+              enableExpand={true}
+              detailPanelConfig={drastiriotitaDetailPanel}
             />
           </Paper>
           
@@ -905,7 +1562,7 @@ const participantsColumns = [
                 variant="contained" 
                 color="primary"
                 startIcon={<AddIcon />} 
-                onClick={() => setAddParticipantDialog(true)}
+                onClick={handleAddParticipantClick}
               >
                 Προσθήκη συμμετέχοντα
               </Button>
@@ -985,6 +1642,33 @@ const participantsColumns = [
           handleAddSave={handleAddParticipant}
           title="Προσθήκη Συμμετέχοντα"
           fields={participantFormFields}
+          resourceData={{
+            membersList: availableMembers.map(member => ({
+              id: member.id_es_melous || member.id,
+              onoma: member.melos?.epafes?.onoma || "",
+              epitheto: member.melos?.epafes?.epitheto || "",
+              fullName: `${member.melos?.epafes?.onoma || ''} ${member.melos?.epafes?.epitheto || ''}`.trim(),
+              // Include subscription status similar to melitousillogou.js
+              status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || '-'
+            })),
+            drastiriotitesList: drastiriotites.map(dr => {
+              // Enhanced difficulty level extraction
+              let vathmosDisplay = "-";
+              if (dr.vathmos_diskolias?.epipedo) {
+                vathmosDisplay = `Βαθμός ${dr.vathmos_diskolias.epipedo}`;
+              } else if (dr.id_vathmou_diskolias) {
+                // Fallback to ID if epipedo is not available
+                vathmosDisplay = `Βαθμός ${dr.id_vathmou_diskolias}`;
+              }
+              
+              return {
+                id: dr.id_drastiriotitas || dr.id,
+                titlos: dr.titlos || "Άγνωστη δραστηριότητα",
+                hmerominia: dr.hmerominia ? new Date(dr.hmerominia).toLocaleDateString('el-GR') : "-",
+                vathmos_diskolias: vathmosDisplay // εγγυημένο string
+              };
+            })
+          }}
         />
         
         {currentParticipant && (
@@ -1026,6 +1710,64 @@ const participantsColumns = [
             title={`Καταχώρηση Πληρωμής για ${paymentParticipant.memberName || ''}`}
             additionalInfo={`Υπόλοιπο: ${paymentParticipant.ypoloipo || 0}€`}
             fields={paymentFormFields}
+          />
+        )}
+
+        {/* Dialog προσθήκης συμμετέχοντα σε δραστηριότητα */}
+        {selectedActivityForParticipant && (
+          <AddDialog
+            open={addActivityParticipantDialog}
+            onClose={() => {
+              setAddActivityParticipantDialog(false);
+              setSelectedActivityForParticipant(null);
+            }}
+            handleAddSave={handleAddActivityParticipant}
+            title={`Προσθήκη Συμμετέχοντα στη δραστηριότητα: ${selectedActivityForParticipant.titlos || ''}`}
+            fields={[
+              { 
+                accessorKey: "id_melous", 
+                header: "Μέλος",
+                type: "tableSelect",               
+                dataKey: "membersList",           
+                singleSelect: true,                
+                pageSize: 5,                       
+                columns: [                         
+                  { field: "fullName", header: "Ονοματεπώνυμο" },
+                  { field: "status", header: "Κατάσταση Συνδρομής" }
+                ],
+                searchFields: ["fullName"], 
+                noDataMessage: "Δεν βρέθηκαν μέλη",
+                validation: yup.mixed().required("Παρακαλώ επιλέξτε μέλος")
+              },
+              { 
+                accessorKey: "timi", 
+                header: "Τιμή", 
+                type: "number",
+                defaultValue: eksormisi?.timi || 0,
+                validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική")
+              },
+              { 
+                accessorKey: "katastasi", 
+                header: "Κατάσταση", 
+                type: "select",
+                options: [
+                  { value: "Ενεργή", label: "Ενεργή" },
+                  { value: "Εκκρεμής", label: "Εκκρεμής" },
+                  { value: "Ολοκληρωμένη", label: "Ολοκληρωμένη" },
+                  { value: "Ακυρωμένη", label: "Ακυρωμένη" }
+                ],
+                defaultValue: "Ενεργή"
+              }
+            ]}
+            resourceData={{
+              membersList: availableMembers.map(member => ({
+                id: member.id_es_melous || member.id,
+                onoma: member.melos?.epafes?.onoma || "",
+                epitheto: member.melos?.epafes?.epitheto || "",
+                fullName: `${member.melos?.epafes?.onoma || ''} ${member.melos?.epafes?.epitheto || ''}`.trim(),
+                status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || '-'
+              }))
+            }}
           />
         )}
       </Box>

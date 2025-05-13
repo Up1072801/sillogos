@@ -3,7 +3,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   TextField, FormControl, InputLabel, MenuItem, Select, FormHelperText,
   Table, TableHead, TableRow, TableCell, TableBody, Checkbox, TableContainer,
-  Paper, Typography, Box, InputAdornment, IconButton
+  Paper, Typography, Box, InputAdornment, IconButton, TablePagination, Radio
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { DatePicker } from '@mui/x-date-pickers';
@@ -23,6 +23,7 @@ const AddDialog = ({
   resourceData = {} // Added parameter for additional data needed by custom field types
 }) => {
   const [searchTexts, setSearchTexts] = useState({});
+  const [paginationState, setPaginationState] = useState({});
   
   // Μνημοποίηση (memoization) του validation schema για να μην ξαναδημιουργείται σε κάθε render
   const validationSchema = useMemo(() => {
@@ -60,6 +61,19 @@ const AddDialog = ({
     },
     enableReinitialize: false, // Σημαντικό: Μην ενεργοποιήσετε αυτό!
   });
+
+  // Προσθέστε μετά την αρχικοποίηση του formik (περίπου γραμμή 60)
+
+  // State για την αποθήκευση του υπολογισμένου κόστους
+  const [calculatedCost, setCalculatedCost] = useState(null);
+
+  // Υπολογισμός κόστους όταν αλλάζουν τα τιμές φόρμας
+  useEffect(() => {
+    if (resourceData?.calculateCost) {
+      const cost = resourceData.calculateCost(formik.values, resourceData);
+      setCalculatedCost(cost);
+    }
+  }, [formik.values, resourceData]);
 
   // Διορθώσεις στο AddDialog για την επεξεργασία 
   // Προσθήκη στην αρχή της συνάρτησης για να διασφαλίσουμε ότι το initialValues χρησιμοποιείται σωστά
@@ -193,34 +207,68 @@ const AddDialog = ({
         const items = resourceData[field.dataKey] || [];
         const fieldSearchText = searchTexts[field.accessorKey] || '';
         
-        const filteredItems = items.filter(item => 
-          Object.values(item).some(value => 
-            value && String(value).toLowerCase().includes(fieldSearchText.toLowerCase())
-          )
-        );
-
-        // Βεβαιωθείτε ότι η τιμή είναι πάντα ένας πίνακας
-        useEffect(() => {
-          if (open && field.type === 'tableSelect' && !Array.isArray(formik.values[field.accessorKey])) {
-            formik.setFieldValue(field.accessorKey, []);
-          }
-        }, [open, field.accessorKey]); // Σημαντική βελτίωση - ελάχιστες εξαρτήσεις
+        // Use paginationState instead of local useState hooks
+        const fieldKey = field.accessorKey;
+        const page = paginationState[fieldKey]?.page || 0;
+        const rowsPerPage = paginationState[fieldKey]?.rowsPerPage || (field.pageSize || 5);
         
-        const displayName = (item) => {
-          if (item.name) return item.name;
-          if (item.fullName) return item.fullName;
-          return `${item.firstName || ''} ${item.lastName || ''}`.trim();
+        // Update page handlers to use the shared state
+        const handleChangePage = (e, newPage) => {
+          setPaginationState(prev => ({
+            ...prev,
+            [fieldKey]: {
+              ...prev[fieldKey],
+              page: newPage
+            }
+          }));
         };
-
-        // Προσθήκη ελέγχου για singleSelect
+        
+        const handleChangeRowsPerPage = (e) => {
+          const newRowsPerPage = parseInt(e.target.value, 10);
+          setPaginationState(prev => ({
+            ...prev,
+            [fieldKey]: {
+              ...prev[fieldKey],
+              page: 0,
+              rowsPerPage: newRowsPerPage
+            }
+          }));
+        };
+        
+        // Φιλτράρισμα στοιχείων με βάση το κείμενο αναζήτησης
+        const filteredItems = items.filter(item => {
+          if (!fieldSearchText.trim()) return true;
+          
+          // Αναζήτηση στα καθορισμένα πεδία ή σε όλα τα πεδία
+          if (field.searchFields && field.searchFields.length > 0) {
+            return field.searchFields.some(searchField => 
+              item[searchField] && String(item[searchField]).toLowerCase().includes(fieldSearchText.toLowerCase())
+            );
+          }
+          
+          // Αναζήτηση σε όλα τα πεδία αν δεν καθορίζονται συγκεκριμένα
+          return Object.values(item).some(value => 
+            value && String(value).toLowerCase().includes(fieldSearchText.toLowerCase())
+          );
+        });
+        
+        // Εφαρμογή σελιδοποίησης
+        const paginatedItems = filteredItems.slice(
+          page * rowsPerPage,
+          page * rowsPerPage + rowsPerPage
+        );
+        
+        // Έλεγχος αν είναι ενεργοποιημένη η μονή επιλογή
+        const singleSelect = field.singleSelect === true;
+        
         const handleItemSelection = (itemId) => {
-          if (field.singleSelect) {
-            // Για μονή επιλογή αποθηκεύουμε μόνο το ID (όχι σε πίνακα)
+          if (singleSelect) {
+            // Μονή επιλογή - αντικατάσταση της τιμής με το νέο ID
             formik.setFieldValue(field.accessorKey, itemId);
           } else {
-            // Για πολλαπλή επιλογή διατηρούμε πίνακα
+            // Πολλαπλή επιλογή - διαχείριση πίνακα τιμών
             const currentValues = Array.isArray(formik.values[field.accessorKey]) 
-              ? formik.values[field.accessorKey] 
+              ? [...formik.values[field.accessorKey]] 
               : [];
             
             const index = currentValues.indexOf(itemId);
@@ -233,7 +281,51 @@ const AddDialog = ({
             }
           }
         };
-
+        
+        // Διασφάλιση σωστών αρχικών τιμών με βάση τον τύπο επιλογής (μονή/πολλαπλή)
+        useEffect(() => {
+          if (open) {
+            if (singleSelect && Array.isArray(formik.values[field.accessorKey])) {
+              formik.setFieldValue(field.accessorKey, '');
+            } else if (!singleSelect && !Array.isArray(formik.values[field.accessorKey])) {
+              formik.setFieldValue(field.accessorKey, []);
+            }
+          }
+        }, [open, singleSelect, field.accessorKey]);
+        
+        useEffect(() => {
+          // Εδώ τοποθετούμε τη συνθήκη ΜΕΣΑ στο useEffect, όχι έξω
+          if (open && initialValues && initialValues[field.accessorKey]) {
+            const lookupId = initialValues[field.accessorKey].toString();
+            const foundItem = items.find(item => {
+              // Δοκιμάζουμε διάφορους τρόπους αντιστοίχισης ID
+              const itemIds = [
+                item.id?.toString(),
+                item.id_epafis?.toString(), 
+                item.id_eksoplismou?.toString(),
+                item.id_ekpaideuti?.toString()
+              ].filter(Boolean);
+              
+              return itemIds.includes(lookupId);
+            });
+            
+            if (foundItem) {
+              const itemId = foundItem.id?.toString() || 
+                             foundItem.id_epafis?.toString() || 
+                             foundItem.id_eksoplismou?.toString() ||
+                             foundItem.id_ekpaideuti?.toString();
+              
+              if (field.singleSelect) {
+                formik.setFieldValue(field.accessorKey, itemId);
+              } else if (itemId && !formik.values[field.accessorKey]?.includes(itemId)) {
+                const currentValues = Array.isArray(formik.values[field.accessorKey]) ? 
+                                    [...formik.values[field.accessorKey]] : [];
+                formik.setFieldValue(field.accessorKey, [...currentValues, itemId]);
+              }
+            }
+          }
+        }, [open, items, initialValues, formik, field.accessorKey, field.singleSelect]);
+        
         return (
           <Box sx={{ width: '100%' }}>
             <Typography variant="subtitle1" gutterBottom>
@@ -248,73 +340,61 @@ const AddDialog = ({
                 ...prev,
                 [field.accessorKey]: e.target.value
               }))}
-              sx={{ mb: 2 }}
               InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
+                startAdornment: (
+                  <InputAdornment position="start">
                     <SearchIcon />
                   </InputAdornment>
-                ),
+                )
               }}
+              sx={{ mb: 2 }}
             />
             
-            <TableContainer component={Paper} sx={{ maxHeight: 300, overflow: 'auto' }}>
-              <Table size="small" stickyHeader>
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        indeterminate={
-                          formik.values[field.accessorKey].length > 0 && 
-                          formik.values[field.accessorKey].length < items.length
-                        }
-                        checked={
-                          items.length > 0 && 
-                          formik.values[field.accessorKey].length === items.length
-                        }
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            formik.setFieldValue(
-                              field.accessorKey, 
-                              items.map(item => item.id)
-                            );
-                          } else {
-                            formik.setFieldValue(field.accessorKey, []);
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    {field.columns.map((column) => (
-                      <TableCell key={column.field}>{column.header}</TableCell>
+                    <TableCell padding="checkbox"></TableCell>
+                    {field.columns?.map((col, idx) => (
+                      <TableCell key={idx}>{col.header}</TableCell>
                     ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredItems.length > 0 ? (
-                    filteredItems.map((item) => {
-                      const isSelected = formik.values[field.accessorKey].includes(item.id);
+                  {paginatedItems.length > 0 ? (
+                    paginatedItems.map((item) => {
+                      // Έλεγχος αν το στοιχείο είναι επιλεγμένο
+                      const isSelected = singleSelect
+                        ? formik.values[field.accessorKey] === item.id?.toString() || 
+                          formik.values[field.accessorKey] === item.id
+                        : Array.isArray(formik.values[field.accessorKey]) && 
+                          (formik.values[field.accessorKey]?.includes(item.id?.toString()) || 
+                           formik.values[field.accessorKey]?.includes(item.id));
+                      
                       return (
                         <TableRow
                           hover
-                          onClick={() => handleItemSelection(item.id)}
+                          onClick={() => handleItemSelection(item.id?.toString())}
                           key={item.id}
                           selected={isSelected}
                         >
                           <TableCell padding="checkbox">
-                            <Checkbox checked={isSelected} />
+                            {singleSelect ? (
+                              <Radio checked={isSelected} />
+                            ) : (
+                              <Checkbox checked={isSelected} />
+                            )}
                           </TableCell>
-                          {field.columns.map((column) => (
-                            <TableCell key={`${item.id}-${column.field}`}>
-                              {column.valueGetter ? column.valueGetter(item) : item[column.field]}
-                            </TableCell>
+                          {field.columns?.map((col, idx) => (
+                            <TableCell key={idx}>{item[col.field]}</TableCell>
                           ))}
                         </TableRow>
                       );
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={field.columns.length + 1} align="center">
-                        Δεν βρέθηκαν αποτελέσματα
+                      <TableCell colSpan={(field.columns?.length || 0) + 1} align="center">
+                        {field.noDataMessage || "Δεν βρέθηκαν αποτελέσματα"}
                       </TableCell>
                     </TableRow>
                   )}
@@ -322,13 +402,24 @@ const AddDialog = ({
               </Table>
             </TableContainer>
             
+            {/* Προσθήκη σελιδοποίησης */}
+            <TablePagination
+              component="div"
+              count={filteredItems.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+              labelRowsPerPage="Ανά σελίδα:"
+              labelDisplayedRows={({from, to, count}) => 
+                `${from}-${to} από ${count !== -1 ? count : `πάνω από ${to}`}`
+              }
+            />
+            
             {formik.touched[field.accessorKey] && formik.errors[field.accessorKey] && (
               <FormHelperText error>{formik.errors[field.accessorKey]}</FormHelperText>
             )}
-            
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Επιλεγμένοι: {formik.values[field.accessorKey].length}
-            </Typography>
           </Box>
         );
       }
@@ -394,6 +485,45 @@ const AddDialog = ({
               </Box>
             ))}
           </Box>
+
+          {resourceData?.enableCostCalculation && calculatedCost && (
+            <Box 
+              sx={{ 
+                mt: 2, 
+                mb: 1, 
+                p: 2, 
+                backgroundColor: 'rgba(25, 118, 210, 0.08)', 
+                borderRadius: 1,
+                border: '1px solid rgba(25, 118, 210, 0.2)'
+              }}
+            >
+              <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                Υπολογισμός Κόστους:
+              </Typography>
+              
+              {calculatedCost.days && (
+                <Typography variant="body2" gutterBottom>
+                  Ημέρες Παραμονής: {calculatedCost.days}
+                </Typography>
+              )}
+              
+              {calculatedCost.memberPrice !== undefined && (
+                <Typography variant="body2" gutterBottom>
+                  Κόστος Μελών: {calculatedCost.memberPrice}€
+                </Typography>
+              )}
+              
+              {calculatedCost.nonMemberPrice !== undefined && (
+                <Typography variant="body2" gutterBottom>
+                  Κόστος Μη Μελών: {calculatedCost.nonMemberPrice}€
+                </Typography>
+              )}
+              
+              <Typography variant="subtitle1" color="primary" sx={{ mt: 1 }} fontWeight="bold">
+                Συνολικό Κόστος: {calculatedCost.totalPrice !== undefined ? `${calculatedCost.totalPrice}€` : 'Υπολογίζεται...'}
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Άκυρο</Button>

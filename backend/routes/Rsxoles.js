@@ -32,12 +32,16 @@ router.get("/", async (_req, res) => {
 
     const serializedSxoles = sxoles.map((sxoli) => ({
       id: sxoli.id_sxolis,
+      id_sxolis: sxoli.id_sxolis, 
       onoma: `${sxoli.klados || ""} ${sxoli.epipedo || ""} ${sxoli.etos || ""}`.trim(),
       klados: sxoli.klados || "",
       epipedo: sxoli.epipedo || "",
       timi: sxoli.timi || 0,
       etos: sxoli.etos || "",
       seira: sxoli.seira || "",
+      topothesies: typeof sxoli.topothesies === "string" 
+        ? JSON.parse(sxoli.topothesies) 
+        : sxoli.topothesies || sxoli.topothesia || [],
       simmetoxes: sxoli.parakolouthiseis.length,
       details: {
         topothesia: sxoli.topothesies ? JSON.stringify(sxoli.topothesies) : "",
@@ -111,7 +115,11 @@ router.get("/:id", async (req, res) => {
       timi: sxoli.timi || 0,
       etos: sxoli.etos || "",
       seira: sxoli.seira || "",
-      topothesies: sxoli.topothesia || "", // Απευθείας προσθήκη του πεδίου topothesia
+      // ΔΙΟΡΘΩΣΗ: Αλλαγή του πεδίου topothesies για συνέπεια με τα άλλα endpoints
+      // Με fallback για διατήρηση συμβατότητας με παλιά δεδομένα
+      topothesies: typeof sxoli.topothesies === "string" 
+        ? JSON.parse(sxoli.topothesies) 
+        : sxoli.topothesies || sxoli.topothesia || [],
       simmetexontes: sxoli.parakolouthiseis.map(p => ({
         id: p.id_parakolouthisis,
         id_melous: p.id_melous,
@@ -128,6 +136,7 @@ router.get("/:id", async (req, res) => {
         hmerominia_akirosis: p.hmerominia_akrirosis || null,
         pliromes: p.katavalei.map(k => ({
           id: k.id,
+          id_katavalei: k.id,     // Also include this for compatibility
           poso: k.poso || 0,
           hmerominia: k.hmerominia_katavolhs || null
         }))
@@ -201,7 +210,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Διόρθωση στο router.put"/:id" endpoint γύρω στη γραμμή 201
+// Διόρθωση για τη συνάρτηση update της σχολής
+
 router.put("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -209,13 +219,9 @@ router.put("/:id", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID" });
     }
 
-    const { 
-      klados, epipedo, timi, etos, seira, 
-      topothesies, // Δεχόμαστε απευθείας το αντικείμενο
-      ekpaideutes  // Προσθήκη εκπαιδευτών στο destructuring για να λειτουργεί το παρακάτω κώδικα
-    } = req.body;
+    const { klados, epipedo, timi, etos, seira, topothesies } = req.body;
 
-    // Ενημέρωση της σχολής
+    // Ενημέρωση της σχολής με το JSON ως αντικείμενο
     const updatedSxoli = await prisma.sxoli.update({
       where: { id_sxolis: id },
       data: {
@@ -224,29 +230,10 @@ router.put("/:id", async (req, res) => {
         timi: timi ? parseInt(timi) : null,
         etos: etos ? parseInt(etos) : null,
         seira: seira ? parseInt(seira) : null,
-        topothesies // Αποθήκευση του αντικειμένου απευθείας στο πεδίο
+        // Διαχείριση του πεδίου topothesies ως JSON
+        topothesies: topothesies // Το Prisma θα μετατρέψει αυτόματα το αντικείμενο σε JSON
       }
     });
-
-    // Ενημέρωση εκπαιδευτών αν παρέχονται
-    if (ekpaideutes) {
-      // Διαγράφουμε τις υπάρχουσες σχέσεις
-      await prisma.ekpaideuei.deleteMany({
-        where: { id_sxolis: id }
-      });
-
-      // Προσθέτουμε τους νέους εκπαιδευτές
-      if (ekpaideutes.length > 0) {
-        for (const ekpaideutisId of ekpaideutes) {
-          await prisma.ekpaideuei.create({
-            data: {
-              id_ekpaideuti: parseInt(ekpaideutisId),
-              id_sxolis: id
-            }
-          });
-        }
-      }
-    }
 
     res.json({
       id_sxolis: updatedSxoli.id_sxolis, 
@@ -418,6 +405,42 @@ router.post("/:id/parakolouthisi/:paraId/payment", async (req, res) => {
   } catch (error) {
     console.error("Σφάλμα κατά την προσθήκη πληρωμής:", error);
     res.status(500).json({ error: "Σφάλμα κατά την προσθήκη πληρωμής" });
+  }
+});
+
+// DELETE: Διαγραφή πληρωμής για παρακολούθηση
+router.delete("/:id/parakolouthisi/:paraId/payment/:paymentId", async (req, res) => {
+  try {
+    const id_parakolouthisis = parseInt(req.params.paraId);
+    const id_payment = parseInt(req.params.paymentId);
+    
+    if (isNaN(id_parakolouthisis) || isNaN(id_payment)) {
+      return res.status(400).json({ error: "Μη έγκυρα IDs" });
+    }
+
+    // Έλεγχος αν η πληρωμή υπάρχει
+    const payment = await prisma.katavalei.findFirst({
+      where: { 
+        id: id_payment,
+        id_parakolouthisis: id_parakolouthisis
+      }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: "Η πληρωμή δεν βρέθηκε" });
+    }
+
+    // Διαγραφή πληρωμής
+    await prisma.katavalei.delete({
+      where: { id: id_payment }
+    });
+
+    res.json({ 
+      message: "Η πληρωμή διαγράφηκε"
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά τη διαγραφή της πληρωμής:", error);
+    res.status(500).json({ error: "Σφάλμα κατά τη διαγραφή της πληρωμής" });
   }
 });
 
@@ -616,7 +639,8 @@ router.get("/:id/parakolouthisi", async (req, res) => {
         eksoteriko_melos: p.melos.eksoteriko_melos
       } : null,
       katavalei: (p.katavalei || []).map(k => ({
-        id: k.id_katavalei,
+        id: k.id,  // Ensure ID is included
+        id_katavalei: k.id,  // Add this for consistency
         poso: k.poso || 0,
         hmerominia_katavolhs: k.hmerominia_katavolhs
       }))

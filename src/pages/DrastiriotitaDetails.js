@@ -41,6 +41,7 @@ export default function DrastiriotitaDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [existingMemberIds, setExistingMemberIds] = useState(new Set());
   
   // Dialog states
   const [editDrastiriotitaDialog, setEditDrastiriotitaDialog] = useState(false);
@@ -104,13 +105,13 @@ export default function DrastiriotitaDetails() {
         
         setParticipants(processedParticipants);
         
-        // 2. Αποθήκευση των IDs των συμμετεχόντων για αργότερα
-        const participantsIds = processedParticipants.map(p => p.id_melous);
+        // Δημιουργία και αποθήκευση του Set με τα IDs των συμμετεχόντων
+        const memberIdSet = new Set(processedParticipants.map(p => parseInt(p.id_melous)));
+        setExistingMemberIds(memberIdSet);
       } catch (err) {
         console.error("Σφάλμα φόρτωσης συμμετεχόντων:", err);
         setParticipants([]);
-        // Σε περίπτωση σφάλματος, θέτουμε κενό πίνακα IDs
-        const participantsIds = [];
+        setExistingMemberIds(new Set());
       }
       
       // Fetch difficulty levels
@@ -128,7 +129,7 @@ export default function DrastiriotitaDetails() {
         // Filter out members who are already participants
         // Χρησιμοποιούμε τα participantsIds που ορίσαμε παραπάνω
         const availableMembers = membersResponse.data.filter(
-          member => !participantsIds.includes(member.id_melous)
+          member => !existingMemberIds.has(parseInt(member.id_melous || member.id))
         );
         
         setAvailableMembers(availableMembers);

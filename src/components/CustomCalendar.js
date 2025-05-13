@@ -5,7 +5,8 @@ import { Tooltip, Box, Typography, Badge } from "@mui/material";
 // Ελληνικές συντομογραφίες ημερών της εβδομάδας
 const daysOfWeek = ["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"];
 
-const CustomCalendar = ({ bookings, shelters = [] }) => {
+// Προσθέστε το forwarded ref και τροποποιήστε το component για να δέχεται εξωτερικό έλεγχο
+const CustomCalendar = React.forwardRef(({ bookings, shelters = [], onDateRangeChange }, ref) => {
   const today = new Date();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
@@ -120,46 +121,35 @@ const CustomCalendar = ({ bookings, shelters = [] }) => {
     );
   };
 
+  // Όταν αλλάζει ο μήνας ή το έτος, καλέστε αυτή τη συνάρτηση
+  const handleMonthChange = (date) => {
+    // Υπολογισμός της πρώτης και τελευταίας ημέρας του μήνα
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    
+    // Ενημέρωση του γονικού component
+    if (onDateRangeChange) {
+      onDateRangeChange(firstDay, lastDay);
+    }
+  };
+
+  // Προσθέστε λειτουργία για ενημέρωση του ημερολογίου από έξω
+  React.useImperativeHandle(ref, () => ({
+    updateCalendarView: (month, year) => {
+      setSelectedMonth(month);
+      setSelectedYear(year);
+      
+      // Επίσης καλέστε το callback για το date range
+      const firstDay = new Date(year, month - 1, 1);
+      const lastDay = new Date(year, month, 0);
+      if (onDateRangeChange) {
+        onDateRangeChange(firstDay, lastDay);
+      }
+    }
+  }));
+
   return (
     <div className={styles.calendarContainer} role="region" aria-label="Ημερολόγιο κρατήσεων">
-      <div className={styles.selector}>
-        <label htmlFor="month-select">Μήνας:</label>
-        <select id="month-select" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
-          {Array.from({ length: 12 }, (_, i) => (
-            <option key={i + 1} value={i + 1}>
-              {new Date(0, i).toLocaleString("el-GR", { month: "long" })}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor="year-select">Έτος:</label>
-        <select id="year-select" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
-          {years.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
-        
-        {shelters.length > 1 && (
-          <>
-            <label htmlFor="shelter-select">Καταφύγιο:</label>
-            <select 
-              id="shelter-select" 
-              value={selectedShelterId} 
-              onChange={(e) => setSelectedShelterId(e.target.value)}
-            >
-              <option value="all">Όλα τα καταφύγια</option>
-              {shelters.map(shelter => (
-                <option key={shelter.id_katafigiou} value={shelter.id_katafigiou.toString()}>
-                  {shelter.onoma}
-                </option>
-              ))}
-            </select>
-          </>
-        )}
-      </div>
-
       <h2>{new Date(selectedYear, selectedMonth - 1).toLocaleString("el-GR", { month: "long", year: "numeric" })}</h2>
 
       <div className={styles.calendarGrid} role="grid">
@@ -233,6 +223,9 @@ const CustomCalendar = ({ bookings, shelters = [] }) => {
       </div>
     </div>
   );
-};
+});
+
+// Προσθέστε όνομα display για το component (για React DevTools)
+CustomCalendar.displayName = 'CustomCalendar';
 
 export default CustomCalendar;
