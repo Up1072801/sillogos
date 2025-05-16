@@ -649,15 +649,29 @@ router.delete("/agona/:id_agona/athlete/:id_athliti", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρα IDs" });
     }
     
-    // Διόρθωση: Χρήση deleteMany αντί για delete με compound key
-    await prisma.agonizetai.deleteMany({
+    // Προσθήκη επιβεβαίωσης ότι η διαγραφή ήταν επιτυχής
+    const result = await prisma.agonizetai.deleteMany({
       where: { 
         id_agona: id_agona,
         id_athliti: id_athliti 
       }
     });
     
-    res.status(200).json({ message: "Ο αθλητής αφαιρέθηκε επιτυχώς από τον αγώνα" });
+    console.log(`Διαγράφηκαν ${result.count} εγγραφές`);
+    
+    // Έλεγχος αν διαγράφηκε κάποια εγγραφή
+    if (result.count === 0) {
+      // Επιστρέφει επιτυχία αλλά με πληροφορία ότι δε βρέθηκε η εγγραφή
+      return res.status(200).json({ 
+        message: "Ο αθλητής δεν υπήρχε στον αγώνα ή έχει ήδη αφαιρεθεί",
+        deletedCount: 0
+      });
+    }
+    
+    res.status(200).json({ 
+      message: "Ο αθλητής αφαιρέθηκε επιτυχώς από τον αγώνα",
+      deletedCount: result.count
+    });
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση του αθλητή από τον αγώνα:", error);
     res.status(500).json({ 

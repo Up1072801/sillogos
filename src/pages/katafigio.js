@@ -196,7 +196,7 @@ export default function Katafigio() {
           return row.payments || [];
         },
         columns: [
-          { accessor: "id", header: "ID", enableHiding: true },
+          // Removed ID column as requested
           { 
             accessor: "amount", 
             header: "Ποσό",
@@ -256,6 +256,16 @@ export default function Katafigio() {
       validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία αναχώρησης")
     },
     { 
+      accessorKey: "eksoterikos_xoros", 
+      header: "Εξωτερικός Χώρος", 
+      type: "select",
+      options: [
+        { value: "Όχι", label: "Όχι" },
+        { value: "Ναι", label: "Ναι" }
+      ],
+      defaultValue: "Όχι"
+    },
+    { 
       accessorKey: "arithmos_melwn", 
       header: "Αριθμός Μελών", 
       type: "number",
@@ -266,16 +276,6 @@ export default function Katafigio() {
       header: "Αριθμός Μη Μελών", 
       type: "number",
       validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Παρακαλώ συμπληρώστε αριθμό μη μελών")
-    },
-    { 
-      accessorKey: "eksoterikos_xoros", 
-      header: "Εξωτερικός Χώρος", 
-      type: "select",
-      options: [
-        { value: "Ναι", label: "Ναι" },
-        { value: "Όχι", label: "Όχι" }
-      ],
-      defaultValue: "Όχι"
     },
     { 
       accessorKey: "initialPayment", 
@@ -299,6 +299,16 @@ const editBookingFormFields = [
     header: "Ημερομηνία Αναχώρησης", 
     type: "date",
     validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία αναχώρησης")
+  },
+  { 
+    accessorKey: "eksoterikos_xoros", 
+    header: "Εξωτερικός Χώρος", 
+    type: "select",
+    options: [
+      { value: "Όχι", label: "Όχι" },
+      { value: "Ναι", label: "Ναι" }
+    ],
+    defaultValue: "Όχι"
   },
   { 
     accessorKey: "arithmos_melwn", 
@@ -374,13 +384,13 @@ const handleEditBooking = async (editedBooking) => {
       // Διατηρούμε τις αρχικές τιμές από το editBookingData
       id_epafis: parseInt(editBookingData.id_epafis),
       id_katafigiou: parseInt(editBookingData.id_katafigiou),
-      eksoterikos_xoros: editBookingData.eksoterikos_xoros || "Όχι",
       
       // Επιτρέπουμε την επεξεργασία αυτών των πεδίων
       hmerominia_afiksis: editedBooking.hmerominia_afiksis,
       hmerominia_epistrofis: editedBooking.hmerominia_epistrofis,
       arithmos_melwn: parseInt(editedBooking.arithmos_melwn || 0),
-      arithmos_mi_melwn: parseInt(editedBooking.arithmos_mi_melwn || 0)
+      arithmos_mi_melwn: parseInt(editedBooking.arithmos_mi_melwn || 0),
+      eksoterikos_xoros: editedBooking.eksoterikos_xoros || "Όχι"
     };
     
     // Αποστολή ενημέρωσης κράτησης στο API
@@ -679,7 +689,7 @@ const applyDateFilter = () => {
   }
 };
 
-// Προσθέστε αυτό το useEffect για να ενημερώνετε το filteredBookings όταν αλλάζουν τα bookings
+// Προσθέστε αυτό το useEffect για να ενημέρωνετε το filteredBookings όταν αλλάζουν τα bookings
 useEffect(() => {
   if (isFiltering && dateFilter) {
     // Αν υπάρχει ενεργό φίλτρο, εφαρμόζουμε ξανά το φίλτρο στα νέα δεδομένα
@@ -774,7 +784,6 @@ const calculateBookingCost = (formValues, resourceData) => {
     
     console.log("Επιλεγμένο καταφύγιο:", selectedShelter);
     
-    // Υπόλοιπος κώδικας όπως είναι...
     const arrival = new Date(values.hmerominia_afiksis);
     const departure = new Date(values.hmerominia_epistrofis);
     
@@ -787,14 +796,26 @@ const calculateBookingCost = (formValues, resourceData) => {
     const members = parseInt(values.arithmos_melwn) || 0;
     const nonMembers = parseInt(values.arithmos_mi_melwn) || 0;
     
-    const memberPrice = members * selectedShelter.timi_melous * days;
-    const nonMemberPrice = nonMembers * selectedShelter.timi_mi_melous * days;
+    // Επιλογή τιμής ανάλογα με τον τύπο χώρου (εσωτερικό ή εξωτερικό)
+    let memberPrice, nonMemberPrice;
+    
+    if (values.eksoterikos_xoros === "Ναι") {
+      // Τιμές για εξωτερικό χώρο
+      memberPrice = members * (selectedShelter.timi_eksoxwrou_melos || 0) * days;
+      nonMemberPrice = nonMembers * (selectedShelter.timi_eksoxwroy_mimelos || 0) * days;
+    } else {
+      // Τιμές για εσωτερικό χώρο (καταφύγιο)
+      memberPrice = members * (selectedShelter.timi_melous || 0) * days;
+      nonMemberPrice = nonMembers * (selectedShelter.timi_mi_melous || 0) * days;
+    }
+    
     const totalPrice = memberPrice + nonMemberPrice;
     
     console.log("Επιτυχής υπολογισμός κόστους:", { 
       days, 
       members, 
-      nonMembers, 
+      nonMembers,
+      isExternalSpace: values.eksoterikos_xoros === "Ναι",
       memberPrice, 
       nonMemberPrice, 
       totalPrice 
@@ -893,7 +914,7 @@ return (
           getRowId={(row) => row.id}
           initialState={{
             columnVisibility: { id: false },
-            sorting: [{ id: 'arrival', desc: false }]
+            sorting: [{ id: 'arrival', desc: false }] // Sort by arrival date (asc)
           }}
           state={{ isLoading: loading }}
           enableExpand={true}
@@ -962,13 +983,19 @@ return (
               Πληροφορίες Κόστους:
             </Typography>
             <Typography variant="body2">
-              • Μέλη πληρώνουν {shelters.find(s => s.id_katafigiou.toString() === editBookingData?.id_katafigiou?.toString())?.timi_melous || '?'}€ ανά διανυκτέρευση
+              • Μέλη πληρώνουν {shelters.find(s => s.id_katafigiou.toString() === editBookingData?.id_katafigiou?.toString())?.timi_melous || '?'}€ ανά διανυκτέρευση (εσωτερικός χώρος)
             </Typography>
             <Typography variant="body2">
-              • Μη μέλη πληρώνουν {shelters.find(s => s.id_katafigiou.toString() === editBookingData?.id_katafigiou?.toString())?.timi_mi_melous || '?'}€ ανά διανυκτέρευση
+              • Μη μέλη πληρώνουν {shelters.find(s => s.id_katafigiou.toString() === editBookingData?.id_katafigiou?.toString())?.timi_mi_melous || '?'}€ ανά διανυκτέρευση (εσωτερικός χώρος)
+            </Typography>
+            <Typography variant="body2">
+              • Μέλη πληρώνουν {shelters.find(s => s.id_katafigiou.toString() === editBookingData?.id_katafigiou?.toString())?.timi_eksoxwrou_melos || '?'}€ ανά διανυκτέρευση (εξωτερικός χώρος)
+            </Typography>
+            <Typography variant="body2">
+              • Μη μέλη πληρώνουν {shelters.find(s => s.id_katafigiou.toString() === editBookingData?.id_katafigiou?.toString())?.timi_eksoxwroy_mimelos || '?'}€ ανά διανυκτέρευση (εξωτερικός χώρος)
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
-              Αλλαγές στις ημερομηνίες ή στον αριθμό ατόμων θα επηρεάσουν το συνολικό κόστος.
+              Αλλαγές στις ημερομηνίες, στο είδος χώρου ή στον αριθμό ατόμων θα επηρεάσουν το συνολικό κόστος.
             </Typography>
           </Box>
         }

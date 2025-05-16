@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Box, Typography, Paper, TextField, IconButton, Button, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle, DialogContent, DialogActions, Checkbox } from "@mui/material";
+import { Box, Typography, Paper, TextField, IconButton, Button, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle, DialogContent, DialogActions, Checkbox, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { Link } from "react-router-dom";
 import DataTable from "../components/DataTable/DataTable";
 import AddDialog from "../components/DataTable/AddDialog";
@@ -33,6 +33,10 @@ export default function Sxoles() {
   const [selectedTeachers, setSelectedTeachers] = useState([]);
   const [availableTeachers, setAvailableTeachers] = useState([]);
   const [currentSchoolForTeachers, setCurrentSchoolForTeachers] = useState(null);
+
+  // Add new state for year filter
+  const [yearFilter, setYearFilter] = useState("");
+  const [availableYears, setAvailableYears] = useState([]);
 
   // Γενική συνάρτηση βοηθός για ασφαλή εξαγωγή και μετατροπή IDs
 const safeParseId = (id) => {
@@ -280,12 +284,7 @@ const extractId = (obj) => {
             header: "Έναρξη",
             Cell: ({ value }) => {
               if (!value) return '-';
-              try {
-                const date = new Date(value);
-                return isNaN(date.getTime()) ? value : date.toLocaleDateString('el-GR');
-              } catch (e) {
-                return value;
-              }
+              return formatDateToDDMMYYYY(value);
             }
           },
           { 
@@ -293,12 +292,7 @@ const extractId = (obj) => {
             header: "Λήξη",
             Cell: ({ value }) => {
               if (!value) return '-';
-              try {
-                const date = new Date(value);
-                return isNaN(date.getTime()) ? value : date.toLocaleDateString('el-GR');
-              } catch (e) {
-                return value;
-              }
+              return formatDateToDDMMYYYY(value);
             }
           }
         ],
@@ -374,7 +368,7 @@ const extractId = (obj) => {
       accessorKey: "etos", 
       header: "Έτος", 
       type: "number",
-      validation: yup.number().min(2000, "Έτος από 2000 και πάνω")
+      validation: yup.number().typeError("Το έτος πρέπει να είναι αριθμός")
     },
     { 
       accessorKey: "seira", 
@@ -446,25 +440,32 @@ const fetchData = async () => {
     
     const [sxolesRes, ekpaideutesRes] = await Promise.all([
       axios.get("http://localhost:5000/api/sxoles"),
-      axios.get("http://localhost:5000/api/Repafes/ekpaideutes-me-sxoles") // Νέο endpoint
+      axios.get("http://localhost:5000/api/Repafes/ekpaideutes-me-sxoles")
     ]);
     
     console.log("Loaded sxoles data:", sxolesRes.data);
     console.log("Loaded epafes data with schools:", ekpaideutesRes.data);
     
-    // Επεξεργασία δεδομένων σχολών
+    // Process schools data
     if (Array.isArray(sxolesRes.data)) {
       const processedSxoles = sxolesRes.data.map(sxoli => ({
         ...sxoli,
         id_sxolis: sxoli.id_sxolis || sxoli.id,
       }));
       setSxolesData(processedSxoles);
+      
+      // Extract available years
+      const years = [...new Set(processedSxoles
+        .map(s => s.etos)
+        .filter(year => year !== null && year !== undefined)
+        .sort((a, b) => b - a))];
+      setAvailableYears(years);
     } else {
       console.error("sxolesRes.data is not an array:", sxolesRes.data);
       setSxolesData([]);
     }
 
-    // Επεξεργασία δεδομένων εκπαιδευτών με τις σχολές τους
+    // Process teachers data
     if (Array.isArray(ekpaideutesRes.data)) {
       setEkpaideutesData(ekpaideutesRes.data);
     } else {
@@ -499,8 +500,8 @@ const fetchData = async () => {
             ...loc,
             id: loc.id !== undefined ? loc.id : idx,
             topothesia: loc.topothesia || "",
-            start: loc.start || loc.hmerominia_enarksis || "",
-            end: loc.end || loc.hmerominia_liksis || ""
+            start: formatDateForInput(loc.start || loc.hmerominia_enarksis || ""),
+            end: formatDateForInput(loc.end || loc.hmerominia_liksis || "")
           })));
         } else {
           setLocations([]);
@@ -575,6 +576,9 @@ const fetchData = async () => {
                             type="date"
                             size="small"
                             value={loc.start}
+                            inputProps={{ 
+                              max: loc.end || "9999-12-31"
+                            }}
                             onChange={(e) => handleUpdateLocation(loc.id, "start", e.target.value)}
                           />
                         </TableCell>
@@ -583,6 +587,9 @@ const fetchData = async () => {
                             type="date"
                             size="small"
                             value={loc.end}
+                            inputProps={{ 
+                              min: loc.start || "0000-01-01"
+                            }}
                             onChange={(e) => handleUpdateLocation(loc.id, "end", e.target.value)}
                           />
                         </TableCell>
@@ -681,8 +688,8 @@ const LocationEditor = ({ value, onChange }) => {
         ...loc,
         id: loc.id !== undefined ? loc.id : idx,
         topothesia: loc.topothesia || "",
-        start: loc.start || loc.hmerominia_enarksis || "",
-        end: loc.end || loc.hmerominia_liksis || ""
+        start: formatDateForInput(loc.start || loc.hmerominia_enarksis || ""), 
+        end: formatDateForInput(loc.end || loc.hmerominia_liksis || "")
       })));
     } else {
       // Αν δεν έχουμε αρχική τιμή, ξεκινάμε με άδειο πίνακα
@@ -756,7 +763,8 @@ const LocationEditor = ({ value, onChange }) => {
             </TableHead>
             <TableBody>
               {locations.map((loc) => (
-                <TableRow key={loc.id}>
+                // Fix: Always ensure each loc has a unique id
+                <TableRow key={loc.id !== undefined ? loc.id : `loc-${Date.now()}-${Math.random()}`}>
                   <TableCell>
                     <TextField
                       size="small"
@@ -769,6 +777,9 @@ const LocationEditor = ({ value, onChange }) => {
                       type="date"
                       size="small"
                       value={loc.start}
+                      inputProps={{ 
+                        max: loc.end || "9999-12-31"
+                      }}
                       onChange={(e) => handleUpdateLocation(loc.id, "start", e.target.value)}
                     />
                   </TableCell>
@@ -777,6 +788,9 @@ const LocationEditor = ({ value, onChange }) => {
                       type="date"
                       size="small"
                       value={loc.end}
+                      inputProps={{ 
+                        min: loc.start || "0000-01-01"
+                      }}
                       onChange={(e) => handleUpdateLocation(loc.id, "end", e.target.value)}
                     />
                   </TableCell>
@@ -860,7 +874,7 @@ const handleAddTopothesia = async (parentRow) => {
 
     // Ασφαλής εξαγωγή schoolId
     const schoolId = typeof parentRow === 'object' ? (parentRow.id_sxolis || parentRow.id) : parentRow;
-
+    
     if (!schoolId && schoolId !== 0) {
       console.error("Could not extract school ID from parentRow:", parentRow);
       alert("Σφάλμα: Δεν βρέθηκε το ID της σχολής.");
@@ -916,7 +930,7 @@ const handleAddTopothesia = async (parentRow) => {
   }
 };
 
-  // Βελτιωμένο handleDeleteTopothesia
+  // Replace the handleDeleteTopothesia function with local state update
 const handleDeleteTopothesia = async (rowData, parentRow) => {
   try {
     console.log("Delete topothesia:", rowData, "parentRow:", parentRow);
@@ -1000,18 +1014,32 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
       topothesies: updatedTopothesies
     };
     
-    // Ενημέρωση της σχολής
+    // Ενημέρωση της σχολής στο API
     await axios.put(`http://localhost:5000/api/sxoles/${schoolId}`, updateData);
     
-    // Ανανέωση δεδομένων
-    refreshData();
+    // ΑΛΛΑΓΗ: Χρήση local state update αντί για refreshData()
+    setSxolesData(prev => {
+      return prev.map(sxoli => {
+        if (sxoli.id_sxolis == schoolId || sxoli.id == schoolId) {
+          return {
+            ...sxoli,
+            topothesies: updatedTopothesies
+          };
+        }
+        return sxoli;
+      });
+    });
+    
+    // Προαιρετικά: μήνυμα επιτυχίας
+    alert("Η τοποθεσία διαγράφηκε επιτυχώς!");
+    
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή τοποθεσίας:", error);
     alert("Σφάλμα κατά τη διαγραφή τοποθεσίας: " + error.message);
   }
 };
 
-  // Χειρισμός αποθήκευσης τοποθεσιών
+  // Improved handleSaveLocations with local state updates
 const handleSaveLocations = async (locations) => {
   try {
     if (!editingSchoolForLocation) {
@@ -1019,34 +1047,51 @@ const handleSaveLocations = async (locations) => {
       return;
     }
     
-    // Φέρνουμε τα τρέχοντα δεδομένα της σχολής
-    const schoolResponse = await axios.get(`http://localhost:5000/api/sxoles/${editingSchoolForLocation}`);
-    const currentSchoolData = schoolResponse.data;
+    // Get current school data from local state
+    const currentSchool = sxolesData.find(s => 
+      s.id_sxolis == editingSchoolForLocation || s.id == editingSchoolForLocation
+    );
     
-    // Μορφοποίηση τοποθεσιών για το API (χωρίς τα ID που ήταν μόνο για το frontend)
+    if (!currentSchool) {
+      throw new Error("Δεν βρέθηκαν δεδομένα για την επιλεγμένη σχολή");
+    }
+    
+    // Format locations for API (without IDs for frontend)
     const formattedLocations = locations.map(loc => ({
       topothesia: loc.topothesia,
       start: loc.start,
       end: loc.end
     }));
     
-    console.log("Τοποθεσίες που θα αποθηκευτούν:", formattedLocations);
+    console.log("Locations to be saved:", formattedLocations);
     
-    // Δημιουργούμε το αντικείμενο ενημέρωσης διατηρώντας τις υπάρχουσες τιμές
+    // Create update object preserving existing values
     const updateData = {
-      klados: currentSchoolData.klados,
-      epipedo: currentSchoolData.epipedo,
-      timi: currentSchoolData.timi,
-      etos: currentSchoolData.etos,
-      seira: currentSchoolData.seira,
-      // Σημαντικό: Αποθηκεύουμε τον πίνακα τοποθεσιών
+      klados: currentSchool.klados,
+      epipedo: currentSchool.epipedo,
+      timi: currentSchool.timi,
+      etos: currentSchool.etos,
+      seira: currentSchool.seira,
       topothesies: formattedLocations
     };
     
-    // Αποστολή στο API
+    // Send to API
     await axios.put(`http://localhost:5000/api/sxoles/${editingSchoolForLocation}`, updateData);
     
-    refreshData();
+    // Update local state
+    setSxolesData(prev => {
+      return prev.map(sxoli => {
+        if (sxoli.id_sxolis == editingSchoolForLocation || sxoli.id == editingSchoolForLocation) {
+          return {
+            ...sxoli,
+            topothesies: formattedLocations
+          };
+        }
+        return sxoli;
+      });
+    });
+    
+    // Close dialog and reset state
     setLocationDialogOpen(false);
     setEditingSchoolForLocation(null);
     alert("Οι τοποθεσίες αποθηκεύτηκαν με επιτυχία!");
@@ -1161,31 +1206,121 @@ const handleAddTeacherToSchool = async (parentRow) => {
   }
 };
 
-  // Χειρισμός προσθήκης επιλεγμένων εκπαιδευτών
+  // Handle adding teachers to school with local updates - improved error handling
 const handleAddSelectedTeachers = async () => {
   try {
     if (!currentSchoolForTeachers || selectedTeachers.length === 0) return;
 
     console.log("Adding teachers to school:", currentSchoolForTeachers, "Teachers:", selectedTeachers);
 
-    // Προσθήκη κάθε επιλεγμένου εκπαιδευτή
+    // Get the school we're updating
+    const schoolToUpdate = sxolesData.find(s => 
+      s.id_sxolis == currentSchoolForTeachers || s.id == currentSchoolForTeachers
+    );
+    
+    if (!schoolToUpdate) {
+      alert("Δεν βρέθηκε η σχολή για προσθήκη εκπαιδευτών");
+      return;
+    }
+
+    // Track successfully added teachers to update state
+    const addedTeachersIds = [];
+
+    // Add each selected teacher
     for (const teacherId of selectedTeachers) {
+      if (!teacherId && teacherId !== 0) {
+        console.log("Skipping invalid teacher ID:", teacherId);
+        continue;
+      }
+      
       console.log("Adding teacher with ID:", teacherId);
 
-      // Εξαγωγή του σωστού ID
-      const ekpaideutis = ekpaideutesData.find(e => e.id_ekpaideuti === teacherId);
+      // Find teacher object with better error handling
+      const ekpaideutis = ekpaideutesData.find(e => 
+        e.id_ekpaideuti == teacherId || 
+        e.id_epafis == teacherId || 
+        e.id == teacherId
+      );
+      
       if (!ekpaideutis) {
         console.error("Δεν βρέθηκε εκπαιδευτής με ID:", teacherId);
         continue;
       }
 
-      await axios.post(`http://localhost:5000/api/sxoles/${currentSchoolForTeachers}/ekpaideutis`, {
-        id_ekpaideuti: ekpaideutis.id_ekpaideuti
+      // Make API call
+      try {
+        await axios.post(`http://localhost:5000/api/sxoles/${currentSchoolForTeachers}/ekpaideutis`, {
+          id_ekpaideuti: ekpaideutis.id_ekpaideuti
+        });
+        addedTeachersIds.push(teacherId);
+      } catch (apiError) {
+        console.error(`Error adding teacher ${teacherId} to school:`, apiError);
+        // Continue with other teachers even if one fails
+      }
+    }
+
+    // Local state updates for successfully added teachers
+    if (addedTeachersIds.length > 0) {
+      // 1. Update school's teachers list
+      setSxolesData(prev => {
+        return prev.map(sxoli => {
+          if (sxoli.id_sxolis == currentSchoolForTeachers || sxoli.id == currentSchoolForTeachers) {
+            // Get teacher objects to add
+            const teachersToAdd = addedTeachersIds.map(teacherId => {
+              const teacher = ekpaideutesData.find(e => e.id_ekpaideuti == teacherId);
+              if (teacher) {
+                return {
+                  id: teacher.id_ekpaideuti,
+                  id_ekpaideuti: teacher.id_ekpaideuti,
+                  id_epafis: teacher.id_epafis,
+                  firstName: teacher.onoma,
+                  lastName: teacher.epitheto,
+                  email: teacher.email,
+                  phone: teacher.tilefono,
+                  epipedo: teacher.epipedo
+                };
+              }
+              return null;
+            }).filter(t => t !== null);
+            
+            // Create new teachers array, ensuring it exists
+            const existingTeachers = Array.isArray(sxoli.ekpaideutes) ? sxoli.ekpaideutes : [];
+            return {
+              ...sxoli,
+              ekpaideutes: [...existingTeachers, ...teachersToAdd]
+            };
+          }
+          return sxoli;
+        });
+      });
+      
+      // 2. Update teachers' schools lists
+      setEkpaideutesData(prev => {
+        return prev.map(ekpaideutis => {
+          if (addedTeachersIds.includes(ekpaideutis.id_ekpaideuti)) {
+            // Get the simplified school object to add
+            const schoolForTeacher = {
+              id: schoolToUpdate.id_sxolis,
+              id_sxolis: schoolToUpdate.id_sxolis,
+              onoma: schoolToUpdate.onoma,
+              klados: schoolToUpdate.klados,
+              epipedo: schoolToUpdate.epipedo,
+              etos: schoolToUpdate.etos
+            };
+            
+            // Create new schools array, ensuring it exists
+            const existingSchools = Array.isArray(ekpaideutis.sxoles) ? ekpaideutis.sxoles : [];
+            return {
+              ...ekpaideutis,
+              sxoles: [...existingSchools, schoolForTeacher]
+            };
+          }
+          return ekpaideutis;
+        });
       });
     }
 
-    // Ανανέωση δεδομένων και κλείσιμο διαλόγου
-    refreshData();
+    // Close dialog and reset state
     setTeacherSelectionDialogOpen(false);
     setCurrentSchoolForTeachers(null);
     setSelectedTeachers([]);
@@ -1195,39 +1330,73 @@ const handleAddSelectedTeachers = async () => {
   }
 };
 
-  // Διαγραφή εκπαιδευτή από σχολή
-  const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
-    try {
-      // Διασφάλιση ότι το teacherId είναι το id_epafis αντί για id_ekpaideuti
-      const actualTeacherId = teacherId;
-      
-      if (!actualTeacherId && actualTeacherId !== 0) {
-        console.error("Invalid teacher ID:", actualTeacherId);
-        alert("Δεν βρέθηκε έγκυρο ID εκπαιδευτή");
-        return;
-      }
-      
-      if (!schoolId && schoolId !== 0) {
-        console.error("Invalid school ID:", schoolId);
-        alert("Δεν βρέθηκε έγκυρο ID σχολής");
-        return;
-      }
-      
-      if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον εκπαιδευτή από τη σχολή;")) {
-        return;
-      }
-      
-      // Κλήση API με το σωστό ID
-      await axios.delete(`http://localhost:5000/api/sxoles/${schoolId}/ekpaideutis/${actualTeacherId}`);
-      
-      // Ανανέωση δεδομένων
-      refreshData();
-    } catch (error) {
-      console.error("Σφάλμα κατά την αφαίρεση εκπαιδευτή από τη σχολή:", error);
-      alert("Σφάλμα κατά την αφαίρεση εκπαιδευτή: " + error.message);
+// Handle removing teacher from school with local updates
+const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
+  try {
+    // Ensure we have valid IDs
+    const actualTeacherId = teacherId;
+    
+    if (!actualTeacherId && actualTeacherId !== 0) {
+      console.error("Invalid teacher ID:", actualTeacherId);
+      alert("Δεν βρέθηκε έγκυρο ID εκπαιδευτή");
+      return;
     }
-  };
-
+    
+    if (!schoolId && schoolId !== 0) {
+      console.error("Invalid school ID:", schoolId);
+      alert("Δεν βρέθηκε έγκυρο ID σχολής");
+      return;
+    }
+    
+    if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον εκπαιδευτή από τη σχολή;")) {
+      return;
+    }
+    
+    // API call with the correct ID
+    await axios.delete(`http://localhost:5000/api/sxoles/${schoolId}/ekpaideutis/${actualTeacherId}`);
+    
+    // Local state updates
+    // 1. Remove teacher from school's teachers list
+    setSxolesData(prev => {
+      return prev.map(sxoli => {
+        if ((sxoli.id_sxolis == schoolId || sxoli.id == schoolId) && 
+            Array.isArray(sxoli.ekpaideutes)) {
+          return {
+            ...sxoli,
+            ekpaideutes: sxoli.ekpaideutes.filter(ekp => 
+              ekp.id != actualTeacherId && 
+              ekp.id_ekpaideuti != actualTeacherId && 
+              ekp.id_epafis != actualTeacherId
+            )
+          };
+        }
+        return sxoli;
+      });
+    });
+    
+    // 2. Remove school from teacher's schools list
+    setEkpaideutesData(prev => {
+      return prev.map(ekpaideutis => {
+        if ((ekpaideutis.id == actualTeacherId || 
+            ekpaideutis.id_ekpaideuti == actualTeacherId || 
+            ekpaideutis.id_epafis == actualTeacherId) && 
+            Array.isArray(ekpaideutis.sxoles)) {
+          return {
+            ...ekpaideutis,
+            sxoles: ekpaideutis.sxoles.filter(sxoli => 
+              sxoli.id != schoolId && sxoli.id_sxolis != schoolId
+            )
+          };
+        }
+        return ekpaideutis;
+      });
+    });
+    
+  } catch (error) {
+    console.error("Σφάλμα κατά την αφαίρεση εκπαιδευτή από τη σχολή:", error);
+    alert("Σφάλμα: " + error.message);
+  }
+};
   // CRUD ΛΕΙΤΟΥΡΓΙΕΣ ΣΧΟΛΩΝ
   // Προσθήκη νέας σχολής
   const handleAddSxoli = async (newSxoli) => {
@@ -1243,13 +1412,17 @@ const handleAddSelectedTeachers = async () => {
         seira: newSxoli.seira ? parseInt(newSxoli.seira) : null
       };
 
-      // Μορφοποίηση τοποθεσιών αν υπάρχουν
+      // Μορφοποίηση τοποθεσιών αν υπάρχουν - βελτιωμένη διαχείριση
       if (newSxoli.topothesies && newSxoli.topothesies.length > 0) {
+        // Αφαίρεση των ID που χρησιμοποιούνται μόνο στο frontend
         formattedSxoli.topothesies = newSxoli.topothesies.map(loc => ({
           topothesia: loc.topothesia,
           start: loc.start || loc.hmerominia_enarksis,
           end: loc.end || loc.hmerominia_liksis
         }));
+      } else {
+        // Ορισμός κενού πίνακα όταν δεν υπάρχουν τοποθεσίες
+        formattedSxoli.topothesies = [];
       }
 
       // Αποστολή στο API με χειρισμό σφαλμάτων
@@ -1257,8 +1430,22 @@ const handleAddSelectedTeachers = async () => {
         const response = await axios.post("http://localhost:5000/api/sxoles", formattedSxoli);
         console.log("Created new sxoli:", response.data);
         
-        // Ανανέωση δεδομένων
-        refreshData();
+        // Τοπική ενημέρωση - προσθήκη της νέας σχολής στο state με όλα τα απαραίτητα δεδομένα
+        const newSchoolWithId = {
+          ...response.data,
+          id_sxolis: response.data.id_sxolis || response.data.id,
+          ekpaideutes: [], // Αρχικοποίηση με κενό πίνακα εκπαιδευτών
+          topothesies: formattedSxoli.topothesies // Εδώ προσθέτουμε τις τοποθεσίες που έστειλε ο χρήστης
+        };
+        
+        // Ενημέρωση του state σχολών τοπικά
+        setSxolesData(prev => [...prev, newSchoolWithId]);
+        
+        // Ενημέρωση διαθέσιμων ετών αν χρειάζεται
+        if (newSchoolWithId.etos && !availableYears.includes(newSchoolWithId.etos)) {
+          setAvailableYears(prev => [...prev, newSchoolWithId.etos].sort((a, b) => b - a));
+        }
+        
         setAddSxoliDialogOpen(false);
       } catch (apiError) {
         if (apiError.response?.data?.error && apiError.response.data.error.includes("Unique constraint")) {
@@ -1306,8 +1493,50 @@ const handleAddSelectedTeachers = async () => {
       await axios.put(`http://localhost:5000/api/sxoles/${currentSxoliId}`, formattedSxoli);
       console.log("Updated sxoli with ID:", currentSxoliId);
       
-      // Ανανέωση δεδομένων
-      refreshData();
+      // Τοπικές ενημερώσεις καταστάσεων
+      // 1. Ενημέρωση της σχολής στο sxolesData
+      setSxolesData(prev => {
+        return prev.map(sxoli => 
+          sxoli.id_sxolis === currentSxoliId || sxoli.id === currentSxoliId
+            ? { 
+                ...sxoli, 
+                ...formattedSxoli, 
+                id_sxolis: currentSxoliId,
+                // Διατήρηση υπαρχόντων εκπαιδευτών
+                ekpaideutes: sxoli.ekpaideutes || []
+              }
+            : sxoli
+        );
+      });
+      
+      // 2. Ενημέρωση της αναφοράς σχολής στα δεδομένα εκπαιδευτών
+      setEkpaideutesData(prev => {
+        return prev.map(ekpaideutis => {
+          // Έλεγχος αν αυτός ο εκπαιδευτής έχει τη σχολή που ενημερώνουμε
+          if (ekpaideutis.sxoles && Array.isArray(ekpaideutis.sxoles)) {
+            // Ενημέρωση των στοιχείων της σχολής στη λίστα σχολών του εκπαιδευτή
+            const updatedSxoles = ekpaideutis.sxoles.map(sxoli => 
+              (sxoli.id_sxolis === currentSxoliId || sxoli.id === currentSxoliId)
+                ? { ...sxoli, ...formattedSxoli, id_sxolis: currentSxoliId }
+                : sxoli
+            );
+            
+            return { ...ekpaideutis, sxoles: updatedSxoles };
+          }
+          return ekpaideutis;
+        });
+      });
+      
+      // 3. Ενημέρωση διαθέσιμων ετών αν χρειάζεται (επανυπολογισμός με βάση τις υπόλοιπες σχολές)
+      const remainingYears = [...new Set(
+        sxolesData
+          .filter(sxoli => sxoli.id_sxolis !== currentSxoliId && sxoli.id !== currentSxoliId)
+          .map(s => s.etos)
+          .filter(year => year !== null && year !== undefined)
+      )].sort((a, b) => b - a);
+      
+      setAvailableYears(remainingYears);
+      
       setEditSxoliDialogOpen(false);
       setEditSxoliData(null);
       setCurrentSxoliId(null);
@@ -1334,8 +1563,38 @@ const handleAddSelectedTeachers = async () => {
       // Απευθείας κλήση του API
       await axios.delete(`http://localhost:5000/api/sxoles/${id}`);
       
-      // Ανανέωση δεδομένων
-      refreshData();
+      // Τοπικές ενημερώσεις καταστάσεων
+      // 1. Αφαίρεση σχολής από το sxolesData
+      setSxolesData(prev => prev.filter(sxoli => 
+        sxoli.id_sxolis !== id && sxoli.id !== id
+      ));
+      
+      // 2. Αφαίρεση σχολής από τις λίστες σχολών των εκπαιδευτών
+      setEkpaideutesData(prev => {
+        return prev.map(ekpaideutis => {
+          if (ekpaideutis.sxoles && Array.isArray(ekpaideutis.sxoles)) {
+            // Φιλτράρισμα της διαγραμμένης σχολής από τις σχολές του εκπαιδευτή
+            return {
+              ...ekpaideutis,
+              sxoles: ekpaideutis.sxoles.filter(sxoli => 
+                sxoli.id_sxolis !== id && sxoli.id !== id
+              )
+            };
+          }
+          return ekpaideutis;
+        });
+      });
+      
+      // 3. Ενημέρωση διαθέσιμων ετών αν χρειάζεται (επανυπολογισμός με βάση τις υπόλοιπες σχολές)
+      const remainingYears = [...new Set(
+        sxolesData
+          .filter(sxoli => sxoli.id_sxolis !== id && sxoli.id !== id)
+          .map(s => s.etos)
+          .filter(year => year !== null && year !== undefined)
+      )].sort((a, b) => b - a);
+      
+      setAvailableYears(remainingYears);
+      
     } catch (error) {
       console.error("Σφάλμα κατά τη διαγραφή σχολής:", error);
       
@@ -1408,10 +1667,28 @@ const handleEditEkpaideutiClick = async (row) => {
       };
 
       // Αποστολή στο API
-      await axios.post("http://localhost:5000/api/Repafes", formattedEkpaideutis);
+      const response = await axios.post("http://localhost:5000/api/Repafes", formattedEkpaideutis);
       
-      // Ανανέωση δεδομένων
-      refreshData();
+      // Get the created teacher data with ID
+      const newTeacherData = response.data;
+      console.log("Created new ekpaideutis:", newTeacherData);
+      
+      // Create complete teacher object for local state
+      const newTeacher = {
+        id_epafis: newTeacherData.id_epafis || newTeacherData.id,
+        id_ekpaideuti: newTeacherData.id_ekpaideuti,
+        onoma: newTeacherData.onoma,
+        epitheto: newTeacherData.epitheto,
+        email: newTeacherData.email,
+        tilefono: newTeacherData.tilefono,
+        epipedo: newEkpaideutis.epipedo,
+        klados: newEkpaideutis.klados,
+        sxoles: [] // Initialize with empty schools array
+      };
+      
+      // Update teachers state locally
+      setEkpaideutesData(prev => [...prev, newTeacher]);
+      
       setAddEkpaideutiDialogOpen(false);
     } catch (error) {
       console.error("Σφάλμα κατά την προσθήκη εκπαιδευτή:", error);
@@ -1434,20 +1711,64 @@ const handleEditEkpaideutiClick = async (row) => {
         epitheto: editedEkpaideutis.epitheto,
         email: editedEkpaideutis.email,
         tilefono: editedEkpaideutis.tilefono,
-        idiotita: "Εκπαιδευτής",
-        ekpaideutis: {
-          update: {
-            epipedo: editedEkpaideutis.epipedo,
-            klados: editedEkpaideutis.klados
-          }
-        }
+        epipedo: editedEkpaideutis.epipedo,
+        klados: editedEkpaideutis.klados
       };
 
-      // Αποστολή στο API
-      await axios.put(`http://localhost:5000/api/Repafes/${currentEkpaideutisId}`, formattedEkpaideutis);
+      // Αποστολή στο API με το νέο endpoint - διορθωμένη διεύθυνση από Repafes σε sxoles
+      await axios.put(`http://localhost:5000/api/sxoles/ekpaideutis/${currentEkpaideutisId}`, formattedEkpaideutis);
       
-      // Ανανέωση δεδομένων
-      refreshData();
+      // Τοπικές ενημερώσεις καταστάσεων
+      // 1. Ενημέρωση του εκπαιδευτή στο ekpaideutesData
+      setEkpaideutesData(prev => {
+        return prev.map(ekpaideutis => {
+          if (ekpaideutis.id_epafis === currentEkpaideutisId || 
+              ekpaideutis.id_ekpaideuti === currentEkpaideutisId || 
+              ekpaideutis.id === currentEkpaideutisId) {
+            
+            // Διατήρηση της λίστας σχολών
+            return {
+              ...ekpaideutis,
+              onoma: formattedEkpaideutis.onoma,
+              epitheto: formattedEkpaideutis.epitheto,
+              email: formattedEkpaideutis.email,
+              tilefono: formattedEkpaideutis.tilefono,
+              epipedo: formattedEkpaideutis.epipedo,
+              klados: formattedEkpaideutis.klados
+            };
+          }
+          return ekpaideutis;
+        });
+      });
+      
+      // 2. Ενημέρωση των δεδομένων του εκπαιδευτή στις σχολές
+      setSxolesData(prev => {
+        return prev.map(sxoli => {
+          if (sxoli.ekpaideutes && Array.isArray(sxoli.ekpaideutes)) {
+            const updatedEkpaideutes = sxoli.ekpaideutes.map(ekpaideutis => {
+              if (ekpaideutis.id_ekpaideuti === currentEkpaideutisId || 
+                  ekpaideutis.id_epafis === currentEkpaideutisId || 
+                  ekpaideutis.id === currentEkpaideutisId) {
+                
+                return {
+                  ...ekpaideutis,
+                  onoma: formattedEkpaideutis.onoma,
+                  epitheto: formattedEkpaideutis.epitheto,
+                  email: formattedEkpaideutis.email,
+                  tilefono: formattedEkpaideutis.tilefono,
+                  epipedo: formattedEkpaideutis.epipedo,
+                  klados: formattedEkpaideutis.klados
+                };
+              }
+              return ekpaideutis;
+            });
+            
+            return { ...sxoli, ekpaideutes: updatedEkpaideutes };
+          }
+          return sxoli;
+        });
+      });
+      
       setEditEkpaideutiDialogOpen(false);
       setEditEkpaideutiData(null);
       setCurrentEkpaideutisId(null);
@@ -1457,85 +1778,93 @@ const handleEditEkpaideutiClick = async (row) => {
     }
   };
 
-  // Βελτιωμένη έκδοση του handleDeleteEkpaideutis - Γραμμή ~1444
-const handleDeleteEkpaideutis = async (id) => {
+  // Διαγραφή εκπαιδευτή
+  const handleDeleteEkpaideutis = async (row) => {
   try {
-    console.log("Deleting ekpaideutis with raw ID:", id);
-    
-    // Έλεγχος για null/undefined id
-    if (!id && id !== 0) {
-      console.error("Received null or undefined ID for deletion");
-      alert("Σφάλμα: Δεν δόθηκε ID εκπαιδευτή για διαγραφή");
-      return;
-    }
-    
-    // Διαχείριση όλων των πιθανών μορφών του ID
-    let ekpaideutisId;
-    
-    if (typeof id === 'object' && id !== null) {
-      // Λεπτομερέστερη καταγραφή του αντικειμένου για καλύτερη διάγνωση
-      console.log("ID is an object with properties:", Object.keys(id));
-      
-      // Εξαγωγή από αντικείμενο - έλεγχος όλων των πιθανών πεδίων
-      ekpaideutisId = id.id_epafis || id.id_ekpaideuti || id.id;
-      
-      // Έλεγχος στο πεδίο original που μπορεί να προσθέτει το DataTable
-      if ((ekpaideutisId === undefined || ekpaideutisId === null) && id.original) {
-        console.log("Checking id.original:", id.original);
-        ekpaideutisId = id.original.id_epafis || id.original.id_ekpaideuti || id.original.id;
-      }
-      
-      // Χρήση του row αν υπάρχει
-      if ((ekpaideutisId === undefined || ekpaideutisId === null) && id.row) {
-        console.log("Checking id.row:", id.row);
-        ekpaideutisId = id.row.id_epafis || id.row.id_ekpaideuti || id.row.id;
-      }
+    // Extract instructor ID
+    let ekpaideutisId = null;
+    if (typeof row === "object" && row !== null) {
+      ekpaideutisId =
+        row.id_ekpaideuti ||
+        row.id_epafis ||
+        row.id ||
+        (row.original && (row.original.id_ekpaideuti || row.original.id_epafis || row.original.id)) ||
+        (row.row && (row.row.id_ekpaideuti || row.row.id_epafis || row.row.id));
     } else {
-      // Χρήση του id απευθείας αν δεν είναι αντικείμενο
-      ekpaideutisId = id;
+      ekpaideutisId = row;
     }
+
+    // Μετατροπή του ID σε αριθμό
+    ekpaideutisId = parseInt(ekpaideutisId);
     
-    console.log("Final extracted ID for deletion:", ekpaideutisId);
-    
-    // Έλεγχος εγκυρότητας ID - προσοχή στο 0 που είναι έγκυρο ID
-    if (ekpaideutisId === undefined || ekpaideutisId === null || ekpaideutisId === '') {
-      console.error("No valid ID found for deletion");
-      alert("Δεν βρέθηκε έγκυρο ID εκπαιδευτή για διαγραφή");
+    if (isNaN(ekpaideutisId)) {
+      alert("Δεν βρέθηκε έγκυρο ID εκπαιδευτή για διαγραφή.");
       return;
     }
-    
-    // Ο υπόλοιπος κώδικας παραμένει ίδιος...
 
-    // Επιβεβαίωση από το χρήστη
     if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον εκπαιδευτή;")) {
       return;
     }
+
+    // First, get all schools this instructor teaches at
+    const schools = sxolesData.filter(school => 
+      Array.isArray(school.ekpaideutes) && 
+      school.ekpaideutes.some(t => 
+        t.id == ekpaideutisId || 
+        t.id_ekpaideuti == ekpaideutisId || 
+        t.id_epafis == ekpaideutisId
+      )
+    );
     
-    // Αναζήτηση του εκπαιδευτή στα data για να πάρουμε το σωστό id_epafis
-    if (ekpaideutesData && ekpaideutesData.length > 0) {
-      const ekpaideutis = ekpaideutesData.find(e => 
-        e.id_ekpaideuti == ekpaideutisId || 
-        e.id_epafis == ekpaideutisId || 
-        e.id == ekpaideutisId
-      );
-      
-      if (ekpaideutis) {
-        // Προτίμηση του id_epafis που είναι το σωστό για το API
-        ekpaideutisId = ekpaideutis.id_epafis || ekpaideutisId;
+    // Remove the instructor from all schools first
+    for (const school of schools) {
+      try {
+        await axios.delete(`http://localhost:5000/api/sxoles/${school.id_sxolis}/ekpaideutis/${ekpaideutisId}`);
+        console.log(`Removed instructor ${ekpaideutisId} from school ${school.id_sxolis}`);
+      } catch (err) {
+        console.error(`Failed to remove instructor from school ${school.id_sxolis}:`, err);
+        // Continue with others even if one fails
       }
     }
-    
-    // Κλήση API με το σωστό ID
+
+    // Now delete the instructor - διορθώνουμε το endpoint
     await axios.delete(`http://localhost:5000/api/Repafes/${ekpaideutisId}`);
-    
-    // Ανανέωση δεδομένων
-    refreshData();
+    console.log("Instructor deleted successfully");
+
+    // Update local state
+    setEkpaideutesData(prev =>
+      prev.filter(
+        e =>
+          e.id_epafis != ekpaideutisId &&
+          e.id_ekpaideuti != ekpaideutisId &&
+          e.id != ekpaideutisId
+      )
+    );
+    setSxolesData(prev =>
+      prev.map(sxoli => ({
+        ...sxoli,
+        ekpaideutes: Array.isArray(sxoli.ekpaideutes)
+          ? sxoli.ekpaideutes.filter(
+              t =>
+                t.id != ekpaideutisId &&
+                t.id_ekpaideuti != ekpaideutisId &&
+                t.id_epafis != ekpaideutisId
+            )
+          : sxoli.ekpaideutes
+      }))
+    );
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή εκπαιδευτή:", error);
-    alert("Σφάλμα κατά τη διαγραφή εκπαιδευτή: " + (error.response?.data?.error || error.message));
+    // Show more detailed error if available
+    if (error.response && error.response.data) {
+      alert("Σφάλμα κατά τη διαγραφή εκπαιδευτή: " + (error.response.data.error || error.message));
+    } else {
+      alert("Σφάλμα κατά τη διαγραφή εκπαιδευτή: " + error.message);
+    }
   }
 };
 
+  // Dialog για επιλογή εκπαιδευτών
   const TeacherSelectionDialog = ({ open, onClose, onSave, availableTeachers, selectedTeachers, setSelectedTeachers }) => {
     const handleToggleSelection = (teacherId) => {
       if (selectedTeachers.includes(teacherId)) {
@@ -1562,6 +1891,7 @@ const handleDeleteEkpaideutis = async (id) => {
                           if (selectedTeachers.length === availableTeachers.length) {
                             setSelectedTeachers([]);
                           } else {
+                            // Fix: Use consistent ID property
                             setSelectedTeachers(availableTeachers.map(t => t.id_ekpaideuti));
                           }
                         }}
@@ -1577,15 +1907,16 @@ const handleDeleteEkpaideutis = async (id) => {
                 <TableBody>
                   {availableTeachers.map((teacher) => (
                     <TableRow 
-                      key={teacher.id_ekpaideuti}
+                      key={teacher.id_ekpaideuti || teacher.id}
                       hover
                       onClick={() => handleToggleSelection(teacher.id_ekpaideuti)}
                       selected={selectedTeachers.includes(teacher.id_ekpaideuti)}
                     >
                       <TableCell padding="checkbox">
                         <Checkbox 
+                          // Fix: Make sure we use the right ID property consistently
                           checked={selectedTeachers.includes(teacher.id_ekpaideuti)} 
-                          onChange={() => handleToggleSelection(teacher.id_ekpaideuti)}
+                          onChange={() => handleToggleSelection(teacher.id_ekpaideutis)}
                         />
                       </TableCell>
                       <TableCell>{`${teacher.onoma || ""} ${teacher.epitheto || ""}`}</TableCell>
@@ -1634,6 +1965,83 @@ const handleDeleteEkpaideutis = async (id) => {
     };
   }, []);
 
+  // Compute available years when sxolesData changes
+  useEffect(() => {
+    if (sxolesData.length > 0) {
+      const years = [...new Set(sxolesData
+        .map(s => s.etos)
+        .filter(year => year !== null && year !== undefined)
+        .sort((a, b) => b - a))];
+      setAvailableYears(years);
+    }
+  }, [sxolesData]);
+  
+  // Filter schools based on selected year
+  const filteredSxolesData = yearFilter 
+    ? sxolesData.filter(sxoli => sxoli.etos == yearFilter) 
+    : sxolesData;
+    
+  // Handler for year filter change
+  const handleYearFilterChange = (event) => {
+    setYearFilter(event.target.value);
+  };
+  
+  // Handler to clear the filter
+  const handleClearFilter = () => {
+    setYearFilter("");
+  };
+  
+  // Add this helper function for date formatting
+const formatDateToDDMMYYYY = (dateString) => {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    
+    return new Intl.DateTimeFormat('el-GR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).format(date);
+  } catch (e) {
+    console.error("Error formatting date:", e);
+    return dateString;
+  }
+};
+
+// Helper function to convert from DD/MM/YYYY to YYYY-MM-DD (for input fields)
+const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  
+  try {
+    // If it's already in YYYY-MM-DD format
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
+    }
+    
+    // Parse DD/MM/YYYY format
+    const parts = dateString.split(/[\/.-]/);
+    if (parts.length === 3) {
+      // Check if first part is day (length 1-2) and third part is year (length 4)
+      if (parts[0].length <= 2 && parts[2].length === 4) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    }
+    
+    // If format is unrecognized, try to parse as Date
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+    
+    return dateString;
+  } catch (e) {
+    console.error("Error formatting date for input:", e);
+    return dateString;
+  }
+};
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
       <Box sx={{ p: 3 }}>
@@ -1642,11 +2050,43 @@ const handleDeleteEkpaideutis = async (id) => {
         </Typography>
         
         <Box sx={{ mb: 4 }}>
+
           <Typography variant="h5" sx={{ mb: 2 }}>
-            Σχολές ({sxolesData.length})
-          </Typography>
+            Σχολές ({filteredSxolesData.length})
+          </Typography
+          >
+          
+          {/* Year filter component */}
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControl sx={{ minWidth: 120 }} size="small">
+              <InputLabel id="year-filter-label">Έτος</InputLabel>
+              <Select
+                labelId="year-filter-label"
+                id="year-filter"
+                value={yearFilter}
+                label="Έτος"
+                onChange={handleYearFilterChange}
+              >
+                <MenuItem value="">Όλα</MenuItem>
+                {availableYears.map(year => (
+                  <MenuItem key={year} value={year}>{year}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            {yearFilter && (
+              <Button 
+                variant="outlined" 
+                size="small" 
+                onClick={handleClearFilter}
+              >
+                Καθαρισμός Φίλτρου
+              </Button>
+            )}
+          </Box>
+          
           <DataTable
-            data={sxolesData}
+            data={filteredSxolesData} // Use filtered data instead of sxolesData
             columns={sxolesColumns}
             detailPanelConfig={sxoliDetailPanelConfig}
             getRowId={(row) => row.id_sxolis}
@@ -1660,7 +2100,7 @@ const handleDeleteEkpaideutis = async (id) => {
             handleEditClick={handleEditSxoliClick}
             handleDelete={handleDeleteSxoli}
             enableAddNew={true}
-            onAddNew={() => setAddSxoliDialogOpen(true)}  // Αυτό είναι για την προσθήκη νέας σχολής
+            onAddNew={() => setAddSxoliDialogOpen(true)}
           />
         </Box>
 
@@ -1729,12 +2169,12 @@ const handleDeleteEkpaideutis = async (id) => {
         <EditDialog 
           open={editEkpaideutiDialogOpen}
           onClose={() => {
-            setEditEkpaideutiDialogOpen(false);
+            setEditEkpaideutiDialogOpen(false); // Διόρθωση τυπογραφικού λάθους
             setEditEkpaideutiData(null);
             setCurrentEkpaideutisId(null);
           }}
           handleEditSave={handleEditEkpaideutis}
-          editValues={editEkpaideutiData || {}} // Προσθήκη fallback σε κενό αντικείμενο
+          editValues={editEkpaideutiData || {}} 
           title="Επεξεργασία Εκπαιδευτή"
           fields={ekpaideutisFormFields}
         />

@@ -19,8 +19,14 @@ function calculateDays(startDate, endDate) {
 }
 
 // Συνάρτηση υπολογισμού συνολικής τιμής
-function calculateTotalPrice(days, memberCount, nonMemberCount, memberPrice, nonMemberPrice) {
-  return (memberCount * memberPrice + nonMemberCount * nonMemberPrice) * days;
+function calculateTotalPrice(days, memberCount, nonMemberCount, isExternalSpace, shelter) {
+  if (isExternalSpace) {
+    return (memberCount * (shelter.timi_eksoxwrou_melos || 0) + 
+            nonMemberCount * (shelter.timi_eksoxwroy_mimelos || 0)) * days;
+  } else {
+    return (memberCount * (shelter.timi_melous || 0) + 
+            nonMemberCount * (shelter.timi_mi_melous || 0)) * days;
+  }
 }
 
 // GET: Ανάκτηση όλων των καταφυγίων
@@ -71,7 +77,7 @@ router.get("/", async (_req, res) => {
       return {
         id: booking.id_kratisis,
         contactName: booking.epafes 
-          ? `${booking.epafes.onoma || ''} ${booking.epafes.epitheto || ''}`.trim() 
+          ? `${booking.epafes.epitheto || ''} ${booking.epafes.onoma || ''}`.trim() 
           : "Άγνωστο",
         contactEmail: booking.epafes?.email || '',
         contactPhone: booking.epafes?.tilefono?.toString() || '',
@@ -175,13 +181,17 @@ router.get("/availability/:id_katafigiou", async (req, res) => {
     overlappingBookings.forEach(booking => {
       const bookingStart = new Date(booking.hmerominia_afiksis);
       const bookingEnd = new Date(booking.hmerominia_epistrofis);
-      const peopleCount = booking.atoma || 0;
       
-      for (let date = new Date(Math.max(bookingStart, start)); 
-           date <= new Date(Math.min(bookingEnd, end)); 
-           date.setDate(date.getDate() + 1)) {
-        const dateStr = date.toISOString().split('T')[0];
-        dailyOccupancy[dateStr] += peopleCount;
+      // Μην υπολογίζουμε κρατήσεις εξωτερικού χώρου στη διαθεσιμότητα
+      if (booking.eksoterikos_xoros !== "Ναι") {
+        const peopleCount = booking.atoma || 0;
+        
+        for (let date = new Date(Math.max(bookingStart, start)); 
+             date <= new Date(Math.min(bookingEnd, end)); 
+             date.setDate(date.getDate() + 1)) {
+          const dateStr = date.toISOString().split('T')[0];
+          dailyOccupancy[dateStr] += peopleCount;
+        }
       }
     });
     
@@ -239,13 +249,14 @@ router.post("/", async (req, res) => {
     // Υπολογισμός ημερών
     const days = calculateDays(hmerominia_afiksis, hmerominia_epistrofis);
     
-    // Υπολογισμός συνολικής τιμής
+    // Υπολογισμός συνολικής τιμής με νέα λογική
+    const isExternalSpace = eksoterikos_xoros === "Ναι";
     const totalPrice = calculateTotalPrice(
       days,
       parseInt(arithmos_melwn || 0),
       parseInt(arithmos_mi_melwn || 0),
-      katafigio.timi_melous,
-      katafigio.timi_mi_melous
+      isExternalSpace,
+      katafigio
     );
     
     // Υπολογισμός συνολικού αριθμού ατόμων
@@ -307,7 +318,7 @@ router.post("/", async (req, res) => {
     const response = {
       id: completeBooking.id_kratisis,
       contactName: completeBooking.epafes 
-        ? `${completeBooking.epafes.onoma || ''} ${completeBooking.epafes.epitheto || ''}`.trim() 
+        ? `${completeBooking.epafes.epitheto || ''} ${completeBooking.epafes.onoma || ''}`.trim() 
         : "Άγνωστο",
       contactEmail: completeBooking.epafes?.email || '',
       contactPhone: completeBooking.epafes?.tilefono?.toString() || '',
@@ -380,12 +391,15 @@ router.put("/:id", async (req, res) => {
     );
     
     // Υπολογισμός συνολικής τιμής
+    const isExternalSpace = (eksoterikos_xoros === undefined ? 
+                         existingBooking.eksoterikos_xoros : eksoterikos_xoros) === "Ναι";
+
     const totalPrice = calculateTotalPrice(
       days,
       parseInt(arithmos_melwn === undefined ? existingBooking.arithmos_melwn : arithmos_melwn),
       parseInt(arithmos_mi_melwn === undefined ? existingBooking.arithmos_mi_melwn : arithmos_mi_melwn),
-      katafigio.timi_melous,
-      katafigio.timi_mi_melous
+      isExternalSpace,  // Σωστό flag για εξωτερικό/εσωτερικό χώρο
+      katafigio  // Ολόκληρο το αντικείμενο καταφυγίου
     );
     
     // Υπολογισμός συνολικού αριθμού ατόμων
@@ -430,7 +444,7 @@ router.put("/:id", async (req, res) => {
     const response = {
       id: updatedBooking.id_kratisis,
       contactName: updatedBooking.epafes 
-        ? `${updatedBooking.epafes.onoma || ''} ${updatedBooking.epafes.epitheto || ''}`.trim() 
+        ? `${updatedBooking.epafes.epitheto || ''} ${updatedBooking.epafes.onoma || ''}`.trim() 
         : "Άγνωστο",
       contactEmail: updatedBooking.epafes?.email || '',
       contactPhone: updatedBooking.epafes?.tilefono?.toString() || '',

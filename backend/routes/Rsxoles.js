@@ -653,4 +653,58 @@ router.get("/:id/parakolouthisi", async (req, res) => {
   }
 });
 
+// Διαγραφή εκπαιδευτή
+router.delete("/ekpaideutis/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    // Epafes (θα διαγράψει και τον Ekpaideutis λόγω CASCADE)
+    await prisma.epafes.delete({
+      where: { id_epafis: id }
+    });
+
+    res.json({ success: true, message: "Ο εκπαιδευτής διαγράφηκε επιτυχώς" });
+  } catch (error) {
+    console.error("Σφάλμα κατά τη διαγραφή εκπαιδευτή:", error);
+    res.status(500).json({ error: "Σφάλμα κατά τη διαγραφή εκπαιδευτή" });
+  }
+});
+
+// Ενημέρωση εκπαιδευτή
+router.put("/ekpaideutis/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { onoma, epitheto, email, tilefono, epipedo, klados } = req.body;
+
+    // Epafes
+    const updatedEpafes = await prisma.epafes.update({
+      where: { id_epafis: id },
+      data: { 
+        onoma,
+        epitheto,
+        email,
+        tilefono: tilefono ? BigInt(tilefono) : null 
+      }
+    });
+
+    // Ekpaideutis
+    const updatedEkpaideutis = await prisma.ekpaideutis.update({
+      where: { id_ekpaideuti: id },
+      data: {
+        epipedo,
+        klados
+      }
+    });
+
+    res.json({
+      ...updatedEpafes,
+      epipedo: updatedEkpaideutis.epipedo,
+      klados: updatedEkpaideutis.klados
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση εκπαιδευτή:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση εκπαιδευτή" });
+  }
+});
+
 module.exports = router;
