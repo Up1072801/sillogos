@@ -110,11 +110,17 @@ router.get("/", async (_req, res) => {
             },
           },
         },
+        // Προσθήκη της σχέσης YpefthynosEksormisis
+        ypefthynos_eksormisis: {
+          include: {
+            drastiriotita: true
+          }
+        },
         athlitis: true,
         sindromitis: {
           include: {
             exei: {
-              take: 1, // Παίρνει μόνο την πρώτη εγγραφή αντί να κάνει orderBy
+              take: 1,
               include: {
                 sindromi: {
                   include: {
@@ -559,6 +565,8 @@ router.delete("/:id", async (req, res) => {
             epafes: true,
           },
         },
+        athlitis: true,
+        sindromitis: true,
       },
     });
 
@@ -567,6 +575,28 @@ router.delete("/:id", async (req, res) => {
     }
 
     await prisma.$transaction(async (prisma) => {
+      const epafisId = memberExists.melos?.epafes?.id_epafis;
+
+      // 1. Διαγραφή όλων των συσχετίσεων με αθλήματα (asxoleitai)
+      if (memberExists.athlitis) {
+        await prisma.asxoleitai.deleteMany({
+          where: { id_athliti: id },
+        });
+        
+        // Διαγραφή των συμμετοχών σε αγώνες (agonizetai)
+        await prisma.agonizetai.deleteMany({
+          where: { id_athliti: id },
+        });
+      }
+
+      // 2. Διαγραφή όλων των δανεισμών (daneizetai)
+      if (epafisId) {
+        await prisma.daneizetai.deleteMany({
+          where: { id_epafis: epafisId },
+        });
+      }
+
+      // 3. Διαγραφή συμμετοχών σε δραστηριότητες
       const simmetoxiIds = await prisma.simmetoxi.findMany({
         where: { id_melous: id },
         select: { id_simmetoxis: true },
@@ -584,6 +614,7 @@ router.delete("/:id", async (req, res) => {
         where: { id_melous: id },
       });
 
+      // 4. Διαγραφή παρακολούθησης σχολών
       await prisma.katavalei.deleteMany({
         where: { id_parakolouthisis: { in: await prisma.parakolouthisi.findMany({
           where: { id_melous: id },
@@ -595,39 +626,49 @@ router.delete("/:id", async (req, res) => {
         where: { id_melous: id },
       });
 
+      // 5. Διαγραφή της συνδρομής
       await prisma.exei.deleteMany({
         where: { id_sindromiti: id },
       });
 
-      if (memberExists.melos?.epafes) {
+      // 6. Διαγραφή εξοφλήσεων
+      if (epafisId) {
         await prisma.eksoflei.deleteMany({
-          where: { id_epafis: memberExists.melos.epafes.id_epafis },
+          where: { id_epafis: epafisId },
+        });
+        
+        // Διαγραφή κρατήσεων καταφυγίου
+        await prisma.kratisi_katafigiou.deleteMany({
+          where: { id_epafis: epafisId },
         });
       }
 
-      if (memberExists.melos?.epafes) {
-        await prisma.epafes.delete({
-          where: { id_epafis: memberExists.melos.epafes.id_epafis },
-        });
-      }
-
-      await prisma.athlitis.deleteMany({ where: { id_athliti: id } });
-      await prisma.sindromitis.deleteMany({ where: { id_sindromiti: id } });
-
-      const melosExists = await prisma.melos.findUnique({
-        where: { id_melous: id },
+      // 7. Διαγραφή εξορμήσεων όπου το μέλος είναι υπεύθυνος
+      await prisma.eksormisi.updateMany({
+        where: { id_ypefthynou: id },
+        data: { id_ypefthynou: null }
       });
 
-      if (melosExists) {
+      // 8. Διαγραφή εγγραφών αθλητή/συνδρομητή
+      if (memberExists.athlitis) {
+        await prisma.athlitis.delete({ where: { id_athliti: id } });
+      }
+      
+      if (memberExists.sindromitis) {
+        await prisma.sindromitis.delete({ where: { id_sindromiti: id } });
+      }
+
+      // 9. Διαγραφή εσωτερικού μέλους
+      await prisma.esoteriko_melos.delete({ where: { id_es_melous: id } });
+
+      // 10. Διαγραφή μέλους
+      if (memberExists.melos) {
         await prisma.melos.delete({ where: { id_melous: id } });
       }
 
-      const esoterikoMelosExists = await prisma.esoteriko_melos.findUnique({
-        where: { id_es_melous: id },
-      });
-
-      if (esoterikoMelosExists) {
-        await prisma.esoteriko_melos.delete({ where: { id_es_melous: id } });
+      // 11. Διαγραφή επαφής (τελευταία)
+      if (epafisId) {
+        await prisma.epafes.delete({ where: { id_epafis: epafisId } });
       }
     });
 
@@ -638,10 +679,13 @@ router.delete("/:id", async (req, res) => {
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Member not found" });
     }
-
+    
+    // Επιστρέφουμε λεπτομερέστερες πληροφορίες σφάλματος
     res.status(500).json({
       error: "Error deleting member",
       details: error.message,
+      code: error.code,
+      meta: error.meta
     });
   }
 });

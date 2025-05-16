@@ -59,30 +59,37 @@ const DataTable = React.memo(({
             <Box sx={{ mb: 3 }}>
               <Typography variant="h6" component="div" gutterBottom>Στοιχεία</Typography>
               <Grid container direction="column" spacing={1}>
-                {detailPanelConfig?.mainDetails?.map((field, index) => (
-                  <Grid item key={index}>
-                    <Box sx={{ display: 'flex' }}>
-                      <Typography component="span" sx={{ fontWeight: 'bold', mr: 0.5 }}>
-                        {field.header}:
-                      </Typography>
-                      <Typography component="span">
-                        {field.Cell 
-                          ? field.Cell({ row }) 
-                          : field.format 
-                            ? field.format(field.accessor && typeof field.accessor === 'string' 
-                                ? field.accessor.split('.').reduce((o, i) => o?.[i], item)
-                                : field.accessorKey
-                                  ? item[field.accessorKey]
-                                  : null)
+                {detailPanelConfig?.mainDetails?.map((field, index) => {
+                  // Έλεγχος αν το πεδίο πρέπει να εμφανιστεί
+                  if (field.shouldRender && !field.shouldRender(item)) {
+                    return null; // Αν το shouldRender επιστρέφει false, δεν εμφανίζουμε το πεδίο
+                  }
+                  
+                  return (
+                    <Grid item key={index}>
+                      <Box sx={{ display: 'flex' }}>
+                        <Typography component="span" sx={{ fontWeight: 'bold', mr: 0.5 }}>
+                          {field.header}:
+                        </Typography>
+                        <Typography component="span">
+                          {field.Cell 
+                            ? field.Cell({ row }) 
+                            : field.format 
+                              ? field.format(field.accessor && typeof field.accessor === 'string' 
+                                  ? field.accessor.split('.').reduce((o, i) => o?.[i], item)
+                                  : field.accessorKey
+                                    ? item[field.accessorKey]
+                                    : null)
                             : typeof field.accessor === 'string'
                               ? field.accessor.split('.').reduce((o, i) => o?.[i], item) || '-'
                               : field.accessorKey
                                 ? item[field.accessorKey] || '-'
                                 : '-'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                ))}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  );
+                })}
               </Grid>
               
               {enableEditMain && handleEditClick && detailPanelConfig?.showEditButton !== false && (
