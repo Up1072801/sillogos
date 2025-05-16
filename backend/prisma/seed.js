@@ -22,15 +22,18 @@ async function main() {
 
 
   // 3. Δημιουργία Καταφυγίων
-  await prisma.katafigio.create({
-    data: {
-      id_katafigiou: 1,
-      onoma: "Καταφύγιο Όλυμπος",
-      xoritikotita: 20,
-      timi_melous: 20,
-      timi_mi_melous: 40
-    }
-  });
+await prisma.katafigio.create({
+  data: {
+    id_katafigiou: 1,
+    onoma: "Καταφύγιο Όλυμπος",
+    xoritikotita: 20,
+    timi_melous: 20,
+    timi_mi_melous: 40,
+    timi_eksoxwrou_melos: 30,      // παράδειγμα τιμή
+    timi_eksoxwroy_mimelos: 50    // παράδειγμα τιμή
+  }
+});
+
 
   // 4. Δημιουργία Εξοπλισμού
   await prisma.eksoplismos.createMany({

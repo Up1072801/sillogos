@@ -125,7 +125,8 @@ model katafigio {
   xoritikotita   Int?
   timi_melous    Int?
   timi_mi_melous Int?
-
+timi_eksoxwrou_melos Int?
+timi_eksoxwroy_mimelos Int?
   kratisi_katafigiou kratisi_katafigiou[]
 
   @@map("Katafigio")
