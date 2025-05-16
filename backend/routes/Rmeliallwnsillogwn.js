@@ -9,6 +9,14 @@ BigInt.prototype.toJSON = function() {
   return this.toString();
 };
 
+// Βοηθητική συνάρτηση για μορφοποίηση ημερομηνίας σε DD/MM/YYYY
+function formatDateGR(date) {
+  if (!date) return null;
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("el-GR");
+}
+
 // GET: Ανάκτηση όλων των μελών άλλων συλλόγων με τις δραστηριότητες και τις σχολές τους
 router.get("/", async (_req, res) => {
   try {
@@ -58,10 +66,14 @@ router.get("/", async (_req, res) => {
           ...s,
           drastiriotita: s.drastiriotita ? {
             ...s.drastiriotita,
-            hmerominia: s.drastiriotita?.hmerominia?.toISOString(),
-          } : null
+            hmerominia: formatDateGR(s.drastiriotita?.hmerominia),
+          } : null,
+          hmerominia_dilosis: formatDateGR(s.hmerominia_dilosis)
         })) || [],
-        parakolouthisi: member.melos?.parakolouthisi || []
+        parakolouthisi: member.melos?.parakolouthisi?.map(p => ({
+          ...p,
+          hmerominia_dilosis: formatDateGR(p.hmerominia_dilosis)
+        })) || []
       }
     }));
 
@@ -125,10 +137,14 @@ router.get("/:id", async (req, res) => {
           ...s,
           drastiriotita: s.drastiriotita ? {
             ...s.drastiriotita,
-            hmerominia: s.drastiriotita?.hmerominia?.toISOString(),
-          } : null
+            hmerominia: formatDateGR(s.drastiriotita?.hmerominia),
+          } : null,
+          hmerominia_dilosis: formatDateGR(s.hmerominia_dilosis)
         })) || [],
-        parakolouthisi: member.melos?.parakolouthisi || []
+        parakolouthisi: member.melos?.parakolouthisi?.map(p => ({
+          ...p,
+          hmerominia_dilosis: formatDateGR(p.hmerominia_dilosis)
+        })) || []
       }
     };
 
@@ -321,10 +337,14 @@ router.put("/:id", async (req, res) => {
           ...s,
           drastiriotita: s.drastiriotita ? {
             ...s.drastiriotita,
-            hmerominia: s.drastiriotita?.hmerominia?.toISOString(),
-          } : null
+            hmerominia: formatDateGR(s.drastiriotita?.hmerominia),
+          } : null,
+          hmerominia_dilosis: formatDateGR(s.hmerominia_dilosis)
         })) || [],
-        parakolouthisi: updatedMember.melos?.parakolouthisi || []
+        parakolouthisi: updatedMember.melos?.parakolouthisi?.map(p => ({
+          ...p,
+          hmerominia_dilosis: formatDateGR(p.hmerominia_dilosis)
+        })) || []
       }
     };
 

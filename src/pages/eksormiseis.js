@@ -46,6 +46,7 @@ export default function Eksormiseis() {
   const [currentActivity, setCurrentActivity] = useState(null);
   const [currentEksormisiForActivity, setCurrentEksormisiForActivity] = useState(null);
   const [difficultyLevels, setDifficultyLevels] = useState([]);
+  const [expeditionFilter, setExpeditionFilter] = useState('upcoming'); // 'all', 'past', 'upcoming'
   
   // Φόρτωση δεδομένων
   useEffect(() => {
@@ -137,10 +138,24 @@ export default function Eksormiseis() {
         hmerominia_afiksis: newEksormisi.hmerominia_afiksis
       };
       
-      await axios.post("http://localhost:5000/api/eksormiseis", formattedData);
+      // Send data to API
+      const response = await axios.post("http://localhost:5000/api/eksormiseis", formattedData);
       
-      // Ανανέωση της λίστας
-      setRefreshTrigger(prev => prev + 1);
+      // Process the new expedition data
+      const newEksormisiData = {
+        id: response.data.id_eksormisis || response.data.id,
+        id_eksormisis: response.data.id_eksormisis || response.data.id,
+        titlos: String(response.data.titlos || "Χωρίς Τίτλο"),
+        proorismos: String(response.data.proorismos || "Χωρίς Προορισμό"),
+        timi: Number(response.data.timi || 0),
+        hmerominia_anaxorisis: response.data.hmerominia_anaxorisis ? new Date(response.data.hmerominia_anaxorisis) : null,
+        hmerominia_afiksis: response.data.hmerominia_afiksis ? new Date(response.data.hmerominia_afiksis) : null,
+        participantsCount: 0, // New expedition has no participants yet
+        drastiriotites: []
+      };
+      
+      // Add to local data
+      setEksormiseisData(prevData => [...prevData, newEksormisiData]);
       setAddDialogOpen(false);
     } catch (error) {
       alert("Σφάλμα κατά την προσθήκη εξόρμησης. Παρακαλώ δοκιμάστε ξανά.");
@@ -171,8 +186,26 @@ export default function Eksormiseis() {
         hmerominia_afiksis: editedEksormisi.hmerominia_afiksis
       };
       
-      await axios.put(`http://localhost:5000/api/eksormiseis/${editedEksormisi.id}`, formattedData);
-      setRefreshTrigger(prev => prev + 1);
+      // Send update to API
+      const response = await axios.put(`http://localhost:5000/api/eksormiseis/${editedEksormisi.id}`, formattedData);
+      
+      // Update local data
+      setEksormiseisData(prevData => 
+        prevData.map(eksormisi => {
+          if (eksormisi.id === editedEksormisi.id) {
+            return {
+              ...eksormisi,
+              titlos: editedEksormisi.titlos,
+              proorismos: editedEksormisi.proorismos,
+              timi: parseInt(editedEksormisi.timi),
+              hmerominia_anaxorisis: new Date(editedEksormisi.hmerominia_anaxorisis),
+              hmerominia_afiksis: new Date(editedEksormisi.hmerominia_afiksis)
+            };
+          }
+          return eksormisi;
+        })
+      );
+      
       setEditDialogOpen(false);
       setCurrentEksormisi(null);
     } catch (error) {
@@ -203,7 +236,11 @@ export default function Eksormiseis() {
   
     try {
       await axios.delete(`http://localhost:5000/api/eksormiseis/${id}`);
-      setRefreshTrigger(prev => prev + 1);
+      
+      // Update local state directly instead of triggering refresh
+      setEksormiseisData(prevData => 
+        prevData.filter(eksormisi => eksormisi.id !== id && eksormisi.id_eksormisis !== id)
+      );
     } catch (error) {
       alert("Σφάλμα κατά τη διαγραφή εξόρμησης. Παρακαλώ δοκιμάστε ξανά.");
     }
@@ -422,8 +459,15 @@ export default function Eksormiseis() {
         const activityId = activity.id_drastiriotitas || activity.id;
         await axios.delete(`http://localhost:5000/api/eksormiseis/drastiriotita/${activityId}`);
         
-        // Ανανέωση δεδομένων
-        setRefreshTrigger(prev => prev + 1);
+        // Update local data instead of refreshing
+        setEksormiseisData(prevData => 
+          prevData.map(eksormisi => ({
+            ...eksormisi,
+            drastiriotites: eksormisi.drastiriotites.filter(dr => 
+              (dr.id !== activityId && dr.id_drastiriotitas !== activityId)
+            )
+          }))
+        );
       } catch (error) {
         alert("Σφάλμα: " + error.message);
       }
@@ -517,6 +561,39 @@ export default function Eksormiseis() {
     ]
   };
 
+  const filteredData = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time part for date comparison
+    
+    switch(expeditionFilter) {
+      case 'past':
+        return eksormiseisData.filter(expedition => {
+          const departureDate = expedition.hmerominia_anaxorisis 
+            ? new Date(expedition.hmerominia_anaxorisis) 
+            : null;
+          return departureDate && departureDate < today;
+        });
+      case 'upcoming':
+        return eksormiseisData.filter(expedition => {
+          const departureDate = expedition.hmerominia_anaxorisis 
+            ? new Date(expedition.hmerominia_anaxorisis) 
+            : null;
+          return departureDate && departureDate >= today;
+        });
+      default:
+        return eksormiseisData;
+    }
+  }, [eksormiseisData, expeditionFilter]);
+
+  const tableInitialState = React.useMemo(() => ({
+    sorting: [
+      {
+        id: "hmerominia_anaxorisis",
+        desc: false // false for ascending (closest date first)
+      }
+    ]
+  }), []);
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '70vh' }}>
@@ -532,12 +609,47 @@ export default function Eksormiseis() {
           Διαχείριση Εξορμήσεων
         </Typography>
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h5" sx={{ mb: 2 }}>
-            Εξορμήσεις ({eksormiseisData.length})
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h5">
+              Εξορμήσεις ({filteredData.length}/{eksormiseisData.length})
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button 
+                variant={expeditionFilter === 'all' ? 'contained' : 'outlined'}
+                onClick={() => setExpeditionFilter('all')}
+                size="small"
+                color="primary"
+              >
+                Όλες ({eksormiseisData.length})
+              </Button>
+              <Button 
+                variant={expeditionFilter === 'upcoming' ? 'contained' : 'outlined'}
+                onClick={() => setExpeditionFilter('upcoming')}
+                size="small"
+                color="success"
+              >
+                Επερχόμενες ({eksormiseisData.filter(exp => {
+                  const departureDate = exp.hmerominia_anaxorisis ? new Date(exp.hmerominia_anaxorisis) : null;
+                  return departureDate && departureDate >= new Date();
+                }).length})
+              </Button>
+              <Button 
+                variant={expeditionFilter === 'past' ? 'contained' : 'outlined'}
+                onClick={() => setExpeditionFilter('past')}
+                size="small"
+                color="secondary"
+              >
+                Παλαιότερες ({eksormiseisData.filter(exp => {
+                  const departureDate = exp.hmerominia_anaxorisis ? new Date(exp.hmerominia_anaxorisis) : null;
+                  return departureDate && departureDate < new Date();
+                }).length})
+              </Button>
+            </Box>
+          </Box>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          
           <DataTable 
-            data={eksormiseisData}
+            data={filteredData}
             columns={columns}
             detailPanelConfig={detailPanelConfig}
             getRowId={(row) => {
@@ -552,6 +664,7 @@ export default function Eksormiseis() {
             enableExpand={true}
             tableName="eksormiseis"
             enableAddNew={true}
+            initialState={tableInitialState} // Add this line
             onAddNew={() => setAddDialogOpen(true)}
             onDetailPanelRender={(row) => {
               if (detailPanelConfig?.tables?.[0]) {

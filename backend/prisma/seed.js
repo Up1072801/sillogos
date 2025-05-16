@@ -19,35 +19,7 @@ async function main() {
     ],
   });
 
-  // 2. Δημιουργία Εξορμήσεων
-  await prisma.eksormisi.createMany({
-    data: [
-      {
-        id_eksormisis: 1,
-        proorismos: "Ζαγοροχώρια",
-        timi: 150,
-        hmerominia_anaxorisis: new Date("2023-11-01"),
-        hmerominia_afiksis: new Date("2023-11-05"),
-        titlos: "Παραδοσιακά Χωριά",
-      },
-      {
-        id_eksormisis: 2,
-        proorismos: "Πίνδος",
-        timi: 200,
-        hmerominia_anaxorisis: new Date("2025-12-01"),
-        hmerominia_afiksis: new Date("2025-12-05"),
-        titlos: "Ορειβασία στην Πίνδο",
-      },
-      {
-        id_eksormisis: 3,
-        proorismos: "Όλυμπος",
-        timi: 250,
-        hmerominia_anaxorisis: new Date("2025-05-01"),
-        hmerominia_afiksis: new Date("2025-05-07"),
-        titlos: "Αναρρίχηση στον Όλυμπο",
-      }
-    ],
-  });
+
 
   // 3. Δημιουργία Καταφυγίων
   await prisma.katafigio.create({
@@ -405,6 +377,39 @@ await prisma.ekpaideutis.createMany({
   ]
 });
 
+
+  // 2. Δημιουργία Εξορμήσεων
+ await prisma.eksormisi.createMany({
+  data: [
+    {
+      id_eksormisis: 1,
+      proorismos: "Ζαγοροχώρια",
+      timi: 150,
+      hmerominia_anaxorisis: new Date("2023-11-01"),
+      hmerominia_afiksis: new Date("2023-11-05"),
+      titlos: "Παραδοσιακά Χωριά",
+      id_ypefthynou: 1
+    },
+    {
+      id_eksormisis: 2,
+      proorismos: "Πίνδος",
+      timi: 200,
+      hmerominia_anaxorisis: new Date("2025-12-01"),
+      hmerominia_afiksis: new Date("2025-12-05"),
+      titlos: "Ορειβασία στην Πίνδο",
+      id_ypefthynou: 2
+    },
+    {
+      id_eksormisis: 3,
+      proorismos: "Όλυμπος",
+      timi: 250,
+      hmerominia_anaxorisis: new Date("2025-05-01"),
+      hmerominia_afiksis: new Date("2025-05-07"),
+      titlos: "Αναρρίχηση στον Όλυμπο",
+      id_ypefthynou: 3
+    }
+  ]
+});
 
   // 16. Δημιουργία Δραστηριοτήτων
 await prisma.drastiriotita.createMany({
@@ -766,19 +771,20 @@ await prisma.drastiriotita.createMany({
   });
 
   // 3. Δανεισμοί Εξοπλισμού
-  await prisma.daneizetai.createMany({
-    data: [
-      { id_epafis: 7, id_eksoplismou: 1, hmerominia_daneismou: new Date("2024-01-22"), hmerominia_epistrofis: new Date("2024-01-30") },
-      { id_epafis: 8, id_eksoplismou: 1, hmerominia_daneismou: new Date("2024-02-01"), hmerominia_epistrofis: new Date("2024-02-05") },
-      { id_epafis: 9, id_eksoplismou: 2, hmerominia_daneismou: new Date("2024-02-12"), hmerominia_epistrofis: new Date("2024-02-20") },
-      { id_epafis: 10, id_eksoplismou: 3, hmerominia_daneismou: new Date("2024-04-01"), hmerominia_epistrofis: new Date("2024-04-07") },
-      { id_epafis: 11, id_eksoplismou: 3, hmerominia_daneismou: new Date("2024-04-10"), hmerominia_epistrofis: new Date("2024-04-15") },
-      { id_epafis: 12, id_eksoplismou: 4, hmerominia_daneismou: new Date("2024-02-01"), hmerominia_epistrofis: new Date("2024-02-05") },
-      { id_epafis: 13, id_eksoplismou: 5, hmerominia_daneismou: new Date("2024-03-20"), hmerominia_epistrofis: new Date("2024-03-30") },
-      { id_epafis: 14, id_eksoplismou: 5, hmerominia_daneismou: new Date("2024-04-01"), hmerominia_epistrofis: null },
-      { id_epafis: 15, id_eksoplismou: 6, hmerominia_daneismou: new Date("2024-03-20"), hmerominia_epistrofis: new Date("2024-03-25") }
-    ]
-  });
+await prisma.daneizetai.createMany({
+  data: [
+    { id_epafis: 7, id_eksoplismou: 1, hmerominia_daneismou: new Date("2024-01-22"), hmerominia_epistrofis: new Date("2024-01-30"), katastasi_daneismou: "Επιστράφηκε" },
+    { id_epafis: 8, id_eksoplismou: 1, hmerominia_daneismou: new Date("2024-02-01"), hmerominia_epistrofis: new Date("2024-02-05"), katastasi_daneismou: "Επιστράφηκε" },
+    { id_epafis: 9, id_eksoplismou: 2, hmerominia_daneismou: new Date("2024-02-12"), hmerominia_epistrofis: new Date("2024-02-20"), katastasi_daneismou: "Επιστράφηκε" },
+    { id_epafis: 10, id_eksoplismou: 3, hmerominia_daneismou: new Date("2024-04-01"), hmerominia_epistrofis: new Date("2024-04-07"), katastasi_daneismou: "Επιστράφηκε" },
+    { id_epafis: 11, id_eksoplismou: 3, hmerominia_daneismou: new Date("2024-04-10"), hmerominia_epistrofis: new Date("2024-04-15"), katastasi_daneismou: "Επιστράφηκε" },
+    { id_epafis: 12, id_eksoplismou: 4, hmerominia_daneismou: new Date("2024-02-01"), hmerominia_epistrofis: new Date("2024-02-05"), katastasi_daneismou: "Επιστράφηκε" },
+    { id_epafis: 13, id_eksoplismou: 5, hmerominia_daneismou: new Date("2024-03-20"), hmerominia_epistrofis: new Date("2024-03-30"), katastasi_daneismou: "Επιστράφηκε" },
+    { id_epafis: 14, id_eksoplismou: 5, hmerominia_daneismou: new Date("2024-04-01"), hmerominia_epistrofis: null, katastasi_daneismou: "Σε εκκρεμότητα" },
+    { id_epafis: 15, id_eksoplismou: 6, hmerominia_daneismou: new Date("2024-03-20"), hmerominia_epistrofis: new Date("2024-03-25"), katastasi_daneismou: "Επιστράφηκε" }
+  ]
+});
+
 
   // 4. Εξοφλήσεις
   await prisma.eksoflei.createMany({

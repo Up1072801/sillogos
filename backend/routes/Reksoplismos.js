@@ -60,8 +60,8 @@ router.get("/daneismoi", async (_req, res) => {
   try {
     const daneismoi = await prisma.daneizetai.findMany({
       include: {
-        epafes: true,         // Προσθήκη συσχέτισης με επαφές
-        eksoplismos: true     // Προσθήκη συσχέτισης με εξοπλισμό
+        epafes: true,
+        eksoplismos: true
       }
     });
 
@@ -72,7 +72,7 @@ router.get("/daneismoi", async (_req, res) => {
       id_eksoplismou: daneismos.id_eksoplismou,
       hmerominia_daneismou: daneismos.hmerominia_daneismou,
       hmerominia_epistrofis: daneismos.hmerominia_epistrofis,
-      // Πρόσθεση πλήρων στοιχείων επαφής και εξοπλισμού
+      katastasi_daneismou: daneismos.katastasi_daneismou || "Σε εκκρεμότητα",
       borrowerName: daneismos.epafes ? 
         `${daneismos.epafes.onoma || ''} ${daneismos.epafes.epitheto || ''}`.trim() : 
         "Άγνωστο",
@@ -125,67 +125,16 @@ router.post("/", async (req, res) => {
 // POST: Προσθήκη νέου δανεισμού
 router.post("/daneismos", async (req, res) => {
   try {
-    const { id_epafis, id_eksoplismou, hmerominia_daneismou, hmerominia_epistrofis } = req.body;
+    const { id_epafis, id_eksoplismou, hmerominia_daneismou, hmerominia_epistrofis, katastasi_daneismou } = req.body;
 
-    // Έλεγχος αν τα απαραίτητα πεδία υπάρχουν
-    if (!id_epafis || !id_eksoplismou) {
-      return res.status(400).json({ 
-        error: "Τα πεδία id_epafis και id_eksoplismou είναι υποχρεωτικά" 
-      });
-    }
-
-    // Μετατροπή των IDs σε ακεραίους και έλεγχος εγκυρότητας
-    const epafisId = parseInt(id_epafis);
-    const eksoplismosId = parseInt(id_eksoplismou);
-
-    if (isNaN(epafisId) || isNaN(eksoplismosId)) {
-      return res.status(400).json({
-        error: "Μη έγκυρα IDs",
-        details: `epafisId: ${epafisId}, eksoplismosId: ${eksoplismosId}`
-      });
-    }
-
-    // Επαναφορά της ακολουθίας ID πριν την εισαγωγή
-    await prisma.$executeRaw`SELECT setval('"Daneizetai_id_seq"', coalesce((SELECT MAX(id) FROM "Daneizetai"), 0))`;
-
-    // Έλεγχος αν η επαφή και ο εξοπλισμός υπάρχουν
-    const epafes = await prisma.epafes.findUnique({
-      where: { id_epafis: epafisId }
-    });
-    
-    if (!epafes) {
-      return res.status(404).json({ error: "Η επαφή δεν βρέθηκε" });
-    }
-
-    const eksoplismos = await prisma.eksoplismos.findUnique({
-      where: { id_eksoplismou: eksoplismosId }
-    });
-    
-    if (!eksoplismos) {
-      return res.status(404).json({ error: "Ο εξοπλισμός δεν βρέθηκε" });
-    }
-
-    // Έλεγχος αν υπάρχουν ήδη εκκρεμείς δανεισμοί για τον συγκεκριμένο εξοπλισμό
-    const existingDaneizetai = await prisma.daneizetai.findMany({
-      where: {
-        id_eksoplismou: eksoplismosId,
-        hmerominia_epistrofis: null
-      }
-    });
-
-    if (existingDaneizetai.length > 0) {
-      return res.status(400).json({
-        error: "Ο εξοπλισμός είναι ήδη δανεισμένος και δεν έχει επιστραφεί"
-      });
-    }
-
-    // Δημιουργία του δανεισμού
+    // ΔΙΟΡΘΩΣΗ: Χρήση των id_epafis και id_eksoplismou απευθείας από το req.body
     const newDaneismos = await prisma.daneizetai.create({
       data: {
-        id_epafis: epafisId,
-        id_eksoplismou: eksoplismosId,
+        id_epafis: parseInt(id_epafis),
+        id_eksoplismou: parseInt(id_eksoplismou),
         hmerominia_daneismou: hmerominia_daneismou ? new Date(hmerominia_daneismou) : new Date(),
-        hmerominia_epistrofis: hmerominia_epistrofis ? new Date(hmerominia_epistrofis) : null
+        hmerominia_epistrofis: hmerominia_epistrofis ? new Date(hmerominia_epistrofis) : null,
+        katastasi_daneismou: katastasi_daneismou || "Σε εκκρεμότητα"
       },
       include: {
         epafes: true,
@@ -297,14 +246,9 @@ router.put("/:id", async (req, res) => {
 router.put("/daneismos/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
-    if (isNaN(id)) {
-      return res.status(400).json({ error: "Μη έγκυρο ID δανεισμού" });
-    }
-    
-    const { id_epafis, id_eksoplismou, hmerominia_daneismou, hmerominia_epistrofis } = req.body;
+    const { id_epafis, id_eksoplismou, hmerominia_daneismou, hmerominia_epistrofis, katastasi_daneismou } = req.body;
 
-    // Έλεγχος αν ο δανεισμός υπάρχει
+    // Βρίσκουμε τον υπάρχοντα δανεισμό για να διατηρήσουμε τις τιμές που δεν αλλάζουν
     const existingLoan = await prisma.daneizetai.findUnique({
       where: { id }
     });
@@ -313,23 +257,15 @@ router.put("/daneismos/:id", async (req, res) => {
       return res.status(404).json({ error: "Ο δανεισμός δεν βρέθηκε" });
     }
 
-    // Μετατροπή IDs σε ακεραίους
-    const epafisId = parseInt(id_epafis);
-    const eksoplismosId = parseInt(id_eksoplismou);
-    
-    if (isNaN(epafisId) || isNaN(eksoplismosId)) {
-      return res.status(400).json({ 
-        error: "Μη έγκυρα IDs επαφής ή εξοπλισμού" 
-      });
-    }
-
+    // ΔΙΟΡΘΩΣΗ: Χρήση των τιμών από το req.body αντί για αόριστες μεταβλητές
     const updatedDaneismos = await prisma.daneizetai.update({
       where: { id },
       data: {
-        id_epafis: epafisId,
-        id_eksoplismou: eksoplismosId,
+        id_epafis: id_epafis ? parseInt(id_epafis) : existingLoan.id_epafis,
+        id_eksoplismou: id_eksoplismou ? parseInt(id_eksoplismou) : existingLoan.id_eksoplismou,
         hmerominia_daneismou: hmerominia_daneismou ? new Date(hmerominia_daneismou) : existingLoan.hmerominia_daneismou,
-        hmerominia_epistrofis: hmerominia_epistrofis ? new Date(hmerominia_epistrofis) : existingLoan.hmerominia_epistrofis
+        hmerominia_epistrofis: hmerominia_epistrofis ? new Date(hmerominia_epistrofis) : existingLoan.hmerominia_epistrofis,
+        katastasi_daneismou: katastasi_daneismou || existingLoan.katastasi_daneismou
       },
       include: {
         epafes: true,
@@ -337,9 +273,10 @@ router.put("/daneismos/:id", async (req, res) => {
       }
     });
 
-    // Διαμόρφωση απάντησης με συνεπή IDs
-    const borrowerName = `${updatedDaneismos.epafes?.onoma || ""} ${updatedDaneismos.epafes?.epitheto || ""}`.trim();
-    
+    const borrowerName = updatedDaneismos.epafes
+      ? `${updatedDaneismos.epafes.onoma || ''} ${updatedDaneismos.epafes.epitheto || ''}`.trim()
+      : "Άγνωστο";
+
     res.json({
       id: updatedDaneismos.id,
       id_epafis: updatedDaneismos.id_epafis,
@@ -348,6 +285,7 @@ router.put("/daneismos/:id", async (req, res) => {
       nameeksoplismou: updatedDaneismos.eksoplismos?.onoma || "",
       hmerominia_daneismou: updatedDaneismos.hmerominia_daneismou,
       hmerominia_epistrofis: updatedDaneismos.hmerominia_epistrofis,
+      katastasi_daneismou: updatedDaneismos.katastasi_daneismou,
       epafes: {
         id: updatedDaneismos.epafes?.id_epafis,
         id_epafis: updatedDaneismos.epafes?.id_epafis,
@@ -370,6 +308,32 @@ router.put("/daneismos/:id", async (req, res) => {
   } catch (error) {
     console.error("Σφάλμα κατά την ενημέρωση δανεισμού:", error);
     res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση δανεισμού" });
+  }
+});
+
+// Ενημέρωση μόνο της κατάστασης δανεισμού
+router.put("/daneismos/:id/status", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { katastasi_daneismou } = req.body;
+    
+    if (!katastasi_daneismou) {
+      return res.status(400).json({ error: "Η κατάσταση δανεισμού είναι υποχρεωτική" });
+    }
+
+    const updatedDaneismos = await prisma.daneizetai.update({
+      where: { id },
+      data: { katastasi_daneismou }
+    });
+
+    res.json({
+      success: true,
+      message: "Η κατάσταση δανεισμού ενημερώθηκε επιτυχώς",
+      data: updatedDaneismos
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση κατάστασης δανεισμού:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση κατάστασης δανεισμού" });
   }
 });
 

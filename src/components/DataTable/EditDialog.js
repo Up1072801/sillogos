@@ -10,6 +10,21 @@ import { useFormik } from "formik";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import * as yup from "yup";
 import LocationEditor from "../../components/LocationEditor"; // Προσαρμόστε το path ανάλογα
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { el } from 'date-fns/locale';
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    // Επιστρέφει DD/MM/YYYY
+    return date.toLocaleDateString("el-GR");
+  } catch (e) {
+    return "";
+  }
+};
 
 const EditDialog = ({ 
   open, 
@@ -169,19 +184,60 @@ const EditDialog = ({
         
       case 'date':
         return (
-          <TextField
-            id={field.accessorKey}
-            name={field.accessorKey}
-            label={field.header}
-            type="date"
-            value={formik.values[field.accessorKey] || ''}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
-            helperText={formik.touched[field.accessorKey] && formik.errors[field.accessorKey]}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
+            <DatePicker
+              label={field.header}
+              value={
+                formik.values[field.accessorKey]
+                  ? (() => {
+                      const v = formik.values[field.accessorKey];
+                      
+                      // For ISO strings (YYYY-MM-DDT...)
+                      if (typeof v === "string" && v.includes("T")) {
+                        return new Date(v);
+                      }
+                      
+                      // For YYYY-MM-DD format
+                      if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+                        const [y, m, d] = v.split("-");
+                        return new Date(Number(y), Number(m) - 1, Number(d));
+                      }
+                      
+                      // For DD/MM/YYYY format (Greek)
+                      if (typeof v === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(v)) {
+                        const [d, m, y] = v.split("/");
+                        return new Date(Number(y), Number(m) - 1, Number(d));
+                      }
+                      
+                      // If it's already a Date object
+                      if (v instanceof Date) return v;
+                      
+                      return null;
+                    })()
+                  : null
+              }
+              onChange={(date) => {
+                if (date instanceof Date && !isNaN(date.getTime())) {
+                  // Create YYYY-MM-DD string without timezone issues
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const day = String(date.getDate()).padStart(2, '0');
+                  const localDateString = `${year}-${month}-${day}`;
+                  formik.setFieldValue(field.accessorKey, localDateString);
+                } else {
+                  formik.setFieldValue(field.accessorKey, "");
+                }
+              }}
+              format="dd/MM/yyyy" // Display in Greek format
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  error: formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey]),
+                  helperText: formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
+                }
+              }}
+            />
+          </LocalizationProvider>
         );
         
       case 'tableSelect': // New field type for athlete selection

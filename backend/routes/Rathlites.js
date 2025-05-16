@@ -147,13 +147,20 @@ router.get("/sports", async (_req, res) => {
           perigrafi: agonas.perigrafi,
           hmerominia: agonas.hmerominia ? new Date(agonas.hmerominia).toISOString().split('T')[0] : "",
           summetexontesCount: agonas.agonizetai.length,
-          summetexontes: agonas.agonizetai.map((agonizetai) => ({
-            id: agonizetai.athlitis.id_athliti,
-            id_athliti: agonizetai.athlitis.id_athliti, // Προσθήκη για συνέπεια
-            firstName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
-            lastName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
-            arithmosdeltiou: agonizetai.athlitis.arithmos_deltiou || "",
-          }))
+          summetexontes: agonas.agonizetai.map((agonizetai) => {
+            const athlitis = agonizetai.athlitis;
+            const firstName = athlitis.esoteriko_melos?.melos?.epafes?.onoma || "";
+            const lastName = athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "";
+            const fullName = `${firstName} ${lastName}`.trim();
+            return {
+              id: athlitis.id_athliti,
+              id_athliti: athlitis.id_athliti,
+              firstName,
+              lastName,
+              fullName,
+              arithmosdeltiou: athlitis.arithmos_deltiou || "",
+            };
+          })
         }))
       };
     });
@@ -350,14 +357,21 @@ router.post("/agona", async (req, res) => {
         perigrafi: completeAgona.perigrafi,
         hmerominia: completeAgona.hmerominia ? new Date(completeAgona.hmerominia).toISOString().split('T')[0] : null,
         athlima: completeAgona.athlima.onoma,
-        summetexontes: completeAgona.agonizetai.map(agonizetai => ({
-          id: agonizetai.athlitis.id_athliti,
-          id_athliti: agonizetai.athlitis.id_athliti,
-          firstName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
-          lastName: agonizetai.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
-          arithmosdeltiou: agonizetai.athlitis.arithmos_deltiou || "",
-        })),
-        summetexontesCount: completeAgona.agonizetai.length
+        summetexontesCount: completeAgona.agonizetai.length,
+        summetexontes: completeAgona.agonizetai.map((agonizetai) => {
+          const athlitis = agonizetai.athlitis;
+          const firstName = athlitis.esoteriko_melos?.melos?.epafes?.onoma || "";
+          const lastName = athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "";
+          const fullName = `${firstName} ${lastName}`.trim();
+          return {
+            id: athlitis.id_athliti,
+            id_athliti: athlitis.id_athliti,
+            firstName,
+            lastName,
+            fullName,
+            arithmosdeltiou: athlitis.arithmos_deltiou || "",
+          };
+        })
       };
     });
 
@@ -834,14 +848,21 @@ router.post("/agona/:id/athletes", async (req, res) => {
       onoma: updatedCompetition.onoma,
       perigrafi: updatedCompetition.perigrafi,
       hmerominia: updatedCompetition.hmerominia ? new Date(updatedCompetition.hmerominia).toISOString().split('T')[0] : null,
-      summetexontes: updatedCompetition.agonizetai.map(a => ({
-        id: a.athlitis.id_athliti,
-        id_athliti: a.athlitis.id_athliti,
-        firstName: a.athlitis.esoteriko_melos?.melos?.epafes?.onoma || "",
-        lastName: a.athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "",
-        arithmosdeltiou: a.athlitis.arithmos_deltiou || ""
-      })),
       summetexontesCount: updatedCompetition.agonizetai.length,
+      summetexontes: updatedCompetition.agonizetai.map((agonizetai) => {
+        const athlitis = agonizetai.athlitis;
+        const firstName = athlitis.esoteriko_melos?.melos?.epafes?.onoma || "";
+        const lastName = athlitis.esoteriko_melos?.melos?.epafes?.epitheto || "";
+        const fullName = `${firstName} ${lastName}`.trim();
+        return {
+          id: athlitis.id_athliti,
+          id_athliti: athlitis.id_athliti,
+          firstName,
+          lastName,
+          fullName,
+          arithmosdeltiou: athlitis.arithmos_deltiou || "",
+        };
+      }),
       success: true,
       message: "Οι αθλητές ενημερώθηκαν επιτυχώς"
     };

@@ -50,6 +50,9 @@ model esoteriko_melos {
   melos               melos            @relation(fields: [id_es_melous], references: [id_melous], onDelete: Cascade)
   athlitis            athlitis?
   sindromitis         sindromitis?
+  
+  // Νέα σχέση: μέλος ως υπεύθυνος σε πολλές εξορμίσεις (προαιρετικά)
+  ypefthynos_eksormisis eksormisi[]    @relation("YpefthynosEksormisis")
 
   @@map("EsoterikoMelos")
 }
@@ -108,8 +111,10 @@ model eksormisi {
   hmerominia_anaxorisis DateTime?
   hmerominia_afiksis    DateTime?
   titlos                String?
+  id_ypefthynou         Int?      // Προαιρετικό πεδίο για το ID του υπεύθυνου
 
-  drastiriotita drastiriotita[]
+  drastiriotita         drastiriotita[]
+  ypefthynos            esoteriko_melos? @relation("YpefthynosEksormisis", fields: [id_ypefthynou], references: [id_es_melous])
 
   @@map("Eksormisi")
 }
@@ -230,6 +235,7 @@ model daneizetai {
   id_eksoplismou        Int
   hmerominia_daneismou  DateTime?
   hmerominia_epistrofis DateTime?
+  katastasi_daneismou   String?   // Νέο πεδίο για την κατάσταση δανεισμού
 
   epafes      epafes      @relation(fields: [id_epafis], references: [id_epafis])
   eksoplismos eksoplismos @relation(fields: [id_eksoplismou], references: [id_eksoplismou])

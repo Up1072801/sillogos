@@ -46,22 +46,11 @@ const daneismoiColumns = [
     header: "Κατάσταση",
     Cell: ({ row }) => {
       const today = new Date();
+      const returnDate = row.original.hmerominia_epistrofis ? new Date(row.original.hmerominia_epistrofis) : null;
+      const status = row.original.katastasi_daneismou || "Σε εκκρεμότητα";
       
-      // Αυστηρή επικύρωση ημερομηνιών
-      const isValidDate = (dateStr) => {
-        if (!dateStr) return false;
-        const date = new Date(dateStr);
-        return !isNaN(date.getTime());
-      };
-      
-      const borrowDateStr = row.original.hmerominia_daneismou;
-      const returnDateStr = row.original.hmerominia_epistrofis;
-      
-      const borrowDate = isValidDate(borrowDateStr) ? new Date(borrowDateStr) : null;
-      const returnDate = isValidDate(returnDateStr) ? new Date(returnDateStr) : null;
-      
-      // Έλεγχος κατάστασης δανεισμού
-      if (returnDate && isValidDate(returnDateStr)) {
+      // Επιστραμμένοι
+      if (status === "Επιστράφηκε") {
         return (
           <span style={{ color: 'green', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
             <span style={{ 
@@ -72,61 +61,41 @@ const daneismoiColumns = [
               backgroundColor: 'green',
               marginRight: '5px'
             }}></span>
-            Επεστράφη
+            Επιστράφηκε
           </span>
         );
-      }
-      
-      // Υπόλοιπος κώδικας όπως είναι
-      else if (!borrowDate) {
-        return "-";
-      } else if (borrowDate > today) {
+      } 
+      // Εκπρόθεσμοι
+      else if (returnDate && returnDate < today && status !== "Επιστράφηκε") {
         return (
-          <span style={{ color: 'blue', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+          <span style={{ color: 'red', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
             <span style={{ 
               display: 'inline-block', 
               width: '10px', 
               height: '10px', 
               borderRadius: '50%', 
-              backgroundColor: 'blue',
+              backgroundColor: 'red',
               marginRight: '5px' 
             }}></span>
-            Μελλοντικός
+            Εκπρόθεσμο
           </span>
         );
-      } else {
-        // Έλεγχος αν είναι εκπρόθεσμος
-        const expectedReturnDate = row.original.expected_return ? new Date(row.original.expected_return) : null;
-        
-        if (expectedReturnDate && expectedReturnDate < today) {
-          return (
-            <span style={{ color: 'red', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-              <span style={{ 
-                display: 'inline-block', 
-                width: '10px', 
-                height: '10px', 
-                borderRadius: '50%', 
-                backgroundColor: 'red',
-                marginRight: '5px' 
-              }}></span>
-              Εκπρόθεσμος
-            </span>
-          );
-        } else {
-          return (
-            <span style={{ color: 'orange', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-              <span style={{ 
-                display: 'inline-block', 
-                width: '10px', 
-                height: '10px', 
-                borderRadius: '50%', 
-                backgroundColor: 'orange',
-                marginRight: '5px' 
-              }}></span>
-              Δανεισμένος
-            </span>
-          );
-        }
+      } 
+      // Ενεργοί
+      else {
+        return (
+          <span style={{ color: 'orange', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+            <span style={{ 
+              display: 'inline-block', 
+              width: '10px', 
+              height: '10px', 
+              borderRadius: '50%', 
+              backgroundColor: 'orange',
+              marginRight: '5px' 
+            }}></span>
+            Σε εκκρεμότητα
+          </span>
+        );
       }
     }
   }
@@ -199,6 +168,18 @@ const loanFormFields = [
     header: "Ημερομηνία Επιστροφής", 
     type: "date",
     validation: yup.date().nullable()
+  },
+  { 
+    accessorKey: "katastasi_daneismou", 
+    header: "Κατάσταση Δανεισμού", 
+    type: "select",
+    options: [
+      { value: "Σε εκκρεμότητα", label: "Σε εκκρεμότητα" },
+      { value: "Επιστράφηκε", label: "Επιστράφηκε" },
+      { value: "Εκπρόθεσμο", label: "Εκπρόθεσμο" }
+    ],
+    defaultValue: "Σε εκκρεμότητα",
+    validation: yup.string().required("Η κατάσταση δανεισμού είναι υποχρεωτική")
   }
 ];
 
@@ -217,6 +198,17 @@ const editLoanFormFields = [
     header: "Ημερομηνία Επιστροφής", 
     type: "date",
     validation: yup.date().nullable()
+  },
+  { 
+    accessorKey: "katastasi_daneismou", 
+    header: "Κατάσταση Δανεισμού", 
+    type: "select",
+    options: [
+      { value: "Σε εκκρεμότητα", label: "Σε εκκρεμότητα" },
+      { value: "Επιστράφηκε", label: "Επιστράφηκε" },
+      { value: "Εκπρόθεσμο", label: "Εκπρόθεσμο" }
+    ],
+    validation: yup.string().required("Η κατάσταση δανεισμού είναι υποχρεωτική")
   }
 ];
 
@@ -235,6 +227,7 @@ export default function Eksoplismos() {
   // Νέα states για τα φίλτρα δανεισμών
   const [loanStatusFilter, setLoanStatusFilter] = useState('all'); // 'all', 'active', 'returned', 'future', 'overdue'
   const [filteredLoansData, setFilteredLoansData] = useState([]);
+  const [availableEquipment, setAvailableEquipment] = useState([]); // Νέα state για διαθέσιμο εξοπλισμό
 
   // Βελτιωμένη επεξεργασία δεδομένων στο useEffect
 useEffect(() => {
@@ -385,89 +378,76 @@ useEffect(() => {
 }, [daneismoiData, contactsList, eksoplismosData]);
 
 // Συνάρτηση φιλτραρίσματος δανεισμών με βάση την κατάσταση
-const filterLoansByStatus = (loans, status) => {
+const filterLoansByStatus = (loans, filter) => {
+  if (!filter || filter === 'all') return loans;
+  
   const today = new Date();
   
-  switch(status) {
-    case 'active':
-      // Ενεργοί δανεισμοί: έχουν ημερομηνία δανεισμού <= σήμερα και δεν έχουν επιστραφεί
-      return loans.filter(loan => {
-        const borrowDate = loan.hmerominia_daneismou ? new Date(loan.hmerominia_daneismou) : null;
-        return borrowDate && borrowDate <= today && !loan.hmerominia_epistrofis;
-      });
+  return loans.filter(loan => {
+    const returnDate = loan.hmerominia_epistrofis ? new Date(loan.hmerominia_epistrofis) : null;
     
-    case 'returned':
-      // Επιστραμμένοι δανεισμοί: έχουν ημερομηνία επιστροφής
-      return loans.filter(loan => loan.hmerominia_epistrofis);
-    
-    case 'future':
-      // Μελλοντικοί δανεισμοί: έχουν ημερομηνία δανεισμού > σήμερα
-      return loans.filter(loan => {
-        const borrowDate = loan.hmerominia_daneismou ? new Date(loan.hmerominia_daneismou) : null;
-        return borrowDate && borrowDate > today;
-      });
-    
-    case 'overdue':
-      // Εκπρόθεσμοι δανεισμοί: έχουν expected_return <= σήμερα και δεν έχουν επιστραφεί
-      return loans.filter(loan => {
-        const expectedReturn = loan.expected_return ? new Date(loan.expected_return) : null;
-        return expectedReturn && expectedReturn < today && !loan.hmerominia_epistrofis;
-      });
-    
-    default:
-      // Όλοι οι δανεισμοί
-      return loans;
-  }
+    switch (filter) {
+      case 'active':
+        // Ενεργοί: Έχουν ημερομηνία επιστροφής που δεν έχει περάσει και δεν έχουν επιστραφεί
+        return (loan.katastasi_daneismou === "Σε εκκρεμότητα" && 
+                (!returnDate || returnDate >= today));
+      
+      case 'overdue':
+        // Εκπρόθεσμοι: Έχει περάσει η ημερομηνία επιστροφής και δεν έχουν επιστραφεί
+        return (returnDate && returnDate < today && 
+                loan.katastasi_daneismou !== "Επιστράφηκε");
+      
+      case 'returned':
+        // Επιστραμμένοι: Έχουν κατάσταση "Επιστράφηκε"
+        return loan.katastasi_daneismou === "Επιστράφηκε";
+      
+      default:
+        return true;
+    }
+  });
 };
 
 // Αντικαταστήστε την υπάρχουσα συνάρτηση processLoanData (γύρω στη γραμμή 385)
 const processLoanData = (loan) => {
   const today = new Date();
   
-  // Προσθήκη αυστηρότερης επικύρωσης ημερομηνιών
-  const isValidDate = (dateStr) => {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    return !isNaN(date.getTime());
-  };
+  // Αρχικοποίηση μεταβλητών
+  const borrowDate = loan.hmerominia_daneismou ? new Date(loan.hmerominia_daneismou) : null;
+  const returnDate = loan.hmerominia_epistrofis ? new Date(loan.hmerominia_epistrofis) : null;
+  let status = loan.katastasi_daneismou || 'unknown';
+  let expectedReturnDate = null;
   
-  // Χρήση της βελτιωμένης επικύρωσης
-  const borrowDate = isValidDate(loan.hmerominia_daneismou) ? new Date(loan.hmerominia_daneismou) : null;
-  const returnDate = isValidDate(loan.hmerominia_epistrofis) ? new Date(loan.hmerominia_epistrofis) : null;
-  
-  console.log(`Δανεισμός ID: ${loan.id}, Δανεισμός: ${loan.hmerominia_daneismou}, Επιστροφή: ${loan.hmerominia_epistrofis}`);
-  console.log(`Μετατροπή - borrowDate: ${borrowDate}, returnDate: ${returnDate}`);
-  
-  let status = 'unknown';
-  let expectedReturn = null;
-  
-  if (returnDate && isValidDate(loan.hmerominia_epistrofis)) {
-    status = 'returned';
-    console.log(`Δανεισμός ${loan.id} έχει επιστραφεί στις ${returnDate}`);
-  } else if (borrowDate) {
-    if (borrowDate > today) {
-      status = 'future';
-      console.log(`Δανεισμός ${loan.id} είναι μελλοντικός (${borrowDate})`);
-    } else {
-      status = 'active';
-      // Υπολογισμός αναμενόμενης επιστροφής (14 ημέρες δανεισμό)
-      expectedReturn = new Date(borrowDate);
-      expectedReturn.setDate(borrowDate.getDate() + 14);
-      
-      if (expectedReturn < today) {
-        status = 'overdue';
-        console.log(`Δανεισμός ${loan.id} είναι εκπρόθεσμος (${expectedReturn})`);
-      } else {
-        console.log(`Δανεισμός ${loan.id} είναι ενεργός (μέχρι ${expectedReturn})`);
-      }
-    }
+  // Αν έχει κατάσταση "Επιστράφηκε", διατηρούμε αυτή την κατάσταση
+  if (status === "Επιστράφηκε") {
+    // Διατηρούμε την κατάσταση ως "Επιστράφηκε"
+  }
+  // Αυτόματο "Εκπρόθεσμο" αν έχει περάσει η ημερομηνία επιστροφής και δεν έχει επιστραφεί
+  else if (returnDate && returnDate < today) {
+    status = "Εκπρόθεσμο";
+    // Ενημέρωση του backend
+    updateLoanStatusToOverdue(loan.id);
+  }
+  // Αλλιώς είναι "Σε εκκρεμότητα" (ενεργός)
+  else {
+    status = "Σε εκκρεμότητα";
   }
   
   return {
     ...loan,
-    status,
-    expected_return: expectedReturn ? expectedReturn.toISOString() : null
+    status
   };
+};
+
+// Νέα συνάρτηση για ενημέρωση του backend για εκπρόθεσμους δανεισμούς
+const updateLoanStatusToOverdue = async (loanId) => {
+  try {
+    await axios.put(`http://localhost:5000/api/eksoplismos/daneismos/${loanId}/status`, {
+      katastasi_daneismou: "Εκπρόθεσμο"
+    });
+    console.log(`Ο δανεισμός με ID: ${loanId} ενημερώθηκε ως εκπρόθεσμος`);
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση κατάστασης δανεισμού:", error);
+  }
 };
 
 // Προσθήκη useEffect για επεξεργασία και φιλτράρισμα δανεισμών (μετά τα υπάρχοντα useEffect)
@@ -553,6 +533,7 @@ const handleAddLoan = async (newLoan) => {
       equipmentName: equipment?.onoma || "Άγνωστο",
       hmerominia_daneismou: response.data.hmerominia_daneismou,
       hmerominia_epistrofis: response.data.hmerominia_epistrofis,
+      katastasi_daneismou: response.data.katastasi_daneismou || "Σε εκκρεμότητα",
       // Δημιουργία πλήρους αντικειμένου epafes αν δεν υπάρχει στην απάντηση
       epafes: response.data.epafes || borrower || {
         id_epafis: parseInt(id_epafis),
@@ -568,33 +549,42 @@ const handleAddLoan = async (newLoan) => {
       }
     };
     
-    console.log("Νέος δανεισμός που προστέθηκε:", newDaneismosEntry);
+    // Επεξεργασία των δεδομένων για να προστεθεί η κατάσταση
+    const processedNewLoan = processLoanData(newDaneismosEntry);
     
-    // Ενημέρωση της κατάστασης
-    setDaneismoiData(prevData => [...prevData, newDaneismosEntry]);
+    // Ενημέρωση της κατάστασης δανεισμών με τον νέο δανεισμό
+    const updatedDaneismoiData = [...daneismoiData, processedNewLoan];
+    setDaneismoiData(updatedDaneismoiData);
     
     // Ενημέρωση του πίνακα εξοπλισμού με τον νέο δανεισμό
-    setEksoplismosData(prevData => 
-      prevData.map(item => 
-        parseInt(item.id_eksoplismou) === parseInt(id_eksoplismou)
-          ? {
-              ...item,
-              daneizetai: [
-                ...(item.daneizetai || []),
-                {
-                  id: newDaneismosEntry.id,
-                  id_epafis: parseInt(id_epafis),
-                  id_eksoplismou: parseInt(id_eksoplismou),
-                  hmerominia_daneismou: newDaneismosEntry.hmerominia_daneismou,
-                  hmerominia_epistrofis: newDaneismosEntry.hmerominia_epistrofis,
-                  borrowerName: newDaneismosEntry.borrowerName
-                }
-              ]
-            }
-          : item
-      )
+    const updatedEksoplismosData = eksoplismosData.map(item => 
+      parseInt(item.id_eksoplismou) === parseInt(id_eksoplismou)
+        ? {
+            ...item,
+            daneizetai: [
+              ...(item.daneizetai || []),
+              {
+                id: newDaneismosEntry.id,
+                id_epafis: parseInt(id_epafis),
+                id_eksoplismou: parseInt(id_eksoplismou),
+                hmerominia_daneismou: newDaneismosEntry.hmerominia_daneismou,
+                hmerominia_epistrofis: newDaneismosEntry.hmerominia_epistrofis,
+                katastasi_daneismou: newDaneismosEntry.katastasi_daneismou,
+                borrowerName: newDaneismosEntry.borrowerName,
+                status: processedNewLoan.status
+              }
+            ]
+          }
+        : item
     );
+    setEksoplismosData(updatedEksoplismosData);
     
+    // Άμεση ενημέρωση των φιλτραρισμένων δεδομένων
+    const processedLoans = updatedDaneismoiData.map(processLoanData);
+    const filtered = filterLoansByStatus(processedLoans, loanStatusFilter);
+    setFilteredLoansData(filtered);
+    
+    // Κλείσιμο του dialog
     setAddLoanDialogOpen(false);
     
   } catch (error) {
@@ -622,7 +612,8 @@ const handleEditLoan = async (editedLoan) => {
       id_epafis: parseInt(id_epafis),
       id_eksoplismou: parseInt(id_eksoplismou),
       hmerominia_daneismou: editedLoan.hmerominia_daneismou || null,
-      hmerominia_epistrofis: editedLoan.hmerominia_epistrofis || null
+      hmerominia_epistrofis: editedLoan.hmerominia_epistrofis || null,
+      katastasi_daneismou: editedLoan.katastasi_daneismou // Προσθήκη της κατάστασης στα δεδομένα που αποστέλλονται
     };
     
     console.log("Αποστολή δεδομένων για επεξεργασία:", formattedLoan);
@@ -633,43 +624,44 @@ const handleEditLoan = async (editedLoan) => {
     const borrower = contactsList.find(c => parseInt(c.id_epafis) === parseInt(id_epafis));
     const equipment = eksoplismosData.find(e => parseInt(e.id_eksoplismou) === parseInt(id_eksoplismou));
     
-    // Ενημέρωση του πίνακα δανεισμών - μόνο οι ημερομηνίες αλλάζουν
-    setDaneismoiData(prevData => 
-      prevData.map(item => 
-        item.id === editLoanData.id 
-          ? {
-              ...item,
-              // Διατηρούμε τα υπάρχοντα id_epafis και id_eksoplismou
-              hmerominia_daneismou: response.data.hmerominia_daneismou || editedLoan.hmerominia_daneismou,
-              hmerominia_epistrofis: response.data.hmerominia_epistrofis || editedLoan.hmerominia_epistrofis
-            } 
-          : item
-      )
-    );
-    
-    // Ενημέρωση των δανεισμών στον πίνακα εξοπλισμού - μόνο οι ημερομηνίες αλλάζουν
-    setEksoplismosData(prevData => {
-      return prevData.map(item => {
-        // Αν είναι ο εξοπλισμός που μας ενδιαφέρει
-        if (parseInt(item.id_eksoplismou) === parseInt(id_eksoplismou)) {
-          return {
+    // Ενημέρωση του πίνακα δανεισμών
+    const updatedDaneismoiData = daneismoiData.map(item => 
+      item.id === editLoanData.id 
+        ? {
             ...item,
-            daneizetai: (item.daneizetai || []).map(d => 
-              d.id === editLoanData.id 
-                ? {
-                    ...d,
-                    hmerominia_daneismou: response.data.hmerominia_daneismou || editedLoan.hmerominia_daneismou,
-                    hmerominia_epistrofis: response.data.hmerominia_epistrofis || editedLoan.hmerominia_epistrofis
-                  } 
-                : d
-            )
-          };
-        }
-        
-        // Επιστροφή ως έχει για άλλους εξοπλισμούς
-        return item;
-      });
+            hmerominia_daneismou: response.data.hmerominia_daneismou || editedLoan.hmerominia_daneismou,
+            hmerominia_epistrofis: response.data.hmerominia_epistrofis || editedLoan.hmerominia_epistrofis,
+            katastasi_daneismou: response.data.katastasi_daneismou || editedLoan.katastasi_daneismou
+          } 
+        : item
+    );
+    setDaneismoiData(updatedDaneismoiData);
+    
+    // Ενημέρωση των δανεισμών στον πίνακα εξοπλισμού
+    const updatedEksoplismosData = eksoplismosData.map(item => {
+      if (parseInt(item.id_eksoplismou) === parseInt(id_eksoplismou)) {
+        return {
+          ...item,
+          daneizetai: (item.daneizetai || []).map(d => 
+            d.id === editLoanData.id 
+              ? {
+                  ...d,
+                  hmerominia_daneismou: response.data.hmerominia_daneismou || editedLoan.hmerominia_daneismou,
+                  hmerominia_epistrofis: response.data.hmerominia_epistrofis || editedLoan.hmerominia_epistrofis,
+                  katastasi_daneismou: response.data.katastasi_daneismou || editedLoan.katastasi_daneismou
+                } 
+              : d
+          )
+        };
+      }
+      return item;
     });
+    setEksoplismosData(updatedEksoplismosData);
+    
+    // Άμεση ενημέρωση των φιλτραρισμένων δεδομένων
+    const processedLoans = updatedDaneismoiData.map(processLoanData);
+    const filtered = filterLoansByStatus(processedLoans, loanStatusFilter);
+    setFilteredLoansData(filtered);
     
     setEditLoanDialogOpen(false);
     setEditLoanData(null);
@@ -696,7 +688,6 @@ const handleEditLoanClick = (loan) => {
   };
   
   // Βεβαιωνόμαστε ότι τα IDs είναι στη σωστή μορφή για το tableSelect
-  // ΣΗΜΑΝΤΙΚΟ: Για το tableSelect με singleSelect: true, πρέπει να είναι απλά string αντί για πίνακα
   const id_epafis = loan.id_epafis?.toString() || "";
   const id_eksoplismou = loan.id_eksoplismou?.toString() || "";
   
@@ -706,7 +697,8 @@ const handleEditLoanClick = (loan) => {
     id_epafis: id_epafis,
     id_eksoplismou: id_eksoplismou,
     hmerominia_daneismou: formatDate(loan.hmerominia_daneismou),
-    hmerominia_epistrofis: formatDate(loan.hmerominia_epistrofis)
+    hmerominia_epistrofis: formatDate(loan.hmerominia_epistrofis),
+    katastasi_daneismou: loan.katastasi_daneismou || "Σε εκκρεμότητα" // Προσθήκη της κατάστασης δανεισμού
   };
   
   console.log("Δεδομένα για επεξεργασία δανεισμού:", loanData);
@@ -812,7 +804,28 @@ const handleEditEquipment = async (editedEquipment) => {
   const handleDeleteLoan = async (id) => {
     try {
       await axios.delete(`http://localhost:5000/api/eksoplismos/daneismos/${id}`);
-      setDaneismoiData(prevData => prevData.filter(item => item.id !== id));
+      
+      // Αφαίρεση από τον πίνακα δανεισμών
+      const updatedDaneismoiData = daneismoiData.filter(item => item.id !== id);
+      setDaneismoiData(updatedDaneismoiData);
+      
+      // Αφαίρεση από τον πίνακα εξοπλισμού
+      const updatedEksoplismosData = eksoplismosData.map(equipment => {
+        if ((equipment.daneizetai || []).some(d => d.id === id)) {
+          return {
+            ...equipment,
+            daneizetai: equipment.daneizetai.filter(d => d.id !== id)
+          };
+        }
+        return equipment;
+      });
+      setEksoplismosData(updatedEksoplismosData);
+      
+      // Άμεση ενημέρωση των φιλτραρισμένων δεδομένων
+      const processedLoans = updatedDaneismoiData.map(processLoanData);
+      const filtered = filterLoansByStatus(processedLoans, loanStatusFilter);
+      setFilteredLoansData(filtered);
+      
     } catch (error) {
       console.error("Σφάλμα κατά τη διαγραφή δανεισμού:", error);
       alert("Σφάλμα κατά τη διαγραφή δανεισμού.");
@@ -950,9 +963,48 @@ const equipmentDetailPanelConfig = {
   ]
 };
 
+// Ενημέρωση των επιλογών φίλτρων - αφαίρεση της επιλογής "Μελλοντικοί"
+const loanStatusOptions = [
+  { value: 'all', label: 'Όλοι οι δανεισμοί' },
+  { value: 'active', label: 'Ενεργοί' },
+  { value: 'returned', label: 'Επιστραμμένοι' },
+  { value: 'overdue', label: 'Εκπρόθεσμοι' }
+];
+
   // Χειριστής ανοίγματος διαλόγου προσθήκης δανεισμού
 const handleOpenAddLoanDialog = () => {
+  // Επαναϋπολογισμός διαθέσιμων εξοπλισμών τη στιγμή του ανοίγματος
+  // για να έχουμε τα πιο πρόσφατα δεδομένα
+  updateAvailableEquipment();
   setAddLoanDialogOpen(true);
+};
+
+// Νέα συνάρτηση για ενημέρωση διαθέσιμου εξοπλισμού
+const updateAvailableEquipment = () => {
+  // Εκτελείται όποτε χρειάζεται να ενημερωθεί η λίστα διαθέσιμου εξοπλισμού
+  const today = new Date();
+  const availableEquipment = eksoplismosData.filter(equipment => {
+    // Έλεγχος αν ο εξοπλισμός είναι διαθέσιμος
+    return !(equipment.daneizetai || []).some(loan => {
+      // Έλεγχος με βάση την κατάσταση δανεισμού
+      if (loan.katastasi_daneismou === "Επιστράφηκε") {
+        return false; // Διαθέσιμος αν έχει επιστραφεί
+      }
+      
+      // Έλεγχος για ενεργούς ή εκπρόθεσμους δανεισμούς
+      const returnDate = loan.hmerominia_epistrofis ? new Date(loan.hmerominia_epistrofis) : null;
+      
+      // Ο εξοπλισμός δεν είναι διαθέσιμος αν:
+      // - Δεν έχει ημερομηνία επιστροφής ΚΑΙ είναι "Σε εκκρεμότητα" ή "Εκπρόθεσμο"
+      // - Ή έχει ημερομηνία επιστροφής που είναι στο μέλλον
+      return (!returnDate && 
+              (loan.katastasi_daneismou === "Σε εκκρεμότητα" || 
+               loan.katastasi_daneismou === "Εκπρόθεσμο")) || 
+             (returnDate && returnDate >= today);
+    });
+  });
+  
+  setAvailableEquipment(availableEquipment);
 };
 
   return (
@@ -1016,7 +1068,10 @@ const handleOpenAddLoanDialog = () => {
               cursor: 'pointer'
             }}
           >
-            Ενεργοί ({filteredLoansData.filter(loan => loan.status === 'active').length})
+            Ενεργοί ({daneismoiData.filter(loan => 
+      (loan.katastasi_daneismou === "Σε εκκρεμότητα" && 
+       (!loan.hmerominia_epistrofis || new Date(loan.hmerominia_epistrofis) >= new Date()))
+    ).length})
           </button>
           <button 
             onClick={() => setLoanStatusFilter('returned')} 
@@ -1029,20 +1084,7 @@ const handleOpenAddLoanDialog = () => {
               cursor: 'pointer'
             }}
           >
-            Επιστραμμένοι ({filteredLoansData.filter(loan => loan.status === 'returned').length})
-          </button>
-          <button 
-            onClick={() => setLoanStatusFilter('future')} 
-            style={{ 
-              padding: '6px 12px', 
-              backgroundColor: loanStatusFilter === 'future' ? '#1976d2' : '#e0e0e0',
-              color: loanStatusFilter === 'future' ? 'white' : 'black',
-              border: 'none', 
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Μελλοντικοί ({filteredLoansData.filter(loan => loan.status === 'future').length})
+            Επιστραμμένοι ({daneismoiData.filter(loan => loan.katastasi_daneismou === "Επιστράφηκε").length})
           </button>
           <button 
             onClick={() => setLoanStatusFilter('overdue')} 
@@ -1065,7 +1107,11 @@ const handleOpenAddLoanDialog = () => {
               backgroundColor: 'red', 
               marginRight: '5px' 
             }}></span>
-            Εκπρόθεσμοι ({filteredLoansData.filter(loan => loan.status === 'overdue').length})
+            Εκπρόθεσμοι ({daneismoiData.filter(loan => 
+      loan.hmerominia_epistrofis && 
+      new Date(loan.hmerominia_epistrofis) < new Date() && 
+      loan.katastasi_daneismou !== "Επιστράφηκε"
+    ).length})
           </button>
         </div>
         <div className="table-container">
@@ -1102,7 +1148,7 @@ const handleOpenAddLoanDialog = () => {
         <AddDialog
           open={addLoanDialogOpen}
           onClose={() => setAddLoanDialogOpen(false)}
-          handleAddSave={handleAddLoan}  // Αλλαγή από onSubmit σε handleAddSave
+          handleAddSave={handleAddLoan}
           title="Προσθήκη Νέου Δανεισμού"
           fields={loanFormFields}
           resourceData={{
@@ -1112,8 +1158,25 @@ const handleOpenAddLoanDialog = () => {
             })),
             equipmentList: eksoplismosData.map(equipment => ({
               ...equipment,
-              // Προσθήκη έλεγχου αν ο εξοπλισμός είναι ήδη δανεισμένος
-              isAvailable: !(equipment.daneizetai || []).some(loan => !loan.hmerominia_epistrofis)
+              // Βελτιωμένος έλεγχος διαθεσιμότητας εξοπλισμού
+              isAvailable: !(equipment.daneizetai || []).some(loan => {
+                // Έλεγχος με βάση την κατάσταση δανεισμού
+                if (loan.katastasi_daneismou === "Επιστράφηκε") {
+                  return false; // Διαθέσιμος αν έχει επιστραφεί
+                }
+                
+                // Έλεγχος για ενεργούς ή εκπρόθεσμους δανεισμούς
+                const today = new Date();
+                const returnDate = loan.hmerominia_epistrofis ? new Date(loan.hmerominia_epistrofis) : null;
+                
+                // Ο εξοπλισμός δεν είναι διαθέσιμος αν:
+                // - Δεν έχει ημερομηνία επιστροφής ΚΑΙ είναι "Σε εκκρεμότητα" ή "Εκπρόθεσμο"
+                // - Ή έχει ημερομηνία επιστροφής που είναι στο μέλλον
+                return (!returnDate && 
+                        (loan.katastasi_daneismou === "Σε εκκρεμότητα" || 
+                         loan.katastasi_daneismou === "Εκπρόθεσμο")) || 
+                       (returnDate && returnDate >= today);
+              })
             })).filter(equipment => equipment.isAvailable) // Φιλτράρισμα διαθέσιμου εξοπλισμού
           }}
         />

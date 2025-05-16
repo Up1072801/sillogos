@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import DataTable from "../components/DataTable/DataTable";
 import * as yup from "yup";
 import axios from "axios";
@@ -175,14 +175,29 @@ export default function Epafes() {
     }
   };
 
-  // Προσαρμογή των στηλών για την εμφάνιση του ονόματος και επωνύμου σε μία στήλη
+  // Προσαρμογή των στηλών για την εμφάνιση του ονόματος και επωνύμου σε μία στήλη με sorting/φίλτρο όπως melitousillogou.js
   const columns = [
     {
       accessorKey: "fullName",
       header: "Όνοματεπώνυμο",
+      Cell: ({ row }) => `${row.original.epitheto || ""} ${row.original.onoma || ""}`,
+      filterFn: (row, id, filterValue) => {
+        const name = `${row.original.epitheto || ""} ${row.original.onoma || ""}`.toLowerCase();
+        return name.includes(filterValue.toLowerCase());
+      },
+      sortingFn: (rowA, rowB) => {
+        const a = `${rowA.original.epitheto || ""} ${rowA.original.onoma || ""}`.toLowerCase();
+        const b = `${rowB.original.epitheto || ""} ${rowB.original.onoma || ""}`.toLowerCase();
+        return a.localeCompare(b, "el");
+      }
     },
-    ...fields.filter((field) => field.accessorKey !== "onoma" && field.accessorKey !== "epitheto"), // Αφαίρεση των πεδίων "onoma" και "epitheto"
+    ...fields.filter((field) => field.accessorKey !== "onoma" && field.accessorKey !== "epitheto"),
   ];
+
+  // Αρχικό state για sorting με βάση το επώνυμο
+  const tableInitialState = useMemo(() => ({
+    sorting: [{ id: "fullName", desc: false }]
+  }), []);
 
   return (
     <div className="container">
@@ -200,17 +215,18 @@ export default function Epafes() {
         handleEditClick={handleEditClick}
         handleDelete={handleDelete}
         deleteConfig={{
-          getPayload: (row) => row.id, // Διόρθωση για σωστή διαγραφή
+          getPayload: (row) => row.id,
         }}
+        initialState={tableInitialState}
       />
 
-<EditDialog
-  open={editDialogOpen}
-  onClose={() => setEditDialogOpen(false)}
-  editValues={currentRow}
-  handleEditSave={handleEditSave}
-  fields={fields}
-/>
+      <EditDialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        editValues={currentRow}
+        handleEditSave={handleEditSave}
+        fields={fields}
+      />
 
       <AddDialog
         open={addDialogOpen}

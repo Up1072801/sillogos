@@ -15,9 +15,9 @@ const columns = [
   { 
     accessorKey: "fullName", 
     header: "Ονοματεπώνυμο", 
-    Cell: ({ row }) => `${row.original.firstName || ''} ${row.original.lastName || ''}`,
+    Cell: ({ row }) => `${row.original.lastName || ''} ${row.original.firstName || ''}`,
     filterFn: (row, id, filterValue) => {
-      const name = `${row.original.firstName || ''} ${row.original.lastName || ''}`.toLowerCase();
+      const name = `${row.original.lastName || ''} ${row.original.firstName || ''}`.toLowerCase();
       return name.includes(filterValue.toLowerCase());
     }
   },
@@ -44,14 +44,32 @@ const detailPanelConfig = {
       title: "Δραστηριότητες",
       accessor: "melos.simmetoxi",
       columns: [
-        { accessor: "drastiriotita.titlos", header: "Τίτλος" },
-        { accessor: "drastiriotita.hmerominia", header: "Ημερομηνία", format: (value) => value ? new Date(value).toLocaleDateString() : '-' },
-        { accessor: "drastiriotita.vathmos_diskolias.epipedo", header: "Βαθμός Δυσκολίας" },
-        { accessor: "drastiriotita.eksormisi.titlos", header: "Τίτλος Εξόρμησης" },
-        { accessor: "katastasi", header: "Κατάσταση" },
-        { accessor: "timi", header: "Τιμή" },
-        { accessor: "ypoloipo", header: "Υπόλοιπο" },
+        {
+          accessor: "drastiriotita.eksormisi.titlos",
+          header: "Τίτλος Εξόρμησης",
+          Cell: ({ row }) => {
+            const eksormisiId = row.original.drastiriotita?.eksormisi?.id_eksormisis;
+            const titlos = row.original.drastiriotita?.eksormisi?.titlos || "-";
+            return eksormisiId ? (
+              <a
+                href={`/eksormisi/${eksormisiId}`}
+                style={{ color: "#1976d2", textDecoration: "underline", cursor: "pointer" }}
+                onClick={e => { e.stopPropagation(); }}
+              >
+                {titlos}
+              </a>
+            ) : titlos;
+          }
+        },
+        { accessor: "drastiriotita.titlos", header: "Τίτλος Δραστηριότητας" },
+        { accessor: "drastiriotita.vathmos_diskolias.epipedo", header: "ΒΔ" },
+        {
+          accessor: "drastiriotita.hmerominia",
+          header: "Ημερομηνία",
+          format: (value) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
+        }
       ],
+      getData: (row) => row.melos?.simmetoxi || [],
       noRowHover: true,
       noRowClick: true
     },
@@ -59,13 +77,35 @@ const detailPanelConfig = {
       title: "Σχολές",
       accessor: "melos.parakolouthisi",
       columns: [
-        { accessor: "sxoli.epipedo", header: "Επίπεδο" },
-        { accessor: "sxoli.klados", header: "Κλάδος" },
-        { accessor: "sxoli.etos", header: "Έτος" }
+        {
+          accessor: "sxoli.titlos",
+          header: "Τίτλος Σχολής",
+          Cell: ({ row }) => {
+            const sxoli = row.original.sxoli;
+            if (!sxoli) return "-";
+            const sxoliId = sxoli.id_sxolis;
+            const onomaSxolis = [
+              sxoli.titlos,
+              sxoli.klados,
+              sxoli.epipedo,
+              sxoli.etos
+            ].filter(Boolean).join("   ");
+            return sxoliId ? (
+              <a
+                href={`/school/${sxoliId}`}
+                style={{ color: "#1976d2", textDecoration: "underline", cursor: "pointer" }}
+                onClick={e => { e.stopPropagation(); }}
+              >
+                {onomaSxolis}
+              </a>
+            ) : onomaSxolis || "-";
+          }
+        }
       ],
+      getData: (row) => row.melos?.parakolouthisi || [],
       noRowHover: true,
       noRowClick: true
-    },
+    }
   ],
 };
 
@@ -90,7 +130,7 @@ export default function MeliAllwn() {
         // Διαμόρφωση των δεδομένων για την καλύτερη αξιοποίηση τους στο UI
         const formattedData = membersRes.data.map(member => ({
           ...member,
-          fullName: `${member.firstName || ""} ${member.lastName || ""}`.trim(),
+          fullName: `${member.lastName || ""} ${member.firstName || ""}`.trim(),
           id: member.id,
           // Βεβαιωθείτε ότι το melos περιέχει τα απαραίτητα δεδομένα
           melos: member.melos || {
@@ -141,7 +181,14 @@ export default function MeliAllwn() {
       // Προσθήκη του νέου μέλους στα δεδομένα και διαμόρφωση του για το UI
       const newMember = {
         ...response.data,
-        fullName: `${response.data.firstName || ""} ${response.data.lastName || ""}`.trim()
+        fullName: `${response.data.lastName || ""} ${response.data.firstName || ""}`.trim(),
+        id: response.data.id,
+        melos: response.data.melos || {
+          epafes: response.data.epafes || {},
+          vathmos_diskolias: response.data.vathmos_diskolias || {},
+          simmetoxi: [],
+          parakolouthisi: []
+        }
       };
       
       setData(prevData => [...prevData, newMember]);
@@ -202,7 +249,7 @@ export default function MeliAllwn() {
       // Ενημέρωση των δεδομένων στο UI
       const updatedMember = {
         ...response.data,
-        fullName: `${response.data.firstName || ""} ${response.data.lastName || ""}`.trim()
+        fullName: `${response.data.lastName || ""} ${response.data.firstName || ""}`.trim()
       };
       
       setData((prevData) =>
@@ -279,6 +326,22 @@ export default function MeliAllwn() {
     ];
   }, [difficultyLevels]);
 
+  const tableInitialState = useMemo(() => ({
+    columnOrder: [
+      "fullName",
+      "phone",
+      "email",
+      "onomasillogou",
+      "vathmos_diskolias",
+      "mrt-actions",
+    ],
+    columnVisibility: {
+      id: false,
+      arithmosmitroou: false,
+    },
+    sorting: [{ id: "fullName", desc: false }]
+  }), []);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
       <Box sx={{ p: 3 }}>
@@ -290,20 +353,7 @@ export default function MeliAllwn() {
           columns={columns}
           detailPanelConfig={detailPanelConfig}
           getRowId={(row) => row.id}
-          initialState={{
-            columnVisibility: {
-              id: false,
-              arithmosmitroou: false,
-            },
-            columnOrder: [
-              "fullName",
-              "phone",
-              "email",
-              "onomasillogou",
-              "vathmos_diskolias",
-              "mrt-actions",
-            ]
-          }}
+          initialState={tableInitialState}
           state={{ isLoading: loading }}
           onAddNew={() => setOpenAddDialog(true)}
           handleEditClick={handleEditClick}
