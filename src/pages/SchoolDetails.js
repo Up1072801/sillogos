@@ -10,6 +10,7 @@ import {
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import el from 'date-fns/locale/el';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
@@ -68,80 +69,119 @@ export default function SchoolDetails() {
   }, [id, refreshTrigger]);
 
   // Main data fetching function
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      
-      if (!id) {
-        setError("Δεν δόθηκε ID σχολής");
-        setLoading(false);
-        return;
-      }
-      
-      // Fetch school details
-      const response = await axios.get(`http://localhost:5000/api/sxoles/${id}`);
-      setSchool(response.data);
-      console.log("School data:", response.data);
-      
-      // Fetch participants
-      try {
-        const participantsResponse = await axios.get(`http://localhost:5000/api/sxoles/${id}/parakolouthisi`);
-        // Επεξεργασία δεδομένων συμμετεχόντων πριν την αποθήκευση
-        const processedParticipants = participantsResponse.data.map(participant => {
-          // Δημιουργία ονοματεπώνυμου από τα δεδομένα της επαφής
-          const firstName = participant.melos?.epafes?.onoma || '';
-          const lastName = participant.melos?.epafes?.epitheto || '';
-          return {
-            ...participant,
-            memberName: `${firstName} ${lastName}`.trim() || "Άγνωστο όνομα",
-            // Βεβαιωνόμαστε ότι το υπόλοιπο είναι διαθέσιμο
-            ypoloipo: participant.ypoloipo || participant.timi - (participant.katavalei?.reduce((sum, payment) => sum + (payment.poso || 0), 0) || 0)
-          };
-        });
-        
-        setParticipants(processedParticipants);
-        console.log("Processed Participants:", processedParticipants);
-      } catch (err) {
-        console.error("Σφάλμα φόρτωσης συμμετεχόντων:", err);
-      }
-      
-      // Fetch available members for adding participants
-      try {
-        const membersResponse = await axios.get("http://localhost:5000/api/melitousillogou");
-        console.log("Available members raw data:", membersResponse.data);
-        
-        // Make sure we're getting valid member objects
-        const validMembers = membersResponse.data.filter(member => 
-          member && member.id_melous !== undefined && 
-          member.melos && member.melos.epafes
-        );
-        
-        // Filter out members who are already participants
-        const filteredMembers = validMembers.filter(member => 
-          !participants.some(p => p.id_melous === member.id_melous)
-        );
-        
-        console.log("Filtered available members:", filteredMembers);
-        setAvailableMembers(filteredMembers);
-      } catch (err) {
-        console.error("Σφάλμα φόρτωσης μελών:", err);
-      }
-      
-      // Fetch available teachers - διορθωμένο endpoint
-      try {
-        const teachersResponse = await axios.get("http://localhost:5000/api/Repafes/ekpaideutes-me-sxoles");
-        setAvailableTeachers(teachersResponse.data);
-      } catch (err) {
-        console.error("Σφάλμα φόρτωσης εκπαιδευτών:", err);
-      }
-      
+  // Ενημερωμένη συνάρτηση fetch για τα διαθέσιμα μέλη
+const fetchData = async () => {
+  try {
+    setLoading(true);
+    
+    if (!id) {
+      setError("Δεν δόθηκε ID σχολής");
       setLoading(false);
-    } catch (error) {
-      console.error("Σφάλμα κατά τη φόρτωση των δεδομένων:", error);
-      setError("Δεν ήταν δυνατή η φόρτωση των δεδομένων της σχολής");
-      setLoading(false);
+      return;
     }
-  };
+    
+    // Fetch school details
+    const response = await axios.get(`http://localhost:5000/api/sxoles/${id}`);
+    setSchool(response.data);
+    
+    // Fetch participants
+    try {
+      const participantsResponse = await axios.get(`http://localhost:5000/api/sxoles/${id}/parakolouthisi`);
+      // Επεξεργασία δεδομένων συμμετεχόντων πριν την αποθήκευση
+      const processedParticipants = participantsResponse.data.map(participant => {
+        // Δημιουργία ονοματεπώνυμου από τα δεδομένα της επαφής
+        const firstName = participant.melos?.epafes?.onoma || '';
+        const lastName = participant.melos?.epafes?.epitheto || '';
+        
+        // Υπολογισμός υπολοίπου με σταθερό τρόπο
+        const payments = participant.katavalei || [];
+        const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
+        const totalCost = participant.timi || school.timi || 0;
+        const remainingBalance = Math.max(0, totalCost - totalPaid);
+        
+        return {
+          ...participant,
+          memberName: `${lastName} ${firstName}`.trim() || "Άγνωστο όνομα",
+          // Βεβαιωνόμαστε ότι το υπόλοιπο είναι διαθέσιμο
+          ypoloipo: remainingBalance
+        };
+      });
+      
+      setParticipants(processedParticipants);
+    } catch (err) {
+      console.error("Σφάλμα φόρτωσης συμμετεχόντων:", err);
+    }
+    
+    // Fetch available members - ΔΙΟΡΘΩΣΗ εδώ
+    try {
+      // Φόρτωση διαθέσιμων μελών - διορθωμένος κώδικας
+try {
+  // Πρώτα φέρνουμε τα participants για να έχουμε τα σωστά IDs
+  const participantsResponse = await axios.get(`http://localhost:5000/api/sxoles/${id}/parakolouthisi`);
+  const existingParticipants = participantsResponse.data || [];
+  
+  // Φέρνουμε όλα τα μέλη
+  const membersResponse = await axios.get("http://localhost:5000/api/melitousillogou");
+  console.log("Όλα τα μέλη:", membersResponse.data);
+  
+  // Δημιουργία Set με τα IDs των μελών που είναι ήδη συμμετέχοντες (String μορφή)
+  const existingMemberIds = new Set(
+    existingParticipants.map(p => String(p.id_melous))
+  );
+  
+  console.log("IDs υπαρχόντων συμμετεχόντων:", [...existingMemberIds]);
+  
+  // Φιλτράρουμε για να πάρουμε μόνο τα μέλη που ΔΕΝ είναι ήδη συμμετέχοντες
+  const filteredMembers = membersResponse.data.filter(member => {
+    // Αν το μέλος δεν έχει ID, το παραλείπουμε
+    if (!member.id_melous && !member.id_es_melous && !member.id_ekso_melous && !member.id) {
+      return false;
+    }
+    
+    // Χρησιμοποιούμε οποιοδήποτε ID είναι διαθέσιμο (μετατροπή σε String)
+    const memberId = String(member.id_melous || member.id_es_melous || member.id_ekso_melous || member.id);
+    
+    // Το κρατάμε αν ΔΕΝ υπάρχει ήδη στους συμμετέχοντες
+    return !existingMemberIds.has(memberId);
+  });
+  
+  console.log("Διαθέσιμα μέλη μετά το φιλτράρισμα:", filteredMembers.length);
+  
+  setAvailableMembers(filteredMembers);
+  
+  // Επίσης ενημερώνουμε τους συμμετέχοντες εδώ
+  setParticipants(participantsResponse.data.map(participant => {
+    // Δημιουργία ονοματεπώνυμου από τα δεδομένα της επαφής
+    const firstName = participant.melos?.epafes?.onoma || '';
+    const lastName = participant.melos?.epafes?.epitheto || '';
+    
+    // Υπολογισμός υπολοίπου με σταθερό τρόπο
+    const payments = participant.katavalei || [];
+    const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
+    const totalCost = participant.timi || (school?.timi) || 0;
+    const remainingBalance = Math.max(0, totalCost - totalPaid);
+    
+    return {
+      ...participant,
+      memberName: `${lastName} ${firstName}`.trim() || "Άγνωστο όνομα",
+      // Βεβαιωνόμαστε ότι το υπόλοιπο είναι διαθέσιμο
+      ypoloipo: remainingBalance
+    };
+  }));
+} catch (err) {
+  console.error("Σφάλμα φόρτωσης μελών:", err);
+}
+    } catch (err) {
+      console.error("Σφάλμα φόρτωσης μελών:", err);
+    }
+    
+    setLoading(false);
+  } catch (error) {
+    console.error("Σφάλμα κατά τη φόρτωση των δεδομένων:", error);
+    setError("Δεν ήταν δυνατή η φόρτωση των δεδομένων της σχολής");
+    setLoading(false);
+  }
+};
 
   // Parse locations from school data
   const parseLocations = () => {
@@ -225,34 +265,31 @@ const handleEditSchoolSave = async (updatedSchool) => {
   // Handle saving locations with local state update
 const handleSaveLocations = async (locations) => {
   try {
-    // Μορφοποίηση τοποθεσιών για το API (χωρίς τα ID που ήταν μόνο για το frontend)
+    // Format locations for API
     const formattedLocations = locations.map(loc => ({
       topothesia: loc.topothesia,
-      start: loc.start,
-      end: loc.end
+      start: loc.start, // Keep ISO format for API
+      end: loc.end // Keep ISO format for API
     }));
     
-    // Δημιουργούμε το αντικείμενο ενημέρωσης διατηρώντας τις υπάρχουσες τιμές
     const updateData = {
       klados: school.klados,
       epipedo: school.epipedo,
       timi: school.timi,
       etos: school.etos,
       seira: school.seira,
-      // Αποθήκευση των τοποθεσιών
       topothesies: formattedLocations
     };
     
-    // Αποστολή στο API
+    // Send to API
     await axios.put(`http://localhost:5000/api/sxoles/${id}`, updateData);
     
-    // Άμεση ενημέρωση του state
+    // Update local state with formatted display data
     setSchool(prevSchool => ({
       ...prevSchool,
       topothesies: formattedLocations
     }));
     
-    // Κλείσιμο του διαλόγου
     setLocationDialogOpen(false);
   } catch (error) {
     console.error("Σφάλμα κατά την αποθήκευση τοποθεσιών:", error);
@@ -275,47 +312,73 @@ const handleSaveTeacher = async (selection) => {
       return;
     }
     
-    // Το id_ekpaideuti τώρα είναι πίνακας
     const selectedTeachers = Array.isArray(selection.id_ekpaideuti) ? 
       selection.id_ekpaideuti : [selection.id_ekpaideuti];
     
     console.log("Προσθήκη εκπαιδευτών:", selectedTeachers);
     
-    // Συλλογή των πλήρων δεδομένων των επιλεγμένων εκπαιδευτών
     const teachersToAdd = [];
     
-    // Προσθέτουμε κάθε επιλεγμένο εκπαιδευτή
+    // Process each teacher selection in a loop
     for (const teacherId of selectedTeachers) {
-      const response = await axios.post(`http://localhost:5000/api/sxoles/${id}/ekpaideutis`, {
-        id_ekpaideuti: teacherId
-      });
-      
-      // Βρίσκουμε τα πλήρη δεδομένα του εκπαιδευτή από τη λίστα διαθέσιμων
-      const teacherDetails = availableTeachers.find(t => 
-        (t.id_ekpaideuti === teacherId || t.id === teacherId)
-      );
-      
-      if (teacherDetails) {
-        teachersToAdd.push({
+      try {
+        // First, find the teacher details from available teachers BEFORE the API call
+        const teacherDetails = availableTeachers.find(t => 
+          String(t.id_ekpaideuti) === String(teacherId) || String(t.id) === String(teacherId)
+        );
+        
+        if (!teacherDetails) {
+          console.error(`Teacher with ID ${teacherId} not found in available teachers`);
+          continue;
+        }
+        
+        // Build a complete teacher object
+        const completeTeacher = {
           id_ekpaideuti: teacherId,
-          onoma: teacherDetails.onoma,
-          epitheto: teacherDetails.epitheto,
-          email: teacherDetails.email,
-          tilefono: teacherDetails.tilefono
+          id: teacherId,
+          onoma: teacherDetails.onoma || teacherDetails.firstName || "",
+          epitheto: teacherDetails.epitheto || teacherDetails.lastName || "",
+          firstName: teacherDetails.onoma || teacherDetails.firstName || "",
+          lastName: teacherDetails.epitheto || teacherDetails.lastName || "",
+          email: teacherDetails.email || "",
+          tilefono: teacherDetails.tilefono || teacherDetails.phone || "",
+          phone: teacherDetails.tilefono || teacherDetails.phone || "",
+          epipedo: teacherDetails.epipedo || "",
+          klados: teacherDetails.klados || ""
+        };
+        
+        // Make the API call to associate the teacher with the school
+        await axios.post(`http://localhost:5000/api/sxoles/${id}/ekpaideutis`, {
+          id_ekpaideuti: teacherId
         });
+        
+        // If successful, add to our local list
+        teachersToAdd.push(completeTeacher);
+      } catch (error) {
+        console.error(`Error adding teacher with ID ${teacherId}:`, error);
       }
     }
     
-    // Άμεση ενημέρωση του state
-    setSchool(prevSchool => ({
-      ...prevSchool,
-      ekpaideutes: [...(prevSchool.ekpaideutes || []), ...teachersToAdd]
-    }));
-    
-    // Ενημέρωση των διαθέσιμων εκπαιδευτών
-    setAvailableTeachers(prevTeachers => 
-      prevTeachers.filter(teacher => !selectedTeachers.includes(teacher.id_ekpaideuti))
-    );
+    if (teachersToAdd.length > 0) {
+      // Update school state first with new teachers
+      setSchool(prevSchool => ({
+        ...prevSchool,
+        ekpaideutes: [
+          ...(prevSchool.ekpaideutes || []), 
+          ...teachersToAdd
+        ]
+      }));
+      
+      // Then remove those teachers from the available list
+      setAvailableTeachers(prevTeachers => 
+        prevTeachers.filter(teacher => {
+          const teacherId = teacher.id_ekpaideuti || teacher.id;
+          return !teachersToAdd.some(added => 
+            (added.id_ekpaideuti === teacherId) || (added.id === teacherId)
+          );
+        })
+      );
+    }
     
     setAddTeacherDialog(false);
   } catch (error) {
@@ -331,25 +394,57 @@ const handleDeleteTeacher = async (teacherId) => {
   }
   
   try {
-    await axios.delete(`http://localhost:5000/api/sxoles/${id}/ekpaideutis/${teacherId}`);
+    const teacherIdStr = String(teacherId);
     
-    // Εύρεση του εκπαιδευτή που αφαιρέθηκε
+    // First, find the complete teacher object BEFORE removal
     const removedTeacher = school.ekpaideutes.find(t => 
-      (t.id_ekpaideuti === teacherId || t.id === teacherId)
+      String(t.id_ekpaideuti) === teacherIdStr || String(t.id) === teacherIdStr
     );
     
-    // Άμεση ενημέρωση του state σχολής
+    if (!removedTeacher) {
+      console.error(`Teacher with ID ${teacherId} not found in school's teachers`);
+      return;
+    }
+    
+    // Build a complete teacher object for the available teachers list
+    const teacherToAdd = {
+      id_ekpaideuti: teacherId,
+      id: teacherId,
+      onoma: removedTeacher.onoma || removedTeacher.firstName || "",
+      epitheto: removedTeacher.epitheto || removedTeacher.lastName || "",
+      firstName: removedTeacher.onoma || removedTeacher.firstName || "",
+      lastName: removedTeacher.epitheto || removedTeacher.lastName || "",
+      email: removedTeacher.email || "",
+      tilefono: removedTeacher.tilefono || removedTeacher.phone || "",
+      phone: removedTeacher.tilefono || removedTeacher.phone || "",
+      epipedo: removedTeacher.epipedo || "",
+      klados: removedTeacher.klados || ""
+    };
+    
+    // Make API call to remove teacher
+    await axios.delete(`http://localhost:5000/api/sxoles/${id}/ekpaideutis/${teacherId}`);
+    
+    // Update local state - FIRST remove from school's teachers
     setSchool(prevSchool => ({
       ...prevSchool,
       ekpaideutes: prevSchool.ekpaideutes.filter(t => 
-        (t.id_ekpaideuti !== teacherId && t.id !== teacherId)
+        String(t.id_ekpaideuti) !== teacherIdStr && String(t.id) === teacherIdStr
       )
     }));
     
-    // Επιστροφή του εκπαιδευτή στη λίστα διαθέσιμων
-    if (removedTeacher) {
-      setAvailableTeachers(prevTeachers => [...prevTeachers, removedTeacher]);
-    }
+    // THEN add to available teachers if not already there
+    setAvailableTeachers(prevTeachers => {
+      const alreadyExists = prevTeachers.some(t => 
+        String(t.id_ekpaideuti) === teacherIdStr || String(t.id) === teacherIdStr
+      );
+      
+      if (alreadyExists) {
+        return prevTeachers;
+      } else {
+        return [...prevTeachers, teacherToAdd];
+      }
+    });
+    
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση εκπαιδευτή:", error);
     alert("Σφάλμα: " + error.message);
@@ -358,25 +453,45 @@ const handleDeleteTeacher = async (teacherId) => {
 
   // ========== PARTICIPANT MANAGEMENT HANDLERS ==========
   
-  // Simplified participant form fields with multiple selection
+  // Ενημερωμένο participantFormFields για καλύτερη εμφάνιση
 const participantFormFields = [
-  {
-    accessorKey: "id_melous",
+  { 
+    accessorKey: "id_melous", 
     header: "Μέλη",
     type: "tableSelect",
     dataKey: "membersList",
-    singleSelect: false, // Allow multiple selection
-    pageSize: 5,
+    singleSelect: false, // Αλλαγή σε false για πολλαπλή επιλογή
+    pageSize: 10,
     columns: [
       { field: "fullName", header: "Ονοματεπώνυμο" },
       { field: "email", header: "Email" },
-      { field: "tilefono", header: "Τηλέφωνο" }
+      { field: "tilefono", header: "Τηλέφωνο" },
+      { field: "status", header: "Κατάσταση Συνδρομής" },
+      { field: "memberType", header: "Τύπος Μέλους" } // Προσθήκη στήλης για τύπο μέλους
     ],
     searchFields: ["fullName", "email", "tilefono"],
+    initialSort: [{ id: "fullName", desc: false }], // Ταξινόμηση κατά επώνυμο
     noDataMessage: "Δεν βρέθηκαν διαθέσιμα μέλη",
-    validation: yup.array().min(1, "Επιλέξτε τουλάχιστον ένα μέλος")
+    validation: yup.mixed().required("Παρακαλώ επιλέξτε τουλάχιστον ένα μέλος")
+  },
+  { 
+    accessorKey: "timi", 
+    header: "Τιμή", 
+    type: "number",
+    defaultValue: school?.timi || 0,
+    validation: yup.number().min(0, "Η τιμή δεν μπορεί να είναι αρνητική").required("Η τιμή είναι υποχρεωτική") 
+  },
+  { 
+    accessorKey: "katastasi", 
+    header: "Κατάσταση", 
+    type: "select",
+    options: [
+      { value: "Ενεργή", label: "Ενεργή" },
+      { value: "Εκκρεμής", label: "Εκκρεμής" },
+      { value: "Ακυρωμένη", label: "Ακυρωμένη" }
+    ],
+    defaultValue: "Ενεργή"
   }
-  // No price and status fields - they'll use defaults
 ];
 
   // Fields for payment form
@@ -419,47 +534,77 @@ const participantFormFields = [
   // Handle adding participant with local state update
 const handleAddParticipant = async (formData) => {
   try {
-    // Convert single selection to array if needed
+    // Αποδοχή είτε μονό ID είτε πίνακα IDs
     const memberIds = Array.isArray(formData.id_melous) ? formData.id_melous : [formData.id_melous];
+    
+    if (memberIds.length === 0) {
+      alert("Παρακαλώ επιλέξτε τουλάχιστον ένα μέλος");
+      return;
+    }
     
     console.log("Adding members:", memberIds);
     
     const addedParticipants = [];
     
-    // Add each selected member
+    // Για κάθε επιλεγμένο μέλος
     for (const memberId of memberIds) {
-      // Use simple API call without extra parameters
-      const response = await axios.post(`http://localhost:5000/api/sxoles/${id}/parakolouthisi`, {
-        id_melous: parseInt(memberId)
-      });
-      
-      console.log("Added participant:", response.data);
-      addedParticipants.push(response.data);
-    }
-    
-    // Update UI with newly added participants
-    setParticipants(prevParticipants => [
-      ...prevParticipants,
-      ...addedParticipants.map(newParticipant => {
-        // Find corresponding member data
-        const memberDetails = availableMembers.find(m => m.id_melous === newParticipant.id_melous);
+      try {
+        const response = await axios.post(`http://localhost:5000/api/sxoles/${id}/parakolouthisi`, {
+          id_melous: parseInt(memberId),
+          timi: formData.timi,
+          katastasi: formData.katastasi || "Ενεργή"
+        });
         
-        return {
-          ...newParticipant,
+        console.log(`Added participant with ID ${memberId}:`, response.data);
+        
+        // Βρίσκουμε τα πλήρη στοιχεία του μέλους
+        const memberDetails = availableMembers.find(m => 
+          String(m.id_melous) === String(memberId) ||
+          String(m.id_es_melous) === String(memberId) ||
+          String(m.id_ekso_melous) === String(memberId) ||
+          String(m.id) === String(memberId)
+        );
+        
+        // Δημιουργούμε το αντικείμενο συμμετέχοντα
+        const newParticipant = {
+          ...response.data,
+          id_parakolouthisis: response.data.id || response.data.id_parakolouthisis,
           melos: memberDetails?.melos || {},
           katavalei: [],
           memberName: memberDetails ? 
-            `${memberDetails.melos?.epafes?.onoma || ''} ${memberDetails.melos?.epafes?.epitheto || ''}`.trim() : 
+            `${memberDetails.melos?.epafes?.epitheto || memberDetails.epitheto || ''} ${memberDetails.melos?.epafes?.onoma || memberDetails.onoma || ''}`.trim() : 
             "Άγνωστο μέλος",
-          ypoloipo: newParticipant.timi || 0
+          ypoloipo: formData.timi || school.timi || 0,
+          hmerominia_dilosis: response.data.hmerominia_dilosis || new Date().toISOString()
         };
-      })
-    ]);
+        
+        addedParticipants.push(newParticipant);
+      } catch (error) {
+        console.error(`Σφάλμα προσθήκης μέλους με ID ${memberId}:`, error);
+      }
+    }
     
-    // Remove added members from available list
-    setAvailableMembers(prev => 
-      prev.filter(member => !memberIds.includes(member.id_melous))
-    );
+    // Ενημέρωση της λίστας συμμετεχόντων
+    if (addedParticipants.length > 0) {
+      setParticipants(prevParticipants => [...prevParticipants, ...addedParticipants]);
+      
+      // Αφαιρούμε τα μέλη που προστέθηκαν από τη λίστα διαθέσιμων (διορθωμένο)
+      setAvailableMembers(prev => 
+        prev.filter(member => {
+          const memberIdStr = String(member.id_melous || member.id_es_melous || member.id_ekso_melous || member.id);
+          return !memberIds.some(id => String(id) === memberIdStr);
+        })
+      );
+    }
+    
+    // Μήνυμα επιτυχίας ανάλογα με τον αριθμό μελών που προστέθηκαν
+    if (addedParticipants.length === 1) {
+      alert("Ο συμμετέχων προστέθηκε επιτυχώς");
+    } else if (addedParticipants.length > 1) {
+      alert(`${addedParticipants.length} συμμετέχοντες προστέθηκαν επιτυχώς`);
+    } else {
+      alert("Δεν προστέθηκαν συμμετέχοντες");
+    }
     
     setAddParticipantDialog(false);
   } catch (error) {
@@ -473,7 +618,8 @@ const handleAddParticipant = async (formData) => {
     setCurrentParticipant({
       id_parakolouthisis: participant.id_parakolouthisis,
       timi: participant.timi,
-      katastasi: participant.katastasi || "Ενεργή"
+      katastasi: participant.katastasi || "Ενεργή",
+      hmerominia_dilosis: formatDateForInput(participant.hmerominia_dilosis)
     });
     setEditParticipantDialog(true);
   };
@@ -481,19 +627,34 @@ const handleAddParticipant = async (formData) => {
   // Handle editing participant with local state update
 const handleEditParticipant = async (updatedParticipant) => {
   try {
+    if (!updatedParticipant || !updatedParticipant.id_parakolouthisis) {
+      alert("Λείπει το ID συμμετέχοντα!");
+      return;
+    }
+    
     console.log("Editing participant:", updatedParticipant);
     
-    // Fix: Use the correct API endpoint that includes the school ID
-    await axios.put(`http://localhost:5000/api/sxoles/${id}/parakolouthisi/${updatedParticipant.id_parakolouthisis}`, {
+    // Μετατροπή των δεδομένων σε σωστή μορφή
+    const participantData = {
       timi: parseFloat(updatedParticipant.timi),
-      katastasi: updatedParticipant.katastasi
-    });
+      katastasi: updatedParticipant.katastasi || "Ενεργή"
+    };
     
-    // Rest of the function remains the same...
+    // Κλήση στο API - διορθωμένο URL
+    const response = await axios.put(
+      `http://localhost:5000/api/sxoles/${id}/parakolouthisi/${updatedParticipant.id_parakolouthisis}`,
+      participantData
+    );
+    
+    console.log("Edit participant response:", response.data);
+    
+    // Ενημέρωση του τοπικού state
     setParticipants(prevParticipants => 
       prevParticipants.map(p => {
         if (p.id_parakolouthisis === updatedParticipant.id_parakolouthisis) {
-          const totalPaid = (p.katavalei || []).reduce((sum, payment) => sum + (payment.poso || 0), 0);
+          // Υπολογισμός νέου υπολοίπου
+          const payments = (p.katavalei || []);
+          const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
           const newBalance = Math.max(0, parseFloat(updatedParticipant.timi) - totalPaid);
           
           return {
@@ -511,7 +672,7 @@ const handleEditParticipant = async (updatedParticipant) => {
     setCurrentParticipant(null);
   } catch (error) {
     console.error("Σφάλμα κατά την επεξεργασία συμμετέχοντα:", error);
-    alert("Σφάλμα: " + error.message);
+    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
   }
 };
 
@@ -552,52 +713,43 @@ const handleRemoveParticipant = async (participantId) => {
   
   // Handle opening payment dialog
 const handleOpenPaymentDialog = (participant) => {
-  console.log("handleOpenPaymentDialog called with:", participant);
+  console.log("Opening payment dialog for:", participant);
   
-  try {
-    if (!participant) {
-      throw new Error("Δεν δόθηκε συμμετέχοντας για προσθήκη πληρωμής");
-    }
-    
-    if (!participant.id_parakolouthisis) {
-      const fullParticipant = participants.find(p => 
-        (participant.id && p.id_parakolouthisis === participant.id) ||
-        (participant.id_melous && p.id_melous === participant.id_melous)
-      );
-      
-      if (fullParticipant) {
-        participant = fullParticipant;
-      } else {
-        throw new Error("Ο συμμετέχοντας δεν έχει έγκυρο ID παρακολούθησης");
-      }
-    }
-    
-    // Υπολογισμός πλήρων πληροφοριών πληρωμής (είτε από το participant είτε από τον πίνακα participants)
-    const participantData = participants.find(p => p.id_parakolouthisis === participant.id_parakolouthisis) || participant;
-    const payments = participantData.katavalei || [];
-    const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
-    const totalCost = participantData.timi || school.timi || 0;
-    const remainingBalance = Math.max(0, totalCost - totalPaid);
-    
-    // Δημιουργία ενισχυμένου αντικειμένου με όλες τις πληροφορίες
-    const enhancedParticipant = {
-      ...participantData,
-      id_parakolouthisis: participantData.id_parakolouthisis, // Διασφάλιση ότι υπάρχει
-      memberName: participantData.memberName || 
-        `${participantData.melos?.epafes?.onoma || ''} ${participantData.melos?.epafes?.epitheto || ''}`.trim() || 
-        "Άγνωστο μέλος",
-      totalPaid,
-      totalCost,
-      ypoloipo: remainingBalance
-    };
-    
-    console.log("Προετοιμασία πληρωμής με:", enhancedParticipant);
-    setPaymentParticipant(enhancedParticipant);
-    setPaymentDialog(true);
-  } catch (error) {
-    console.error("Σφάλμα κατά το άνοιγμα διαλόγου πληρωμής:", error);
-    alert("Σφάλμα: " + error.message);
+  // Έλεγχος αν έχουμε έγκυρο συμμετέχοντα
+  if (!participant || !participant.id_parakolouthisis) {
+    console.error("Invalid participant data:", participant);
+    alert("Δεν βρέθηκαν πλήρη στοιχεία συμμετέχοντα");
+    return;
   }
+  
+  // Έλεγχος του συμμετέχοντα με όλα τα στοιχεία του
+  const fullParticipant = participants.find(p => 
+    String(p.id_parakolouthisis) === String(participant.id_parakolouthisis)
+  );
+  
+  if (!fullParticipant) {
+    console.error("Participant not found in participants list:", participant);
+    alert("Δεν βρέθηκε ο συμμετέχων στη λίστα συμμετεχόντων");
+    return;
+  }
+  
+  // Υπολογισμός συνολικού κόστους και πληρωμών
+  const totalCost = fullParticipant.timi || 0;
+  const payments = fullParticipant.katavalei || [];
+  const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
+  const ypoloipo = Math.max(0, totalCost - totalPaid);
+  
+  // Προετοιμασία αντικειμένου για το dialog
+  const paymentInfo = {
+    ...fullParticipant,
+    totalCost,
+    totalPaid,
+    ypoloipo
+  };
+  
+  console.log("Payment info prepared:", paymentInfo);
+  setPaymentParticipant(paymentInfo);
+  setPaymentDialog(true);
 };
   
   // Handle adding payment with local state update
@@ -608,40 +760,41 @@ const handleAddPayment = async (payment) => {
       return;
     }
     
-    // Έλεγχος για έγκυρο ποσό
     const paymentAmount = parseFloat(payment.poso);
     if (isNaN(paymentAmount) || paymentAmount <= 0) {
       alert("Παρακαλώ εισάγετε ένα έγκυρο ποσό πληρωμής");
       return;
     }
     
-    // Προετοιμασία δεδομένων πληρωμής
-    const paymentData = { 
+    // Προετοιμασία των δεδομένων για το API
+    const paymentData = {
       poso: paymentAmount,
       hmerominia_katavolhs: payment.hmerominia_katavolhs || new Date().toISOString()
     };
     
-    console.log("Αποστολή πληρωμής:", {
-      participantId: paymentParticipant.id_parakolouthisis,
-      paymentData
-    });
+    console.log("Sending payment data:", paymentData, "for participant:", paymentParticipant.id_parakolouthisis);
     
-    // Αποστολή στο API
+    // Κλήση του API
     const response = await axios.post(
-      `http://localhost:5000/api/sxoles/${id}/parakolouthisi/${paymentParticipant.id_parakolouthisis}/payment`, 
+      `http://localhost:5000/api/sxoles/${id}/parakolouthisi/${paymentParticipant.id_parakolouthisis}/payment`,
       paymentData
     );
     
-    // Άμεση ενημέρωση του state αντί για πλήρες refresh
-    const newPayment = response.data;
+    console.log("Payment API response:", response.data);
     
+    // Δημιουργία του νέου αντικειμένου πληρωμής για το τοπικό state
+    const newPayment = {
+      id: response.data.id,
+      id_katavalei: response.data.id,
+      poso: paymentAmount,
+      hmerominia_katavolhs: paymentData.hmerominia_katavolhs
+    };
+    
+    // Ενημέρωση του τοπικού state
     setParticipants(prevParticipants => 
       prevParticipants.map(participant => {
         if (participant.id_parakolouthisis === paymentParticipant.id_parakolouthisis) {
-          // Προσθήκη της νέας πληρωμής στη λίστα πληρωμών
           const updatedPayments = [...(participant.katavalei || []), newPayment];
-          
-          // Υπολογισμός νέου υπολοίπου
           const totalPaid = updatedPayments.reduce((sum, p) => sum + (p.poso || 0), 0);
           const newBalance = Math.max(0, (participant.timi || 0) - totalPaid);
           
@@ -659,7 +812,7 @@ const handleAddPayment = async (payment) => {
     setPaymentParticipant(null);
   } catch (error) {
     console.error("Σφάλμα κατά την καταχώρηση πληρωμής:", error);
-    alert("Σφάλμα: " + error.message);
+    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
   }
 };
 
@@ -799,16 +952,21 @@ const handleRemovePayment = async (paymentId, participantId) => {
         value: (row) => row.melos?.epafes?.tilefono || "-"
       },
       { 
+        accessor: "timi", 
+        header: "Τιμή", 
+        value: (row) => `${row.timi || 0}€`
+      },
+      { 
         accessor: "hmerominia_dilosis", 
         header: "Ημερομηνία Δήλωσης",
-        format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-'
+        format: (value) => formatDate(value)
       }
     ],
     tables: [
       {
         title: "Ιστορικό Πληρωμών",
         getData: (row) => {
-          // Διασφάλιση ότι όλα τα πληρωμές έχουν τα σωστά IDs
+          console.log("Getting payments for row:", row);
           return (row.katavalei || []).map(payment => ({
             ...payment,
             id: payment.id,
@@ -816,7 +974,10 @@ const handleRemovePayment = async (paymentId, participantId) => {
           }));
         },
         onDelete: (payment, participant) => {
-          if (!payment || !participant) return;
+          if (!payment || !participant) {
+            console.error("Missing payment or participant data:", { payment, participant });
+            return;
+          }
           
           if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτήν την πληρωμή;")) {
             return;
@@ -833,6 +994,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
           handleRemovePayment(paymentId, participantId);
         },
         onAddNew: (parentRow) => {
+          console.log("Adding payment for row:", parentRow);
           if (!parentRow) {
             alert("Δεν βρέθηκε συμμετέχων για προσθήκη πληρωμής.");
             return;
@@ -851,14 +1013,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
           { 
             accessorKey: "hmerominia_katavolhs", 
             header: "Ημερομηνία",
-            Cell: ({ row }) => {
-              if (!row?.original?.hmerominia_katavolhs) return "-";
-              try {
-                return new Date(row.original.hmerominia_katavolhs).toLocaleDateString("el-GR");
-              } catch (e) {
-                return "-";
-              }
-            }
+            Cell: ({ row }) => formatDate(row.original?.hmerominia_katavolhs)
           }
         ],
         getRowId: (row) => row?.id || row?.id_katavalei || `payment-${Math.random().toString(36).substring(2)}`,
@@ -866,6 +1021,39 @@ const handleRemovePayment = async (paymentId, participantId) => {
       }
     ]
   };
+
+  // Αντικατάσταση της συνάρτησης formatDate για μορφή ημερομηνίας ΗΗ/ΜΜ/ΕΕΕΕ
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch (e) {
+    return '-';
+  }
+};
+
+// Format date for input fields (YYYY-MM-DD)
+const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  } catch (e) {
+    return '';
+  }
+};
+
+// Calculate payment balance consistently
+const calculateBalance = (participant) => {
+  const payments = participant.katavalei || [];
+  const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
+  const totalCost = participant.timi || 0;
+  return Math.max(0, totalCost - totalPaid);
+};
 
   // Render loading state
   if (loading) {
@@ -1051,8 +1239,8 @@ const handleRemovePayment = async (paymentId, participantId) => {
                           {topothesies.map((loc) => (
                             <TableRow key={loc.id}>
                               <TableCell>{loc.topothesia}</TableCell>
-                              <TableCell>{loc.start ? new Date(loc.start).toLocaleDateString('el-GR') : '-'}</TableCell>
-                              <TableCell>{loc.end ? new Date(loc.end).toLocaleDateString('el-GR') : '-'}</TableCell>
+                              <TableCell>{formatDate(loc.start)}</TableCell>
+                              <TableCell>{formatDate(loc.end)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -1067,254 +1255,190 @@ const handleRemovePayment = async (paymentId, participantId) => {
               </Grid>
             </Grid>
           </Paper>
-          
-          {/* Participants & Payments */}
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Συμμετέχοντες & Πληρωμές</Typography>
-              <Button 
-                variant="contained" 
-                color="primary"
-                startIcon={<AddIcon />} 
-                onClick={() => setAddParticipantDialog(true)}
-              >
-                Προσθήκη συμμετέχοντα
-              </Button>
-            </Box>
-            <Divider sx={{ mb: 2 }} />
-            
-            <DataTable
-              data={participants}
-              columns={participantsColumns}
-              detailPanelConfig={{
-                mainDetails: [
-                  { 
-                    accessor: "melos.epafes.onoma", 
-                    header: "Όνομα",
-                    value: (row) => row.melos?.epafes?.onoma || "-"
-                  },
-                  { 
-                    accessor: "melos.epafes.epitheto", 
-                    header: "Επώνυμο", 
-                    value: (row) => row.melos?.epafes?.epitheto || "-"
-                  },
-                  { 
-                    accessor: "melos.epafes.email", 
-                    header: "Email", 
-                    value: (row) => row.melos?.epafes?.email || "-"
-                  },
-                  { 
-                    accessor: "melos.epafes.tilefono", 
-                    header: "Τηλέφωνο", 
-                    value: (row) => row.melos?.epafes?.tilefono || "-"
-                  },
-                  { 
-                    accessor: "hmerominia_dilosis", 
-                    header: "Ημερομηνία Δήλωσης",
-                    format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-'
-                  }
-                ],
-                tables: [
-                  {
-                    title: "Ιστορικό Πληρωμών",
-                    accessor: "katavalei",
-                    getData: (row) => (row.katavalei || []).map(payment => ({
-                      ...payment,
-                      id: payment.id,
-                      id_katavalei: payment.id
-                    })),
-                    columns: [
-                      { 
-                        accessor: "poso", 
-                        header: "Ποσό",
-                        Cell: ({ row }) => {
-                          if (!row?.original) return "0€";
-                          return `${row.original.poso || 0}€`;
-                        }
-                      },
-                      { 
-                        accessor: "hmerominia_katavolhs", 
-                        header: "Ημερομηνία",
-                        Cell: ({ row }) => {
-                          if (!row?.original?.hmerominia_katavolhs) return "-";
-                          try {
-                            return new Date(row.original.hmerominia_katavolhs).toLocaleDateString("el-GR");
-                          } catch (e) {
-                            return "-";
-                          }
-                        }
-                      }
-                    ],
-                    onDelete: (payment, participant) => {
-                      if (!payment || !participant) return;
-                      
-                      if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτήν την πληρωμή;")) {
-                        return;
-                      }
-                      
-                      const paymentId = payment.id || payment.id_katavalei;
-                      const participantId = participant.id_parakolouthisis;
-                      
-                      if (!paymentId || !participantId) {
-                        console.error("Missing ID for payment or participant:", { payment, participant });
-                        return;
-                      }
-                      
-                      handleRemovePayment(paymentId, participantId);
-                    },
-                    onAddNew: (parentRow) => {
-                      if (!parentRow) {
-                        alert("Δεν βρέθηκε συμμετέχων για προσθήκη πληρωμής.");
-                        return;
-                      }
-                      handleOpenPaymentDialog(parentRow);
-                    },
-                    getRowId: (row) => row?.id || row?.id_katavalei || `payment-${Math.random().toString(36).substring(2)}`,
-                    emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές"
-                  }
-                ]
-              }}
-              getRowId={(row) => row.id_parakolouthisis}
-              initialState={{
-                columnVisibility: { id_parakolouthisis: false }
-              }}
-              enableExpand={true}
-              enableRowActions={true}
-              handleEditClick={handleEditParticipantClick}
-              handleDelete={(participant) => handleRemoveParticipant(participant.id_parakolouthisis)}
-              enableAddNew={false}
-              tableName="parakolouthiseis"
-              density="compact"
-            />
-          </Paper>
         </Box>
-        
-        {/* Dialogs */}
-        {editedSchool && (
-          <EditDialog 
-            open={editSchoolDialog}
-            onClose={() => setEditSchoolDialog(false)}
-            handleEditSave={handleEditSchoolSave}
-            editValues={editedSchool}
-            title="Επεξεργασία Στοιχείων Σχολής"
-            fields={[
-              { accessorKey: "klados", header: "Κλάδος", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
-              { accessorKey: "epipedo", header: "Επίπεδο", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
-              { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Η τιμή δεν μπορεί να είναι αρνητική") },
-              { accessorKey: "etos", header: "Έτος", type: "number", validation: yup.number().integer("Πρέπει να είναι ακέραιος").min(1900, "Μη έγκυρο έτος") },
-              { accessorKey: "seira", header: "Σειρά", type: "number", validation: yup.number().integer("Πρέπει να είναι ακέραιος").min(1, "Μη έγκυρος αριθμός σειράς") }
-            ]}
+      </Container>
+      
+      {/* Συμμετέχοντες & Πληρωμές - χωρίς Container, σαν το καταφύγιο */}
+      <Box sx={{ mb: 4 }}>
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Συμμετέχοντες & Πληρωμές</Typography>
+            <Button 
+              variant="contained" 
+              color="primary"
+              startIcon={<AddIcon />} 
+              onClick={() => setAddParticipantDialog(true)}
+            >
+              Προσθήκη συμμετέχοντα
+            </Button>
+          </Box>
+          <Divider sx={{ mb: 2 }} />
+          
+          <DataTable
+            data={participants}
+            columns={participantsColumns}
+            detailPanelConfig={participantDetailPanel}
+            getRowId={(row) => row.id_parakolouthisis}
+            initialState={{
+              columnVisibility: { id_parakolouthisis: false }
+            }}
+            enableExpand={true}
+            enableRowActions={true}
+            handleEditClick={handleEditParticipantClick}
+            handleDelete={(participant) => handleRemoveParticipant(participant.id_parakolouthisis)}
+            enableAddNew={false}
+            tableName="parakolouthiseis"
+            density="compact"
           />
-        )}
-        
-        <AddDialog
-          open={addParticipantDialog}
-          onClose={() => setAddParticipantDialog(false)}
-          handleAddSave={handleAddParticipant}
-          title="Προσθήκη Συμμετέχοντα"
-          fields={participantFormFields}
-          resourceData={{
-            membersList: availableMembers.map(member => ({
-              id: member.id_melous || member.id,
-              fullName: `${member.melos?.epafes?.onoma || ""} ${member.melos?.epafes?.epitheto || ""}`.trim(),
-              email: member.melos?.epafes?.email || "",
-              tilefono: member.melos?.epafes?.tilefono || ""
-            }))
-          }}
-          initialValues={{ id_melous: [] }}
+        </Paper>
+      </Box>
+      
+      {/* Διάλογοι */}
+      {editedSchool && (
+        <EditDialog 
+          open={editSchoolDialog}
+          onClose={() => setEditSchoolDialog(false)}
+          handleEditSave={handleEditSchoolSave}
+          editValues={editedSchool}
+          title="Επεξεργασία Στοιχείων Σχολής"
+          fields={[
+            { accessorKey: "klados", header: "Κλάδος", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
+            { accessorKey: "epipedo", header: "Επίπεδο", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
+            { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Η τιμή δεν μπορεί να είναι αρνητική") },
+            { accessorKey: "etos", header: "Έτος", type: "number", validation: yup.number().integer("Πρέπει να είναι ακέραιος").min(1900, "Μη έγκυρο έτος") },
+            { accessorKey: "seira", header: "Σειρά", type: "number", validation: yup.number().integer("Πρέπει να είναι ακέραιος").min(1, "Μη έγκυρος αριθμός σειράς") }
+          ]}
         />
-        
-        {currentParticipant && (
-          <EditDialog
-            open={editParticipantDialog}
-            onClose={() => {
-              setEditParticipantDialog(false);
-              setCurrentParticipant(null);
-            }}
-            handleEditSave={handleEditParticipant}
-            editValues={currentParticipant}
-            title="Επεξεργασία Συμμετέχοντα"
-            fields={[
-              { accessorKey: "id_parakolouthisis", header: "ID", type: "hidden" },
-              { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική") },
-              { 
-                accessorKey: "katastasi", 
-                header: "Κατάσταση", 
-                type: "select",
-                options: [
-                  { value: "Ενεργή", label: "Ενεργή" },
-                  { value: "Ακυρωμένη", label: "Ακυρωμένη" }
-                ]
-              }
-            ]}
-          />
-        )}
-        
-        {paymentParticipant && (
-          <AddDialog
-            open={paymentDialog}
-            onClose={() => {
-              setPaymentDialog(false);
-              setPaymentParticipant(null);
-            }}
-            handleAddSave={handleAddPayment}
-            title={`Καταχώρηση Πληρωμής για ${paymentParticipant?.memberName || ''}`}
-            additionalInfo={
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" color="text.secondary">Σύνολο κόστους: {paymentParticipant.totalCost || 0}€</Typography>
-                <Typography variant="subtitle2" color="text.secondary">Καταβληθέν ποσό: {paymentParticipant.totalPaid || 0}€</Typography>
-                <Typography variant="subtitle1" color={paymentParticipant.ypoloipo > 0 ? "error" : "success"} fontWeight="bold">
-                  Υπόλοιπο: {paymentParticipant.ypoloipo || 0}€
-                </Typography>
-              </Box>
-            }
-            fields={paymentFormFields}
-          />
-        )}
-        
-        <AddDialog
-          open={addTeacherDialog}
-          onClose={() => setAddTeacherDialog(false)}
-          handleAddSave={handleSaveTeacher}
-          title="Προσθήκη Εκπαιδευτών"
+      )}
+      
+      <AddDialog
+        open={addParticipantDialog}
+        onClose={() => setAddParticipantDialog(false)}
+        handleAddSave={handleAddParticipant}
+        title="Προσθήκη Συμμετεχόντων"
+        fields={participantFormFields}
+        resourceData={{
+          membersList: availableMembers.map(member => ({
+            id: member.id_melous || member.id_es_melous || member.id_ekso_melous || member.id,
+            fullName: `${member.melos?.epafes?.epitheto || member.epitheto || ""} ${member.melos?.epafes?.onoma || member.onoma || ""}`.trim(),
+            email: member.melos?.epafes?.email || member.email || "",
+            tilefono: member.melos?.epafes?.tilefono || member.tilefono || "",
+            // Προσθήκη πληροφορίας για τον τύπο μέλους
+            memberType: member.melos?.eksoteriko_melos ? "Εξωτερικό" : 
+                        member.melos?.esoteriko_melos ? "Εσωτερικό" : 
+                        member.tipo_melous || "Άγνωστο",
+            status: member.melos?.esoteriko_melos?.sindromitis?.katastasi_sindromis || 
+                    (member.esoteriko_melos?.sindromitis?.katastasi_sindromis) || 
+                    (member.athlitis ? "Αθλητής" : "-")
+          }))
+        }}
+        initialValues={{ id_melous: [] }}
+      />
+      
+      {currentParticipant && (
+        <EditDialog
+          open={editParticipantDialog}
+          onClose={() => {
+            setEditParticipantDialog(false);
+            setCurrentParticipant(null);
+          }}
+          handleEditSave={(updatedValues) => {
+            // Προσθέτουμε το id_parakolouthisis πίσω στο αντικείμενο
+            handleEditParticipant({
+              ...updatedValues,
+              id_parakolouthisis: currentParticipant.id_parakolouthisis
+            });
+          }}
+          editValues={{
+            // Αφαιρούμε το id_parakolouthisis από τα editValues
+            timi: currentParticipant.timi,
+            katastasi: currentParticipant.katastasi || "Ενεργή",
+          }}
+          title="Επεξεργασία Συμμετέχοντα"
           fields={[
             { 
-              accessorKey: "id_ekpaideuti", 
-              header: "Εκπαιδευτές", 
-              type: "tableSelect",
-              dataKey: "teachersList", // Αυτό το κλειδί θα χρησιμοποιηθεί στο resourceData
-              singleSelect: false, // Επιτρέπει πολλαπλή επιλογή
-              pageSize: 5, // 5 εκπαιδευτές ανά σελίδα
-              columns: [
-                { field: "fullName", header: "Ονοματεπώνυμο" },
-                { field: "email", header: "Email" },
-                { field: "phone", header: "Τηλέφωνο" },
-                { field: "epipedo", header: "Επίπεδο" },
-                { field: "klados", header: "Κλάδος" }
-              ],
-              searchFields: ["fullName", "email", "phone", "epipedo", "klados"], // Πεδία για αναζήτηση
-              noDataMessage: "Δεν βρέθηκαν διαθέσιμοι εκπαιδευτές"
+              accessorKey: "timi", 
+              header: "Τιμή", 
+              type: "number", 
+              validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική") 
+            },
+            { 
+              accessorKey: "katastasi", 
+              header: "Κατάσταση", 
+              type: "select",
+              options: [
+                { value: "Ενεργή", label: "Ενεργή" },
+                { value: "Ακυρωμένη", label: "Ακυρωμένη" }
+              ]
             }
           ]}
-          resourceData={{
-            teachersList: availableTeachers
-              .filter(teacher => !school.ekpaideutes?.some(t => 
-                (t.id_ekpaideuti || t.id) === (teacher.id_ekpaideuti || teacher.id)))
-              .map(teacher => ({
-                id: teacher.id_ekpaideuti || teacher.id,
-                fullName: `${teacher.onoma || ""} ${teacher.epitheto || ""}`.trim(),
-                email: teacher.email || "",
-                phone: teacher.tilefono || teacher.phone || "",
-                epipedo: teacher.epipedo || "",
-                klados: teacher.klados || ""
-              }))
-          }}
-          initialValues={{
-            id_ekpaideuti: [] // Αρχικοποίηση με κενό πίνακα για τις πολλαπλές επιλογές
-          }}
         />
-      </Container>
-
+      )}
+      
+      {paymentParticipant && (
+        <AddDialog
+          open={paymentDialog}
+          onClose={() => {
+            setPaymentDialog(false);
+            setPaymentParticipant(null);
+          }}
+          handleAddSave={handleAddPayment}
+          title={`Καταχώρηση Πληρωμής για ${paymentParticipant?.memberName || ''}`}
+          additionalInfo={
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">Σύνολο κόστους: {paymentParticipant.totalCost || 0}€</Typography>
+              <Typography variant="subtitle2" color="text.secondary">Καταβληθέν ποσό: {paymentParticipant.totalPaid || 0}€</Typography>
+              <Typography variant="subtitle1" color={paymentParticipant.ypoloipo > 0 ? "error" : "success"} fontWeight="bold">
+                Υπόλοιπο: {paymentParticipant.ypoloipo || 0}€
+              </Typography>
+            </Box>
+          }
+          fields={paymentFormFields}
+        />
+      )}
+      
+      <AddDialog
+        open={addTeacherDialog}
+        onClose={() => setAddTeacherDialog(false)}
+        handleAddSave={handleSaveTeacher}
+        title="Προσθήκη Εκπαιδευτών"
+        fields={[
+          { 
+            accessorKey: "id_ekpaideuti", 
+            header: "Εκπαιδευτές", 
+            type: "tableSelect",
+            dataKey: "teachersList", // Αυτό το κλειδί θα χρησιμοποιηθεί στο resourceData
+            singleSelect: false, // Επιτρέπει πολλαπλή επιλογή
+            pageSize: 5, // 5 εκπαιδευτές ανά σελίδα
+            columns: [
+              { field: "fullName", header: "Ονοματεπώνυμο" },
+              { field: "email", header: "Email" },
+              { field: "phone", header: "Τηλέφωνο" },
+              { field: "epipedo", header: "Επίπεδο" },
+              { field: "klados", header: "Κλάδος" }
+            ],
+            searchFields: ["fullName", "email", "phone", "epipedo", "klados"], // Πεδία για αναζήτηση
+            noDataMessage: "Δεν βρέθηκαν διαθέσιμοι εκπαιδευτές"
+          }
+        ]}
+        resourceData={{
+          teachersList: availableTeachers
+            .filter(teacher => !school.ekpaideutes?.some(t => 
+              (t.id_ekpaideuti || t.id) === (teacher.id_ekpaideuti || teacher.id)))
+            .map(teacher => ({
+              id: teacher.id_ekpaideuti || teacher.id,
+              fullName: `${teacher.onoma || ""} ${teacher.epitheto || ""}`.trim(),
+              email: teacher.email || "",
+              phone: teacher.tilefono || teacher.phone || "",
+              epipedo: teacher.epipedo || "",
+              klados: teacher.klados || ""
+            }))
+        }}
+        initialValues={{
+          id_ekpaideuti: [] // Αρχικοποίηση με κενό πίνακα για τις πολλαπλές επιλογές
+        }}
+      />
+      
       {/* Διάλογος για διαχείριση τοποθεσιών */}
       <Dialog open={locationDialogOpen} onClose={() => setLocationDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Διαχείριση Τοποθεσιών</DialogTitle>
@@ -1348,26 +1472,32 @@ const handleRemovePayment = async (paymentId, participantId) => {
                           />
                         </TableCell>
                         <TableCell>
-                          <TextField
-                            type="date"
-                            size="small"
-                            value={loc.start}
-                            onChange={(e) => {
+                          <DatePicker
+                            format="dd/MM/yyyy"
+                            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                            value={loc.start ? new Date(loc.start) : null}
+                            onChange={(newValue) => {
                               const updated = currentLocations.map(item => 
-                                item.id === loc.id ? { ...item, start: e.target.value } : item
+                                item.id === loc.id ? { 
+                                  ...item, 
+                                  start: newValue ? newValue.toISOString().split('T')[0] : null 
+                                } : item
                               );
                               setCurrentLocations(updated);
                             }}
                           />
                         </TableCell>
                         <TableCell>
-                          <TextField
-                            type="date"
-                            size="small"
-                            value={loc.end}
-                            onChange={(e) => {
+                          <DatePicker
+                            format="dd/MM/yyyy"
+                            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                            value={loc.end ? new Date(loc.end) : null}
+                            onChange={(newValue) => {
                               const updated = currentLocations.map(item => 
-                                item.id === loc.id ? { ...item, end: e.target.value } : item
+                                item.id === loc.id ? { 
+                                  ...item, 
+                                  end: newValue ? newValue.toISOString().split('T')[0] : null 
+                                } : item
                               );
                               setCurrentLocations(updated);
                             }}
@@ -1405,25 +1535,31 @@ const handleRemovePayment = async (paymentId, participantId) => {
                   />
                 </Grid>
                 <Grid item xs={12} sm={3}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    size="small"
+                  <DatePicker
+                    format="dd/MM/yyyy"
                     label="Ημ/νία Έναρξης"
-                    InputLabelProps={{ shrink: true }}
-                    value={newLocation.start}
-                    onChange={(e) => setNewLocation({...newLocation, start: e.target.value})}
+                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                    value={newLocation.start ? new Date(newLocation.start) : null}
+                    onChange={(newValue) => {
+                      setNewLocation({
+                        ...newLocation, 
+                        start: newValue ? newValue.toISOString().split('T')[0] : null
+                      });
+                    }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={3}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    size="small"
+                  <DatePicker
+                    format="dd/MM/yyyy"
                     label="Ημ/νία Λήξης"
-                    InputLabelProps={{ shrink: true }}
-                    value={newLocation.end}
-                    onChange={(e) => setNewLocation({...newLocation, end: e.target.value})}
+                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                    value={newLocation.end ? new Date(newLocation.end) : null}
+                    onChange={(newValue) => {
+                      setNewLocation({
+                        ...newLocation, 
+                        end: newValue ? newValue.toISOString().split('T')[0] : null
+                      });
+                    }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={2}>

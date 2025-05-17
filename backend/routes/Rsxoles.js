@@ -707,4 +707,107 @@ router.put("/ekpaideutis/:id", async (req, res) => {
   }
 });
 
+// PUT: Ενημέρωση συμμετέχοντα σε σχολή
+router.put("/:id/parakolouthisi/:paraId", async (req, res) => {
+  try {
+    const id_parakolouthisis = parseInt(req.params.paraId);
+    if (isNaN(id_parakolouthisis)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID παρακολούθησης" });
+    }
+
+    const { timi, katastasi } = req.body;
+    
+    // Έλεγχος αν υπάρχει η παρακολούθηση
+    const parakolouthisi = await prisma.parakolouthisi.findUnique({
+      where: { id_parakolouthisis },
+      include: { katavalei: true }
+    });
+    
+    if (!parakolouthisi) {
+      return res.status(404).json({ error: "Δεν βρέθηκε η παρακολούθηση" });
+    }
+
+    // Υπολογισμός νέου υπολοίπου
+    const totalPaid = (parakolouthisi.katavalei || []).reduce(
+      (sum, payment) => sum + (payment.poso || 0), 
+      0
+    );
+    
+    const newTimi = timi !== undefined ? parseInt(timi) : parakolouthisi.timi;
+    const newBalance = Math.max(0, newTimi - totalPaid);
+
+    // Ενημέρωση συμμετέχοντα
+    const updatedParakolouthisi = await prisma.parakolouthisi.update({
+      where: { id_parakolouthisis },
+      data: {
+        timi: newTimi,
+        katastasi: katastasi || parakolouthisi.katastasi,
+        ypoloipo: newBalance
+      }
+    });
+
+    res.json({
+      id_parakolouthisis: updatedParakolouthisi.id_parakolouthisis,
+      timi: updatedParakolouthisi.timi,
+      katastasi: updatedParakolouthisi.katastasi,
+      ypoloipo: updatedParakolouthisi.ypoloipo
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση παρακολούθησης:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση παρακολούθησης" });
+  }
+});
+
+// GET: Λήψη διαθέσιμων μελών για σχολές (εσωτερικά και εξωτερικά)
+router.get("/:id/available-members", async (req, res) => {
+  try {
+    const id_sxolis = parseInt(req.params.id);
+    if (isNaN(id_sxolis)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID σχολής" });
+    }
+
+    // Βρίσκουμε τα IDs των μελών που είναι ήδη συμμετέχοντες στη σχολή
+    const existingParticipants = await prisma.parakolouthisi.findMany({
+      where: { id_sxolis },
+      select: { id_melous: true }
+    });
+    
+    const existingMemberIds = new Set(existingParticipants.map(p => p.id_melous));
+
+    // Βρίσκουμε όλα τα μέλη (και εσωτερικά και εξωτερικά)
+    const allMembers = await prisma.melos.findMany({
+      include: {
+        epafes: true,
+        esoteriko_melos: {
+          include: {
+            sindromitis: true
+          }
+        },
+        eksoteriko_melos: true
+      }
+    });
+
+    // Φιλτράρουμε για να πάρουμε μόνο τα διαθέσιμα μέλη
+    const availableMembers = allMembers.filter(member => !existingMemberIds.has(member.id_melous));
+
+    // Μορφοποιούμε τα δεδομένα για το frontend
+    const formattedMembers = availableMembers.map(member => ({
+      id_melous: member.id_melous,
+      tipo_melous: member.tipo_melous,
+      onoma: member.epafes?.onoma || "",
+      epitheto: member.epafes?.epitheto || "",
+      email: member.epafes?.email || "",
+      tilefono: member.epafes?.tilefono?.toString() || "",
+      esoteriko_melos: member.esoteriko_melos,
+      eksoteriko_melos: member.eksoteriko_melos,
+      member_type: member.eksoteriko_melos ? "Εξωτερικό" : "Εσωτερικό"
+    }));
+
+    res.json(formattedMembers);
+  } catch (error) {
+    console.error("Σφάλμα κατά την ανάκτηση διαθέσιμων μελών:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση διαθέσιμων μελών" });
+  }
+});
+
 module.exports = router;
