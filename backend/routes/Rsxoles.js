@@ -258,23 +258,6 @@ router.delete("/:id", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID" });
     }
 
-    // Έλεγχος αν υπάρχουν παρακολουθήσεις
-    const attendances = await prisma.parakolouthisi.findMany({
-      where: { id_sxolis: id }
-    });
-
-    if (attendances.length > 0) {
-      return res.status(409).json({ 
-        error: "Δεν μπορεί να διαγραφεί η σχολή γιατί έχει παρακολουθήσεις",
-        count: attendances.length
-      });
-    }
-
-    // Διαγραφή των σχέσεων με εκπαιδευτές
-    await prisma.ekpaideuei.deleteMany({
-      where: { id_sxolis: id }
-    });
-
     // Διαγραφή της σχολής
     await prisma.sxoli.delete({
       where: { id_sxolis: id }

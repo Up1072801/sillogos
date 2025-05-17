@@ -355,16 +355,6 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Ο εξοπλισμός δεν βρέθηκε" });
     }
 
-    // Έλεγχος αν υπάρχουν σχετικοί δανεισμοί
-    const existingLoans = await prisma.daneizetai.findFirst({
-      where: { id_eksoplismou: id }
-    });
-
-    if (existingLoans) {
-      return res.status(400).json({ 
-        error: "Δεν μπορεί να διαγραφεί ο εξοπλισμός επειδή υπάρχουν σχετικοί δανεισμοί" 
-      });
-    }
 
     await prisma.eksoplismos.delete({
       where: { id_eksoplismou: id }

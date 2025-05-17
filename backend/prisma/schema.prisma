@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+   url      = env("DATABASE_URL")
 }
 model epafes {
   id_epafis          Int                  @id @default(autoincrement())
@@ -35,7 +35,7 @@ model melos {
 
   // Νέα σχέση με βαθμό δυσκολίας
   id_vathmou_diskolias Int
-  vathmos_diskolias    vathmos_diskolias @relation(fields: [id_vathmou_diskolias], references: [id_vathmou_diskolias])
+  vathmos_diskolias    vathmos_diskolias @relation(fields: [id_vathmou_diskolias], references: [id_vathmou_diskolias], onDelete: Cascade)
 
   @@map("Melos")
 }
@@ -114,7 +114,7 @@ model eksormisi {
   id_ypefthynou         Int?      // Προαιρετικό πεδίο για το ID του υπεύθυνου
 
   drastiriotita         drastiriotita[]
-  ypefthynos            esoteriko_melos? @relation("YpefthynosEksormisis", fields: [id_ypefthynou], references: [id_es_melous])
+  ypefthynos            esoteriko_melos? @relation("YpefthynosEksormisis", fields: [id_ypefthynou], references: [id_es_melous], onDelete: SetNull)
 
   @@map("Eksormisi")
 }
@@ -188,8 +188,8 @@ model drastiriotita {
   diafora_ipsous       Int?
   hmerominia           DateTime?
   megisto_ipsometro    Int?
-  eksormisi            eksormisi?         @relation(fields: [id_eksormisis], references: [id_eksormisis])
-  vathmos_diskolias    vathmos_diskolias? @relation(fields: [id_vathmou_diskolias], references: [id_vathmou_diskolias])
+  eksormisi            eksormisi?         @relation(fields: [id_eksormisis], references: [id_eksormisis], onDelete: Cascade)
+  vathmos_diskolias    vathmos_diskolias? @relation(fields: [id_vathmou_diskolias], references: [id_vathmou_diskolias], onDelete: Cascade)
   simmetoxi            simmetoxi[]        // Αντίστροφη σχέση με το simmetoxi
 
   @@map("Drastiriotita")
@@ -200,7 +200,7 @@ model sindromi {
   hmerominia_enarksis DateTime?
   id_eidous_sindromis Int?
 
-  eidos_sindromis eidos_sindromis? @relation(fields: [id_eidous_sindromis], references: [id_eidous_sindromis])
+  eidos_sindromis eidos_sindromis? @relation(fields: [id_eidous_sindromis], references: [id_eidous_sindromis], onDelete: Cascade)
   exei            exei[]
 
   @@map("Sindromi")
@@ -223,8 +223,8 @@ model kratisi_katafigiou {
   poso_epistrofis       Int?
   hmerominia_kratisis   DateTime?
 
-  epafes    epafes?    @relation(fields: [id_epafis], references: [id_epafis])
-  katafigio katafigio? @relation(fields: [id_katafigiou], references: [id_katafigiou])
+  epafes    epafes?    @relation(fields: [id_epafis], references: [id_epafis], onDelete: Cascade)
+  katafigio katafigio? @relation(fields: [id_katafigiou], references: [id_katafigiou], onDelete: Cascade)
   eksoflei  eksoflei[]
 
   @@map("Kratisi_Katafigiou")
@@ -238,8 +238,8 @@ model daneizetai {
   hmerominia_epistrofis DateTime?
   katastasi_daneismou   String?   // Νέο πεδίο για την κατάσταση δανεισμού
 
-  epafes      epafes      @relation(fields: [id_epafis], references: [id_epafis])
-  eksoplismos eksoplismos @relation(fields: [id_eksoplismou], references: [id_eksoplismou])
+  epafes      epafes      @relation(fields: [id_epafis], references: [id_epafis], onDelete: Cascade)
+  eksoplismos eksoplismos @relation(fields: [id_eksoplismou], references: [id_eksoplismou], onDelete: Cascade)
 
   @@map("Daneizetai")
 }
@@ -251,8 +251,8 @@ model eksoflei {
   poso                  Int?
   hmerominia_eksoflisis DateTime?
 
-  epafes             epafes             @relation(fields: [id_epafis], references: [id_epafis])
-  kratisi_katafigiou kratisi_katafigiou @relation(fields: [id_kratisis], references: [id_kratisis])
+  epafes             epafes             @relation(fields: [id_epafis], references: [id_epafis], onDelete: Cascade)
+  kratisi_katafigiou kratisi_katafigiou @relation(fields: [id_kratisis], references: [id_kratisis], onDelete: Cascade)
 
   @@map("Eksoflei")
 }
@@ -261,8 +261,8 @@ model ekpaideuei {
   id_ekpaideuti Int
   id_sxolis     Int
 
-  ekpaideutis ekpaideutis @relation(fields: [id_ekpaideuti], references: [id_ekpaideuti])
-  sxoli       Sxoli       @relation(fields: [id_sxolis], references: [id_sxolis])
+  ekpaideutis ekpaideutis @relation(fields: [id_ekpaideuti], references: [id_ekpaideuti], onDelete: Cascade)
+  sxoli       Sxoli       @relation(fields: [id_sxolis], references: [id_sxolis], onDelete: Cascade)
 
   @@id([id_ekpaideuti, id_sxolis])
   @@map("Ekpaideuei")
@@ -278,9 +278,9 @@ model simmetoxi {
   ypoloipo             Int?
   hmerominia_dilosis   DateTime?
   hmerominia_akirosis  DateTime?
-  melos                melos            @relation(fields: [id_melous], references: [id_melous])
+  melos                melos            @relation(fields: [id_melous], references: [id_melous], onDelete: Cascade)
   plironei             plironei[]       // Αντίστροφη σχέση με το plironei
-  drastiriotita        drastiriotita?   @relation(fields: [id_drastiriotitas], references: [id_drastiriotitas])
+  drastiriotita        drastiriotita?   @relation(fields: [id_drastiriotitas], references: [id_drastiriotitas], onDelete: Cascade)
 
   @@map("Simmetoxi")
 
@@ -291,8 +291,8 @@ model plironei {
   id_simmetoxis        Int
   hmerominia_pliromis  DateTime?
   poso_pliromis        Int?
-  melos                melos            @relation(fields: [id_melous], references: [id_melous])
-  simmetoxi            simmetoxi        @relation(fields: [id_simmetoxis], references: [id_simmetoxis])
+  melos                melos            @relation(fields: [id_melous], references: [id_melous], onDelete: Cascade)
+  simmetoxi            simmetoxi        @relation(fields: [id_simmetoxis], references: [id_simmetoxis], onDelete: Cascade)
 
   @@map("Plironei")
 }
@@ -301,8 +301,8 @@ model exei {
   id_sindromiti       Int
   id_sindromis        Int
   hmerominia_pliromis DateTime?
-  sindromi            sindromi    @relation(fields: [id_sindromis], references: [id_sindromis])
-  sindromitis         sindromitis @relation(fields: [id_sindromiti], references: [id_sindromiti])
+  sindromi            sindromi    @relation(fields: [id_sindromis], references: [id_sindromis], onDelete: Cascade)
+  sindromitis         sindromitis @relation(fields: [id_sindromiti], references: [id_sindromiti], onDelete: Cascade)
 
   @@id([id_sindromiti, id_sindromis])
   @@map("Exei")
@@ -311,8 +311,8 @@ model exei {
 model asxoleitai {
   id_athliti    Int
   id_athlimatos Int
-  athlima       athlima  @relation(fields: [id_athlimatos], references: [id_athlimatos])
-  athlitis      athlitis @relation(fields: [id_athliti], references: [id_athliti])
+  athlima       athlima  @relation(fields: [id_athlimatos], references: [id_athlimatos], onDelete: Cascade)
+  athlitis      athlitis @relation(fields: [id_athliti], references: [id_athliti], onDelete: Cascade)
 
   @@id([id_athliti, id_athlimatos])
   @@map("Asxoleitai")
@@ -325,7 +325,7 @@ model agones {
   hmerominia    DateTime?
   onoma         String?
 
-  athlima    athlima?     @relation(fields: [id_athlimatos], references: [id_athlimatos])
+  athlima    athlima?     @relation(fields: [id_athlimatos], references: [id_athlimatos], onDelete: Cascade)
   agonizetai agonizetai[]
 
   @@map("Agones")
@@ -334,8 +334,8 @@ model agones {
 model agonizetai {
   id_athliti Int
   id_agona   Int
-  agones     agones   @relation(fields: [id_agona], references: [id_agona])
-  athlitis   athlitis @relation(fields: [id_athliti], references: [id_athliti])
+  agones     agones   @relation(fields: [id_agona], references: [id_agona], onDelete: Cascade)
+  athlitis   athlitis @relation(fields: [id_athliti], references: [id_athliti], onDelete: Cascade)
 
   @@id([id_athliti, id_agona])
   @@map("Agonizetai")
@@ -351,8 +351,8 @@ model parakolouthisi {
   katastasi          String?
   hmerominia_dilosis DateTime?
   hmerominia_akrirosis DateTime?
-  melos              melos            @relation(fields: [id_melous], references: [id_melous])
-  sxoli              Sxoli?           @relation(fields: [id_sxolis], references: [id_sxolis])
+  melos              melos            @relation(fields: [id_melous], references: [id_melous], onDelete: Cascade)
+  sxoli              Sxoli?           @relation(fields: [id_sxolis], references: [id_sxolis], onDelete: Cascade)
   katavalei          katavalei[]      // Αντίστροφη σχέση με το katavalei
 
   @@map("Parakolouthisi")
@@ -364,8 +364,8 @@ model katavalei {
   id_parakolouthisis   Int
   poso                 Int?
   hmerominia_katavolhs DateTime?
-  melos                melos            @relation(fields: [id_melous], references: [id_melous])
-  parakolouthisi       parakolouthisi   @relation(fields: [id_parakolouthisis], references: [id_parakolouthisis])
+  melos                melos            @relation(fields: [id_melous], references: [id_melous], onDelete: Cascade)
+  parakolouthisi       parakolouthisi   @relation(fields: [id_parakolouthisis], references: [id_parakolouthisis], onDelete: Cascade)
 
   @@map("Katavalei")
 }
