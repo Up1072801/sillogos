@@ -258,9 +258,23 @@ router.delete("/:id", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID" });
     }
 
-    // Διαγραφή της σχολής
-    await prisma.sxoli.delete({
+    // Check if school has related participants (parakolouthisi)
+    const participantsCount = await prisma.parakolouthisi.count({
       where: { id_sxolis: id }
+    });
+
+  
+    // Use transaction to maintain data integrity
+    await prisma.$transaction(async (prisma) => {
+      // 1. First delete all teacher-school relations (ekpaideuei)
+      await prisma.ekpaideuei.deleteMany({
+        where: { id_sxolis: id }
+      });
+      
+      // 2. Delete the school itself
+      await prisma.sxoli.delete({
+        where: { id_sxolis: id }
+      });
     });
 
     res.json({ success: true, message: "Η σχολή διαγράφηκε επιτυχώς" });

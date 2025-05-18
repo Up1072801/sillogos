@@ -10,9 +10,34 @@ const ActionsCell = ({ row, enableEdit, enableDelete, handleEditClick, handleDel
   };
 
   const handleConfirmDelete = () => {
-    const deletePayload = deleteConfig?.getPayload
-      ? deleteConfig.getPayload(row.original)
-      : row.original.id;  // Αποστολή μόνο του ID αν δεν υπάρχει deleteConfig
+    let deletePayload;
+    
+    // Χρησιμοποιούμε το deleteConfig.getPayload αν υπάρχει
+    if (deleteConfig?.getPayload) {
+      console.log("Using deleteConfig.getPayload");
+      deletePayload = deleteConfig.getPayload(row.original);
+    }
+    // Διαφορετικά ψάχνουμε για οποιοδήποτε πεδίο ID
+    else {
+      console.log("Finding ID from row.original");
+      // Προτεραιότητα: id, id_ekpaideuti, id_epafis, οποιοδήποτε πεδίο που περιέχει "id" στο όνομα
+      deletePayload = row.original.id || 
+                     row.original.id_ekpaideuti || 
+                     row.original.id_epafis;
+                     
+      // Αν ακόμα δεν έχουμε βρει ID, ψάχνουμε οποιοδήποτε πεδίο που περιέχει "id"
+      if (!deletePayload && deletePayload !== 0) {
+        for (const key in row.original) {
+          if (key.toLowerCase().includes('id') && row.original[key] !== null && row.original[key] !== undefined) {
+            console.log(`Found ID field: ${key} = ${row.original[key]}`);
+            deletePayload = row.original[key];
+            break;
+          }
+        }
+      }
+    }
+    
+    console.log("Final deletePayload:", deletePayload);
     handleDelete(deletePayload);
     setOpenDeleteDialog(false);
   };

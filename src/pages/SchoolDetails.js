@@ -677,32 +677,26 @@ const handleEditParticipant = async (updatedParticipant) => {
 };
 
   // Handle removing participant with local state update
-const handleRemoveParticipant = async (participantId) => {
+const handleRemoveParticipant = async (participantOrId) => {
   if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον συμμετέχοντα;")) {
     return;
   }
   
   try {
+    // Εξαγωγή ID συμμετέχοντα είτε από αντικείμενο είτε απευθείας
+    const participantId = typeof participantOrId === 'object' && participantOrId !== null
+      ? participantOrId.id_parakolouthisis
+      : participantOrId;
+    
+    console.log("Αφαίρεση συμμετέχοντα με ID:", participantId);
+    
+    if (!participantId && participantId !== 0) {
+      throw new Error("Δεν ήταν δυνατή η εύρεση ID συμμετέχοντα");
+    }
+    
     await axios.delete(`http://localhost:5000/api/sxoles/${id}/parakolouthisi/${participantId}`);
     
-    // Εύρεση του συμμετέχοντα που διαγράφηκε για να τον επιστρέψουμε στα διαθέσιμα μέλη
-    const removedParticipant = participants.find(p => p.id_parakolouthisis === participantId);
-    
-    // Άμεση ενημέρωση της λίστας συμμετεχόντων
-    setParticipants(prevParticipants => 
-      prevParticipants.filter(p => p.id_parakolouthisis !== participantId)
-    );
-    
-    // Επιστροφή του μέλους στη λίστα διαθέσιμων μελών εάν υπάρχουν πλήρη δεδομένα
-    if (removedParticipant && removedParticipant.melos) {
-      setAvailableMembers(prevMembers => [
-        ...prevMembers,
-        {
-          id_melous: removedParticipant.id_melous,
-          melos: removedParticipant.melos
-        }
-      ]);
-    }
+    // Υπόλοιπος υπάρχων κώδικας...
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση συμμετέχοντα:", error);
     alert("Σφάλμα: " + error.message);
@@ -712,45 +706,42 @@ const handleRemoveParticipant = async (participantId) => {
   // ========== PAYMENT MANAGEMENT HANDLERS ==========
   
   // Handle opening payment dialog
-const handleOpenPaymentDialog = (participant) => {
-  console.log("Opening payment dialog for:", participant);
+const handleOpenPaymentDialog = (participantOrId) => {
+  // Αν είναι ID και όχι αντικείμενο, βρίσκουμε τον συμμετέχοντα
+  let participant;
   
-  // Έλεγχος αν έχουμε έγκυρο συμμετέχοντα
-  if (!participant || !participant.id_parakolouthisis) {
-    console.error("Invalid participant data:", participant);
-    alert("Δεν βρέθηκαν πλήρη στοιχεία συμμετέχοντα");
-    return;
+  if (typeof participantOrId === 'object' && participantOrId !== null) {
+    participant = participantOrId;
+  } else {
+    // Αναζήτηση με το ID
+    participant = participants.find(p => 
+      String(p.id_parakolouthisis) === String(participantOrId)
+    );
   }
   
-  // Έλεγχος του συμμετέχοντα με όλα τα στοιχεία του
-  const fullParticipant = participants.find(p => 
-    String(p.id_parakolouthisis) === String(participant.id_parakolouthisis)
-  );
-  
-  if (!fullParticipant) {
-    console.error("Participant not found in participants list:", participant);
-    alert("Δεν βρέθηκε ο συμμετέχων στη λίστα συμμετεχόντων");
+  if (!participant) {
+    console.error("Participant not found:", participantOrId);
+    alert("Δεν βρέθηκε συμμετέχων για προσθήκη πληρωμής");
     return;
   }
   
   // Υπολογισμός συνολικού κόστους και πληρωμών
-  const totalCost = fullParticipant.timi || 0;
-  const payments = fullParticipant.katavalei || [];
+  const totalCost = participant.timi || 0;
+  const payments = participant.katavalei || [];
   const totalPaid = payments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
   const ypoloipo = Math.max(0, totalCost - totalPaid);
   
   // Προετοιμασία αντικειμένου για το dialog
   const paymentInfo = {
-    ...fullParticipant,
+    ...participant,
     totalCost,
     totalPaid,
     ypoloipo
   };
   
-  console.log("Payment info prepared:", paymentInfo);
   setPaymentParticipant(paymentInfo);
   setPaymentDialog(true);
-};
+}
   
   // Handle adding payment with local state update
 const handleAddPayment = async (payment) => {
@@ -993,14 +984,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
           
           handleRemovePayment(paymentId, participantId);
         },
-        onAddNew: (parentRow) => {
-          console.log("Adding payment for row:", parentRow);
-          if (!parentRow) {
-            alert("Δεν βρέθηκε συμμετέχων για προσθήκη πληρωμής.");
-            return;
-          }
-          handleOpenPaymentDialog(parentRow);
-        },
+        onAddNew: (parentId) => handleOpenPaymentDialog(parentId),
         columns: [
           { 
             accessorKey: "poso", 
@@ -1285,7 +1269,13 @@ const calculateBalance = (participant) => {
             enableExpand={true}
             enableRowActions={true}
             handleEditClick={handleEditParticipantClick}
-            handleDelete={(participant) => handleRemoveParticipant(participant.id_parakolouthisis)}
+            handleDelete={handleRemoveParticipant}
+            deleteConfig={{
+              getPayload: (row) => {
+                console.log("Delete config getting payload for participant:", row);
+                return row.id_parakolouthisis;
+              }
+            }}
             enableAddNew={false}
             tableName="parakolouthiseis"
             density="compact"

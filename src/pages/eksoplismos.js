@@ -774,7 +774,7 @@ const handleEditEquipment = async (editedEquipment) => {
         (item.id === equipmentId || item.id_eksoplismou === equipmentId) 
           ? {
               ...response.data,
-              id: response.data.id_eksoplismou || response.data.id,  // Διασφάλιση συμβατότητας ID
+              id: response.data.id_eksoplισμου || response.data.id,  // Διασφάλιση συμβατότητας ID
               id_eksoplismou: response.data.id_eksoplismou || response.data.id // Διπλό ID για συνέπεια
             } 
           : item
@@ -792,11 +792,63 @@ const handleEditEquipment = async (editedEquipment) => {
   // Χειρισμός διαγραφής εξοπλισμού
   const handleDeleteEquipment = async (id) => {
     try {
+      // 1. Βρες τον εξοπλισμό και έλεγξε αν έχει δανεισμούς
+      const equipment = eksoplismosData.find(e => 
+        parseInt(e.id) === parseInt(id) || parseInt(e.id_eksoplismou) === parseInt(id)
+      );
+      
+      if (equipment && equipment.daneizetai && equipment.daneizetai.length > 0) {
+        // Έχει δανεισμούς - ζήτα επιβεβαίωση
+        const activeLoans = equipment.daneizetai.filter(loan => 
+          loan.katastasi_daneismou !== "Επιστράφηκε"
+        );
+        
+        if (activeLoans.length > 0) {
+          const confirm = window.confirm(
+            `ΠΡΟΣΟΧΗ: Ο εξοπλισμός "${equipment.onoma}" έχει ${activeLoans.length} ενεργούς δανεισμούς. ` + 
+            `Η διαγραφή θα αφαιρέσει επίσης όλους τους δανεισμούς. Θέλετε να συνεχίσετε;`
+          );
+          if (!confirm) return;
+        } else if (equipment.daneizetai.length > 0) {
+          const confirm = window.confirm(
+            `Ο εξοπλισμός "${equipment.onoma}" έχει ${equipment.daneizetai.length} καταγεγραμμένους δανεισμούς. ` + 
+            `Θέλετε να διαγράψετε τον εξοπλισμό και το ιστορικό δανεισμών του;`
+          );
+          if (!confirm) return;
+        }
+      }
+
+      // 2. Διαγραφή του εξοπλισμού στο backend
       await axios.delete(`http://localhost:5000/api/eksoplismos/${id}`);
-      setEksoplismosData(prevData => prevData.filter(item => item.id !== id));
+      
+      // 3. Βρες τα IDs των δανεισμών που σχετίζονται με αυτόν τον εξοπλισμό
+      const equipmentId = parseInt(id);
+      const relatedLoans = daneismoiData.filter(loan => 
+        parseInt(loan.id_eksoplismou) === equipmentId
+      );
+      
+      // 4. Ενημέρωση του state εξοπλισμού
+      setEksoplismosData(prevData => 
+        prevData.filter(item => 
+          parseInt(item.id) !== equipmentId && parseInt(item.id_eksoplismou) !== equipmentId
+        )
+      );
+      
+      // 5. Ενημέρωση των states δανεισμών
+      setDaneismoiData(prevData => 
+        prevData.filter(loan => parseInt(loan.id_eksoplismou) !== equipmentId)
+      );
+      
+      // Επίσης ενημέρωση των φιλτραρισμένων δεδομένων
+      setFilteredLoansData(prevData => 
+        prevData.filter(loan => parseInt(loan.id_eksoplismou) !== equipmentId)
+      );
+      
+      console.log(`Διαγράφηκε ο εξοπλισμός με ID ${id} και ${relatedLoans.length} σχετικοί δανεισμοί`);
+      
     } catch (error) {
       console.error("Σφάλμα κατά τη διαγραφή εξοπλισμού:", error);
-      alert("Σφάλμα κατά τη διαγραφή εξοπλισμού.");
+      alert("Σφάλμα κατά τη διαγραφή εξοπλισμού: " + error.message);
     }
   };
 

@@ -1003,12 +1003,50 @@ const handleCompetitionAthleteSelection = async (selectedIds) => {
 // Πρόσθεσε αυτή τη συνάρτηση ακριβώς πριν το handleDeleteAthlete
 const handleDeleteCompetition = async (competitionId) => {
   try {
-    const id = parseInt(competitionId);
+    console.log("Attempting to delete competition with ID:", competitionId);
+    
+    // Χειρισμός διαφορετικών τύπων παραμέτρων
+    let id;
+    
+    // Αν είναι αντικείμενο, προσπαθούμε να εξάγουμε το ID
+    if (typeof competitionId === 'object' && competitionId !== null) {
+      id = competitionId.id_agona || competitionId.id;
+      console.log("Extracted ID from object:", id);
+    } else {
+      // Αν είναι primitive (string ή number)
+      id = competitionId;
+    }
+    
+    // Μετατροπή σε αριθμό
+    id = parseInt(id, 10);
+    
     if (isNaN(id)) {
       throw new Error(`Μη έγκυρο ID αγώνα: ${competitionId}`);
     }
+    
+    console.log(`Διαγραφή αγώνα με ID: ${id}`);
+    
+    // Κλήση του API για διαγραφή
     await axios.delete(`http://localhost:5000/api/athlites/agona/${id}`);
-    await refreshData();
+    
+    // Τοπική ενημέρωση του state - αφαίρεση του αγώνα από όλα τα αθλήματα
+    setSportsData(prevSportsData => {
+      return prevSportsData.map(sport => {
+        if (sport.agones && Array.isArray(sport.agones)) {
+          return {
+            ...sport,
+            agones: sport.agones.filter(agona => 
+              agona.id !== id && agona.id_agona !== id
+            )
+          };
+        }
+        return sport;
+      });
+    });
+    
+    // Επανυπολογισμός των φιλτραρισμένων αγώνων
+    filterCompetitions();
+    
     return true;
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή αγώνα:", error);
@@ -1688,10 +1726,7 @@ const showDeleteConfirmation = (item, type, callback) => {
           enableExpand={true}
           enableRowActions={true}
           handleEditClick={handleEditCompetition}
-          handleDelete={(competition) => {
-            const competitionId = competition.id_agona || competition.id;
-            handleConfirmDelete(competitionId, null, 'competition');
-          }}
+          handleDelete={(competition) => handleConfirmDelete(competition, null, 'competition')}
         />
       </Box>
 

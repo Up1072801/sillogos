@@ -11,7 +11,7 @@ import Athlites from "./pages/athlites";
 import Meloi from "./pages/melitousillogou";
 import MeloiAllwn from "./pages/meliallwnsillogwn";
 import Login from "./pages/Login";
-import SchoolDetails from "./pages/SchoolDetails";
+import SchoolDetails from "./pages/schoolDetails";
 import EksormisiDetails from "./pages/EksormisiDetails";
 import DrastiriotitaDetails from "./pages/DrastiriotitaDetails";
 import AdminPage from "./pages/admin"; // Εισαγωγή του νέου component

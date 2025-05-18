@@ -867,7 +867,7 @@ const LocationEditor = ({ value, onChange }) => {
   );
 };
 
-  // Βελτιωμένο handleAddTopothesia
+  // Βελτιωμένη έκδοση του handleAddTopothesia
 const handleAddTopothesia = async (parentRow) => {
   try {
     console.log("AddTopothesia called with parentRow:", parentRow);
@@ -1779,88 +1779,167 @@ const handleEditEkpaideutiClick = async (row) => {
   };
 
   // Διαγραφή εκπαιδευτή
-  const handleDeleteEkpaideutis = async (row) => {
+// Διαγραφή εκπαιδευτή - εντελώς νέα έκδοση
+const handleDeleteEkpaideutis = async (rowOrId) => {
   try {
-    // Extract instructor ID
+    console.log("Delete triggered with arg:", rowOrId);
+    
+    // ΒΗΜΑ 1: Βρίσκουμε το ID με οποιονδήποτε τρόπο μπορούμε
     let ekpaideutisId = null;
-    if (typeof row === "object" && row !== null) {
-      ekpaideutisId =
-        row.id_ekpaideuti ||
-        row.id_epafis ||
-        row.id ||
-        (row.original && (row.original.id_ekpaideuti || row.original.id_epafis || row.original.id)) ||
-        (row.row && (row.row.id_ekpaideuti || row.row.id_epafis || row.row.id));
-    } else {
-      ekpaideutisId = row;
-    }
-
-    // Μετατροπή του ID σε αριθμό
-    ekpaideutisId = parseInt(ekpaideutisId);
     
-    if (isNaN(ekpaideutisId)) {
-      alert("Δεν βρέθηκε έγκυρο ID εκπαιδευτή για διαγραφή.");
-      return;
+    // A. Αν είναι αριθμός ή string, το χρησιμοποιούμε άμεσα
+    if (typeof rowOrId === 'number' || (typeof rowOrId === 'string' && rowOrId.trim() !== '')) {
+      ekpaideutisId = rowOrId;
+      console.log("Using direct ID value:", ekpaideutisId);
+    } 
+    // B. Αν είναι αντικείμενο, ψάχνουμε για ID μέσα σε αυτό
+    else if (rowOrId && typeof rowOrId === 'object') {
+      ekpaideutisId = rowOrId.id_ekpaideuti || rowOrId.id_epafis || rowOrId.id ||
+        (rowOrId.original && (rowOrId.original.id_ekpaideuti || rowOrId.original.id_epafis || rowOrId.original.id));
+      console.log("Extracted ID from object:", ekpaideutisId);
     }
-
-    if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον εκπαιδευτή;")) {
-      return;
-    }
-
-    // First, get all schools this instructor teaches at
-    const schools = sxolesData.filter(school => 
-      Array.isArray(school.ekpaideutes) && 
-      school.ekpaideutes.some(t => 
-        t.id == ekpaideutisId || 
-        t.id_ekpaideuti == ekpaideutisId || 
-        t.id_epafis == ekpaideutisId
-      )
-    );
-    
-    // Remove the instructor from all schools first
-    for (const school of schools) {
-      try {
-        await axios.delete(`http://localhost:5000/api/sxoles/${school.id_sxolis}/ekpaideutis/${ekpaideutisId}`);
-        console.log(`Removed instructor ${ekpaideutisId} from school ${school.id_sxolis}`);
-      } catch (err) {
-        console.error(`Failed to remove instructor from school ${school.id_sxolis}:`, err);
-        // Continue with others even if one fails
+    // Γ. Αν είναι undefined/null, προσπαθούμε να πάρουμε το ID από το DOM
+    else {
+      console.log("No valid argument, trying to find selected row in DOM");
+      // 1. Έλεγχος για επιλεγμένη σειρά με κλάση Mui-selected
+      const selectedRow = document.querySelector('.MuiDataGrid-row.Mui-selected');
+      if (selectedRow) {
+        const rowId = selectedRow.getAttribute('data-id');
+        if (rowId) {
+          ekpaideutisId = rowId;
+          console.log("Found ID from selected row:", ekpaideutisId);
+        }
+      }
+      
+      // 2. Έλεγχος για πρόσφατα κλικαρισμένο κουμπί διαγραφής
+      if (!ekpaideutisId) {
+        const deleteBtn = document.querySelector('.MuiIconButton-root:focus');
+        if (deleteBtn) {
+          const row = deleteBtn.closest('.MuiDataGrid-row');
+          if (row) {
+            const rowId = row.getAttribute('data-id');
+            if (rowId) {
+              ekpaideutisId = rowId;
+              console.log("Found ID from delete button's row:", ekpaideutisId);
+            }
+          }
+        }
+      }
+      
+      // 3. Έλεγχος για το currentEkpaideutisId από το state
+      if (!ekpaideutisId && currentEkpaideutisId) {
+        ekpaideutisId = currentEkpaideutisId;
+        console.log("Using currentEkpaideutisId:", ekpaideutisId);
       }
     }
 
-    // Now delete the instructor - διορθώνουμε το endpoint
-    await axios.delete(`http://localhost:5000/api/Repafes/${ekpaideutisId}`);
-    console.log("Instructor deleted successfully");
+    // Αν ακόμα δεν έχουμε ID, αναζήτηση στον πίνακα εκπαιδευτών
+    if (!ekpaideutisId) {
+      console.log("All methods failed. Asking user to select an instructor from the list");
+      
+      // Δημιουργία popup επιλογής
+      if (ekpaideutesData.length > 0) {
+        const instructorsList = ekpaideutesData.map(e => 
+          `${e.id_ekpaideuti || e.id_epafis || e.id}: ${e.onoma} ${e.epitheto}`
+        ).join('\n');
+        
+        const userInput = prompt(
+          `Παρακαλώ επιλέξτε ID εκπαιδευτή για διαγραφή:\n\n${instructorsList}`
+        );
+        
+        if (userInput) {
+          const parsedId = parseInt(userInput.split(':')[0].trim());
+          if (!isNaN(parsedId)) {
+            ekpaideutisId = parsedId;
+            console.log("User selected instructor ID:", ekpaideutisId);
+          }
+        }
+      }
+    }
 
-    // Update local state
-    setEkpaideutesData(prev =>
-      prev.filter(
-        e =>
-          e.id_epafis != ekpaideutisId &&
-          e.id_ekpaideuti != ekpaideutisId &&
-          e.id != ekpaideutisId
+    // Αν ακόμα δεν έχουμε ID, σταματάμε
+    if (!ekpaideutisId && ekpaideutisId !== 0) {
+      console.error("Could not determine which instructor to delete");
+      alert("Δεν ήταν δυνατό να προσδιοριστεί ποιος εκπαιδευτής να διαγραφεί. Παρακαλώ επιλέξτε έναν εκπαιδευτή και δοκιμάστε ξανά.");
+      return;
+    }
+
+    // ΒΗΜΑ 2: Μετατροπή σε αριθμό αν είναι string
+    const numericId = parseInt(ekpaideutisId);
+    if (isNaN(numericId)) {
+      console.error("ID is not a valid number:", ekpaideutisId);
+      alert("Το ID δεν είναι έγκυρο.");
+      return;
+    }
+    
+    console.log("Final instructor ID for deletion:", numericId);
+
+    // ΒΗΜΑ 3: Εύρεση εκπαιδευτή στα τοπικά δεδομένα
+    const instructor = ekpaideutesData.find(e => 
+      e.id_ekpaideuti == numericId || 
+      e.id_epafis == numericId || 
+      e.id == numericId
+    );
+    
+    // ΒΗΜΑ 4: Επιβεβαίωση
+    if (!window.confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον εκπαιδευτή ${
+      instructor ? `"${instructor.onoma} ${instructor.epitheto}"` : `με ID ${numericId}`
+    };`)) {
+      return;
+    }
+
+    // ΒΗΜΑ 5: Αφαίρεση από όλες τις σχολές πρώτα
+    const schools = sxolesData.filter(school => 
+      Array.isArray(school.ekpaideutes) && 
+      school.ekpaideutes.some(t => 
+        t.id == numericId || 
+        t.id_ekpaideuti == numericId || 
+        t.id_epafis == numericId
       )
     );
+    
+    console.log(`Will remove instructor from ${schools.length} schools`);
+    
+    for (const school of schools) {
+      try {
+        const schoolId = school.id_sxolis || school.id;
+        console.log(`Removing instructor ${numericId} from school ${schoolId}`);
+        await axios.delete(`http://localhost:5000/api/sxoles/${schoolId}/ekpaideutis/${numericId}`);
+      } catch (err) {
+        console.error(`Failed to remove instructor from school:`, err);
+      }
+    }
+
+    // ΒΗΜΑ 6: Διαγραφή του εκπαιδευτή
+    console.log(`Deleting instructor with ID ${numericId}`);
+    await axios.delete(`http://localhost:5000/api/Repafes/${numericId}`);
+
+    // ΒΗΜΑ 7: Ενημέρωση τοπικών δεδομένων
+    setEkpaideutesData(prev =>
+      prev.filter(e =>
+        e.id_epafis != numericId &&
+        e.id_ekpaideuti != numericId &&
+        e.id != numericId
+      )
+    );
+    
     setSxolesData(prev =>
       prev.map(sxoli => ({
         ...sxoli,
         ekpaideutes: Array.isArray(sxoli.ekpaideutes)
-          ? sxoli.ekpaideutes.filter(
-              t =>
-                t.id != ekpaideutisId &&
-                t.id_ekpaideuti != ekpaideutisId &&
-                t.id_epafis != ekpaideutisId
+          ? sxoli.ekpaideutes.filter(t =>
+              t.id != numericId &&
+              t.id_ekpaideuti != numericId &&
+              t.id_epafis != numericId
             )
           : sxoli.ekpaideutes
       }))
     );
+    
+    alert("Ο εκπαιδευτής διαγράφηκε επιτυχώς.");
   } catch (error) {
-    console.error("Σφάλμα κατά τη διαγραφή εκπαιδευτή:", error);
-    // Show more detailed error if available
-    if (error.response && error.response.data) {
-      alert("Σφάλμα κατά τη διαγραφή εκπαιδευτή: " + (error.response.data.error || error.message));
-    } else {
-      alert("Σφάλμα κατά τη διαγραφή εκπαιδευτή: " + error.message);
-    }
+    console.error("Error deleting instructor:", error);
+    alert("Σφάλμα κατά τη διαγραφή εκπαιδευτή: " + (error.response?.data?.error || error.message));
   }
 };
 
@@ -1926,6 +2005,7 @@ const handleEditEkpaideutiClick = async (row) => {
                       <TableCell>{teacher.klados}</TableCell>
                     </TableRow>
                   ))}
+
                 </TableBody>
               </Table>
             </TableContainer>
@@ -2108,23 +2188,31 @@ const formatDateForInput = (dateString) => {
           <Typography variant="h5" sx={{ mb: 2 }}>
             Εκπαιδευτές ({ekpaideutesData.length})
           </Typography>
-          <DataTable
-            data={ekpaideutesData}
-            columns={ekpaideutesColumns}
-            detailPanelConfig={ekpaideutisDetailPanelConfig}
-            getRowId={(row) => row.id_ekpaideuti}
-            initialState={{
-              columnVisibility: { id_ekpaideuti: false },
-              sorting: [{ id: 'fullName', desc: false }]
-            }}
-            state={{ isLoading: loading }}
-            enableExpand={true}
-            enableRowActions={true}
-            handleEditClick={handleEditEkpaideutiClick}
-            handleDelete={handleDeleteEkpaideutis}
-            enableAddNew={true}
-            onAddNew={() => setAddEkpaideutiDialogOpen(true)}
-          />
+ <DataTable
+  data={ekpaideutesData}
+  columns={ekpaideutesColumns}
+  detailPanelConfig={ekpaideutisDetailPanelConfig}
+  getRowId={(row) => row.id_ekpaideuti || row.id_epafis || row.id}
+  initialState={{
+    columnVisibility: { id_ekpaideuti: false },
+    sorting: [{ id: 'fullName', desc: false }]
+  }}
+  state={{ isLoading: loading }}
+  enableExpand={true}
+  enableRowActions={true}
+  handleEditClick={handleEditEkpaideutiClick}
+  handleDelete={handleDeleteEkpaideutis}
+  deleteConfig={{
+    getPayload: (row) => {
+      console.log("Delete config called with:", row);
+      const id = row?.id_ekpaideuti || row?.id_epafis || row?.id;
+      console.log("Extracted ID:", id);
+      return id;
+    }
+  }}
+  enableAddNew={true}
+  onAddNew={() => setAddEkpaideutiDialogOpen(true)}
+/>
         </Box>
         
         {/* Dialog για προσθήκη σχολής */}

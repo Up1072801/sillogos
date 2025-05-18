@@ -345,20 +345,37 @@ router.delete("/:id", async (req, res) => {
     if (isNaN(id)) {
       return res.status(400).json({ error: "Μη έγκυρο ID εξοπλισμού" });
     }
-
+    
     // Έλεγχος αν ο εξοπλισμός υπάρχει
     const existingEquipment = await prisma.eksoplismos.findUnique({
-      where: { id_eksoplismou: id }
+      where: { id_eksoplismou: id },
+      include: { daneizetai: true }
     });
 
     if (!existingEquipment) {
       return res.status(404).json({ error: "Ο εξοπλισμός δεν βρέθηκε" });
     }
 
-
-    await prisma.eksoplismos.delete({
-      where: { id_eksoplismou: id }
-    });
+    // Έλεγχος αν υπάρχουν σχετικοί δανεισμοί
+    if (existingEquipment.daneizetai && existingEquipment.daneizetai.length > 0) {
+      // Υπάρχει τουλάχιστον ένας δανεισμός - διαγραφή με transaction
+      await prisma.$transaction(async (prisma) => {
+        // Διαγραφή όλων των δανεισμών αυτού του εξοπλισμού
+        await prisma.daneizetai.deleteMany({
+          where: { id_eksoplismou: id }
+        });
+        
+        // Τώρα διαγραφή του εξοπλισμού
+        await prisma.eksoplismos.delete({
+          where: { id_eksoplismou: id }
+        });
+      });
+    } else {
+      // Δεν υπάρχουν δανεισμοί, απλή διαγραφή
+      await prisma.eksoplismos.delete({
+        where: { id_eksoplismou: id }
+      });
+    }
 
     res.json({ success: true, message: "Ο εξοπλισμός διαγράφηκε με επιτυχία" });
   } catch (error) {
