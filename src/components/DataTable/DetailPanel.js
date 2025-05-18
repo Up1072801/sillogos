@@ -69,8 +69,21 @@ const DetailPanel = ({ row, detailFields, extraColumns, enableEdit, handleEditCl
                 </Table>
                 {enableEdit && (
                   <Box sx={{ padding: 2 }}>
-                    <Button variant="contained" startIcon={<Add />} onClick={() => handleAddClick(tableData)}>
-                      Προσθήκη Νέου
+                    <Button 
+                      variant="contained" 
+                      startIcon={<Add />} 
+                      onClick={() => {
+                        // Περνάμε το ID του γονικού row και το πλήρες αντικείμενο
+                        if (row && row.original) {
+                          console.log("DetailPanel: Passing parent row info to handleAddClick", row.id, row.original);
+                          handleAddClick(row.id, row.original);
+                        } else {
+                          console.log("DetailPanel: No parent row info available");
+                          handleAddClick(tableData);
+                        }
+                      }}
+                    >
+                      {tableConfig.addNewButtonLabel || "Προσθήκη Νέου"}
                     </Button>
                   </Box>
                 )}
@@ -81,6 +94,14 @@ const DetailPanel = ({ row, detailFields, extraColumns, enableEdit, handleEditCl
       )}
     </Box>
   );
+};
+
+// Τροποποιημένη συνάρτηση handleAddClick
+const handleAddClick = (tableData, parentRow = null) => {
+  console.log("DetailPanel handleAddClick with:", tableData, "parentRow:", parentRow);
+  if (tableConfig.onAddNew) {
+    tableConfig.onAddNew(tableData, parentRow);
+  }
 };
 
 export default DetailPanel;

@@ -37,7 +37,7 @@ export default function SchoolDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
+  const [currentParticipantId, setCurrentParticipantId] = useState(null);
   // Dialog states
   const [editSchoolDialog, setEditSchoolDialog] = useState(false);
   const [editedSchool, setEditedSchool] = useState(null);
@@ -984,7 +984,19 @@ const handleRemovePayment = async (paymentId, participantId) => {
           
           handleRemovePayment(paymentId, participantId);
         },
-        onAddNew: (parentId) => handleOpenPaymentDialog(parentId),
+        onAddNew: () => {
+          if (currentParticipantId) {
+            const participant = participants.find(p => 
+              String(p.id_parakolouthisis) === String(currentParticipantId)
+            );
+            if (participant) {
+              handleOpenPaymentDialog(participant);
+              return;
+            }
+          }
+          
+          alert("Παρακαλώ επιλέξτε πρώτα έναν συμμετέχοντα");
+        },
         columns: [
           { 
             accessorKey: "poso", 
@@ -1275,6 +1287,10 @@ const calculateBalance = (participant) => {
                 console.log("Delete config getting payload for participant:", row);
                 return row.id_parakolouthisis;
               }
+            }}
+            onRowExpand={(row) => {
+              console.log("Row expanded:", row);
+              setCurrentParticipantId(row.id);
             }}
             enableAddNew={false}
             tableName="parakolouthiseis"

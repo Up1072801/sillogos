@@ -641,43 +641,32 @@ router.post("/agona/:id_agona/athletes", async (req, res) => {
 
 // DELETE: Αφαίρεση αθλητή από αγώνα
 router.delete("/agona/:id_agona/athlete/:id_athliti", async (req, res) => {
+  const id_agona = parseInt(req.params.id_agona);
+  const id_athliti = parseInt(req.params.id_athliti);
+
   try {
-    const id_agona = parseInt(req.params.id_agona);
-    const id_athliti = parseInt(req.params.id_athliti);
-    
-    if (isNaN(id_agona) || isNaN(id_athliti)) {
-      return res.status(400).json({ error: "Μη έγκυρα IDs" });
-    }
-    
-    // Προσθήκη επιβεβαίωσης ότι η διαγραφή ήταν επιτυχής
+    // Χρήση deleteMany αντί για findUnique + delete για να αποφύγουμε το πρόβλημα με το composite key
     const result = await prisma.agonizetai.deleteMany({
-      where: { 
+      where: {
         id_agona: id_agona,
-        id_athliti: id_athliti 
+        id_athliti: id_athliti
       }
     });
     
-    console.log(`Διαγράφηκαν ${result.count} εγγραφές`);
-    
-    // Έλεγχος αν διαγράφηκε κάποια εγγραφή
     if (result.count === 0) {
-      // Επιστρέφει επιτυχία αλλά με πληροφορία ότι δε βρέθηκε η εγγραφή
       return res.status(200).json({ 
         message: "Ο αθλητής δεν υπήρχε στον αγώνα ή έχει ήδη αφαιρεθεί",
         deletedCount: 0
       });
     }
     
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Ο αθλητής αφαιρέθηκε επιτυχώς από τον αγώνα",
       deletedCount: result.count
     });
   } catch (error) {
-    console.error("Σφάλμα κατά την αφαίρεση του αθλητή από τον αγώνα:", error);
-    res.status(500).json({ 
-      error: "Σφάλμα κατά την αφαίρεση του αθλητή από τον αγώνα", 
-      details: error.message 
-    });
+    console.error("Σφάλμα διαγραφής συμμετοχής:", error);
+    res.status(500).json({ error: "Σφάλμα διαγραφής συμμετοχής", details: error.message });
   }
 });
 
@@ -870,7 +859,7 @@ router.post("/agona/:id/athletes", async (req, res) => {
         const fullName = `${firstName} ${lastName}`.trim();
         return {
           id: athlitis.id_athliti,
-          id_athliti: athlitis.id_athliti,
+          id_athliti: athlitis.id_athλiti,
           firstName,
           lastName,
           fullName,

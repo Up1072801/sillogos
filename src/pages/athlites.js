@@ -297,30 +297,28 @@ export default function Athlites() {
 
     switch (type) {
       case 'athlete':
-        message = "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον αθλητή;";
+        message = "Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτόν τον αθλητή;";
         break;
       case 'competition':
-        message = "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον αγώνα;";
+        message = "Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτόν τον αγώνα;";
         break;
       case 'athlete-from-competition':
-        message = "Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον αθλητή από τον αγώνα;";
+        message = "Είστε βέβαιοι ότι θέλετε να αφαιρέσετε τον αθλητή από αυτόν τον αγώνα;";
         break;
       default:
-        message = "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το στοιχείο;";
+        message = "Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτό το στοιχείο;";
     }
     
     if (window.confirm(message)) {
       console.log(`Επιβεβαιώθηκε διαγραφή: ${type} με ID: ${id}`);
-      switch (type) {
-        case 'athlete':
-          handleDeleteAthlete(id);
-          break;
-        case 'competition':
-          handleDeleteCompetition(id);
-          break;
-        case 'athlete-from-competition':
-          handleDeleteAthleteFromCompetition(id, secondaryId);
-          break;
+      
+      if (type === 'athlete-from-competition') {
+        console.log("Αφαίρεση αθλητή από αγώνα:", { id, secondaryId });
+        handleDeleteAthleteFromCompetition(id, secondaryId);
+      } else if (type === 'competition') {
+        handleDeleteCompetition(id);
+      } else if (type === 'athlete') {
+        handleDeleteAthlete(id);
       }
     }
   };
@@ -432,6 +430,78 @@ const handleEditCompetition = (competition) => {
     }));
   };
 
+  // Move this function up right after toggleCompetition and before sportDetailPanelConfig
+const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
+  try {
+    if (!competitionId || !athleteId) {
+      console.error("Λείπει το ID αγώνα ή αθλητή");
+      return false;
+    }
+
+    // Make sure we're using the correct ID properties
+    console.log("Original IDs:", { competitionId, athleteId });
+    
+    let compId = competitionId;
+    let athId = athleteId;
+
+    // If they are objects, extract the correct IDs
+    if (typeof competitionId === 'object') {
+      console.log("Competition ID is object:", competitionId);
+      compId = competitionId.id_agona || competitionId.id;
+    }
+    if (typeof athleteId === 'object') {
+      console.log("Athlete ID is object:", athleteId);
+      athId = athleteId.id_athliti || athleteId.id;
+    }
+
+    // Convert to numbers
+    compId = parseInt(compId);
+    athId = parseInt(athId);
+
+    if (isNaN(compId) || isNaN(athId)) {
+      console.error("Μη έγκυρα IDs για διαγραφή αθλητή από αγώνα:", { compId, athId });
+      return false;
+    }
+
+    console.log(`Αφαίρεση αθλητή ${athId} από τον αγώνα ${compId}`);
+
+    const deleteRoute = `http://localhost:5000/api/athlites/agona/${compId}/athlete/${athId}`;
+    console.log("Using DELETE route:", deleteRoute);
+
+    // Try to delete the athlete from the competition
+    const response = await axios.delete(deleteRoute);
+    console.log("API response:", response.data);
+
+    // Manually update the sportsData state to remove the athlete from the competition
+    setSportsData(prevSportsData => 
+      prevSportsData.map(sport => ({
+        ...sport,
+        agones: sport.agones.map(agonas => {
+          if (agonas.id_agona === compId || agonas.id === compId) {
+            return {
+              ...agonas,
+              summetexontes: (agonas.summetexontes || []).filter(
+                a => (a.id !== athId && a.id_athliti !== athId)
+              ),
+              summetexontesCount: (agonas.summetexontes?.length || 0) - 1
+            };
+          }
+          return agonas;
+        })
+      }))
+    );
+    
+    // Refresh data to ensure consistency
+    console.log("Refreshing data to update UI...");
+    await refreshData();
+    
+    return true;
+  } catch (error) {
+    console.error("Σφάλμα κατά την αφαίρεση αθλητή από αγώνα:", error);
+    alert(`Σφάλμα: ${error.response?.data?.message || error.message}`);
+    return false;
+  }
+};
   // ΤΩΡΑ μπορούμε με ασφάλεια να ορίσουμε το sportDetailPanelConfig
   const sportDetailPanelConfig = useMemo(() => ({
     mainDetails: [
@@ -692,6 +762,7 @@ const handleEditCompetition = (competition) => {
                                           onClick={() => {
                                             const competitionId = competition.id_agona || competition.id;
                                             const athleteId = athlete.id_athliti || athlete.id;
+                                            console.log("Deleting athlete with IDs:", { competitionId, athleteId, athlete });
                                             handleConfirmDelete(competitionId, athleteId, 'athlete-from-competition');
                                           }}
                                         >
@@ -1486,6 +1557,21 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
     }
   ], []);
 
+const handleAthleteCompetitionTableDelete = (athlete, competition) => {
+  console.log("Delete from table called with:", { athlete, competition });
+  
+  // The competition parameter comes from the parent row context
+  const competitionId = competition?.id_agona || competition?.id;
+  
+  // The athlete parameter is the actual row being deleted
+  const athleteId = athlete?.id_athliti || athlete?.id;
+  
+  console.log("Extracted IDs:", { competitionId, athleteId });
+  
+  // Now call the original function with parameters in the correct order
+  return handleDeleteAthleteFromCompetition(competitionId, athleteId);
+};
+
   // Διαμόρφωση του detail panel για τους αγώνες - διορθώνουμε το ορθογραφικό
   const competitionDetailPanelConfig = useMemo(() => ({
     mainDetails: [
@@ -1499,19 +1585,17 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
         title: "Συμμετοχές Αθλητών",
         accessor: "summetexontes",
         columns: [
-          { accessor: "fullName", header: "Οματεπώνυμο" }, // Διόρθωση του ορθογραφικού
+          { accessor: "fullName", header: "Οματεπώνυμο" },
           { accessor: "arithmosdeltiou", header: "Αριθμός Δελτίου" }
         ],
-        onDelete: (rowData, athlete) => {
-          const competitionId = rowData.id_agona || rowData.id;
-          const athleteId = athlete.id_athliti || athlete.id;
-          handleConfirmDelete(competitionId, athleteId, 'athlete-from-competition');
-        },
+        // Use the adapter function which handles the parameter order correctly
+        onDelete: handleAthleteCompetitionTableDelete,
         onAddNew: (competitionId) => handleAddAthleteToCompetition(competitionId)
       }
     ],
     showEditButton: true
-  }), [handleConfirmDelete, handleAddAthleteToCompetition]);
+  }), [handleAddAthleteToCompetition]);
+
 
   // Διορθωμένη συνάρτηση filterCompetitions
   const filterCompetitions = () => {
@@ -1562,34 +1646,6 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
   setFilteredCompetitions(filtered);
 };
 
-  // Βελτιωμένη έκδοση για διαγραφή αθλητή από αγώνα
-const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
-  try {
-    if (!competitionId || !athleteId) {
-      console.error("Λείπει το ID αγώνα ή αθλητή");
-      return;
-    }
-
-    const compId = Number(competitionId);
-    const athId = Number(athleteId);
-
-    if (isNaN(compId) || isNaN(athId)) {
-      console.error("Μη έγκυρα IDs για διαγραφή αθλητή από αγώνα");
-      return;
-    }
-
-    const response = await axios.delete(`http://localhost:5000/api/athlites/agona/${compId}/athlete/${athId}`);
-    console.log("API response:", response.data);
-
-    await refreshData();
-
-    return true;
-  } catch (error) {
-    console.error("Σφάλμα κατά την αφαίρεση αθλητή από αγώνα:", error);
-    alert(`Σφάλμα: ${error.response?.data?.error || error.message}`);
-    return false;
-  }
-};
 
 // Νέα συνάρτηση για προβολή διαλόγου επιβεβαίωσης όπως στο EksormisiDetails.js
 const showDeleteConfirmation = (item, type, callback) => {
