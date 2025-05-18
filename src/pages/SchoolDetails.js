@@ -696,7 +696,11 @@ const handleRemoveParticipant = async (participantOrId) => {
     
     await axios.delete(`http://localhost:5000/api/sxoles/${id}/parakolouthisi/${participantId}`);
     
-    // Υπόλοιπος υπάρχων κώδικας...
+    setParticipants(prevParticipants => 
+      prevParticipants.filter(p => p.id_parakolouthisis !== participantId)
+    );
+    
+    alert("Ο συμμετέχων αφαιρέθηκε επιτυχώς");
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση συμμετέχοντα:", error);
     alert("Σφάλμα: " + error.message);
@@ -765,7 +769,7 @@ const handleAddPayment = async (payment) => {
     
     console.log("Sending payment data:", paymentData, "for participant:", paymentParticipant.id_parakolouthisis);
     
-    // Κλήση του API
+    // Κλήση του API με το σωστό endpoint
     const response = await axios.post(
       `http://localhost:5000/api/sxoles/${id}/parakolouthisi/${paymentParticipant.id_parakolouthisis}/payment`,
       paymentData
@@ -959,9 +963,11 @@ const handleRemovePayment = async (paymentId, participantId) => {
         getData: (row) => {
           console.log("Getting payments for row:", row);
           return (row.katavalei || []).map(payment => ({
-            ...payment,
-            id: payment.id,
-            id_katavalei: payment.id
+            id: payment.id || payment.id_katavalei,
+            id_katavalei: payment.id || payment.id_katavalei,
+            poso: payment.poso,
+            hmerominia_katavolhs: payment.hmerominia_katavolhs,
+            participantId: row.id_parakolouthisis // Add participant ID to each payment
           }));
         },
         onDelete: (payment, participant) => {
@@ -974,7 +980,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
             return;
           }
           
-          const paymentId = payment.id || payment.id_katavalei;
+          const paymentId = payment.id || payment.id_katavolei;
           const participantId = participant.id_parakolouthisis;
           
           if (!paymentId || !participantId) {
@@ -984,18 +990,94 @@ const handleRemovePayment = async (paymentId, participantId) => {
           
           handleRemovePayment(paymentId, participantId);
         },
-        onAddNew: () => {
+        onAddNew: (rowOrId, meta) => {
+          console.log("onAddNew called with:", { rowOrId, meta });
+          
+          // First check if we're getting a full object with id_parakolouthisis
+          if (rowOrId && typeof rowOrId === 'object' && rowOrId.id_parakolouthisis) {
+            console.log("Using rowOrId object directly");
+            handleOpenPaymentDialog(rowOrId);
+            return;
+          }
+          
+          // Second, if we have parent participant data in meta parameter
+          if (meta && typeof meta === 'object') {
+            // Check if meta has the participant object
+            if (meta.id_parakolouthisis) {
+              console.log("Using meta object with id_parakolouthisis");
+              handleOpenPaymentDialog(meta);
+              return;
+            }
+            
+            // Check if meta has participant ID in parentId
+            if (meta.parentId || meta.participantId) {
+              const participantId = meta.parentId || meta.participantId;
+              console.log("Found parentId/participantId in meta:", participantId);
+              const participant = participants.find(p => 
+                String(p.id_parakolouthisis) === String(participantId)
+              );
+              if (participant) {
+                console.log("Found participant using meta parentId/participantId");
+                handleOpenPaymentDialog(participant);
+                return;
+              }
+            }
+          }
+          
+          // Third, check if rowOrId is a participant ID
+          if (rowOrId) {
+            console.log("Checking if rowOrId is participant ID:", rowOrId);
+            
+            // Try direct match
+            const participant = participants.find(p => 
+              String(p.id_parakolouthisis) === String(rowOrId)
+            );
+            
+            if (participant) {
+              console.log("Found participant by ID match");
+              handleOpenPaymentDialog(participant);
+              return;
+            }
+            
+            // Try with parent row
+            if (typeof rowOrId === 'object' && rowOrId.parentRow) {
+              const parentId = rowOrId.parentRow.id;
+              console.log("Found parentRow with ID:", parentId);
+              const parentParticipant = participants.find(p => 
+                String(p.id_parakolouthisis) === String(parentId)
+              );
+              if (parentParticipant) {
+                console.log("Found participant via parentRow");
+                handleOpenPaymentDialog(parentParticipant);
+                return;
+              }
+            }
+          }
+          
+          // Finally, try current selected participant
           if (currentParticipantId) {
+            console.log("Using currentParticipantId:", currentParticipantId);
             const participant = participants.find(p => 
               String(p.id_parakolouthisis) === String(currentParticipantId)
             );
             if (participant) {
+              console.log("Found participant via currentParticipantId");
               handleOpenPaymentDialog(participant);
               return;
             }
           }
           
-          alert("Παρακαλώ επιλέξτε πρώτα έναν συμμετέχοντα");
+          // If we get here, automatically open the payment dialog with the first participant
+          // instead of showing an error
+          if (participants && participants.length > 0) {
+            console.log("Falling back to first participant in list");
+            handleOpenPaymentDialog(participants[0]);
+            return;
+          }
+          
+          // Only show error if no participants exist at all
+          console.error("No participants found in the system");
+          alert("Δεν υπάρχουν συμμετέχοντες. Προσθέστε πρώτα έναν συμμετέχοντα.");
         },
         columns: [
           { 
@@ -1290,7 +1372,9 @@ const calculateBalance = (participant) => {
             }}
             onRowExpand={(row) => {
               console.log("Row expanded:", row);
-              setCurrentParticipantId(row.id);
+              const participantId = row.id_parakolouthisis || row.id;
+              console.log("Setting currentParticipantId to:", participantId);
+              setCurrentParticipantId(participantId);
             }}
             enableAddNew={false}
             tableName="parakolouthiseis"
