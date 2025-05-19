@@ -11,7 +11,7 @@ import {
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
 import SelectionDialog from "../components/SelectionDialog";
-import axios from "axios";
+import api from '../utils/api';
 import * as yup from "yup";
 import "./App.css";
 import { Add, Edit, Delete, KeyboardArrowUp as KeyboardArrowUpIcon, KeyboardArrowDown as KeyboardArrowDownIcon } from '@mui/icons-material';
@@ -135,10 +135,10 @@ export default function Athlites() {
       try {
         // Add the missing Promise.all() function here
         const [athletesRes, sportsRes, sportsListRes, difficultyRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/athlites/athletes"),
-          axios.get("http://localhost:5000/api/athlites/sports"),
-          axios.get("http://localhost:5000/api/athlites/sports-list"),
-          axios.get("http://localhost:5000/api/vathmoi-diskolias")
+          api.get("/athlites/athletes"),
+          api.get("/athlites/sports"),
+          api.get("/athlites/sports-list"),
+          api.get("/vathmoi-diskolias")
         ]);
 
         // Προσθήκη fullName για καλύτερο φιλτράρισμα
@@ -279,7 +279,7 @@ export default function Athlites() {
         return [];
       }
       
-      const response = await axios.get(`http://localhost:5000/api/athlites/by-sport/${sportId}`);
+      const response = await api.get(`/athlites/by-sport/${sportId}`);
       const athletesData = response.data;
       
       setAthletesBySport(athletesData);
@@ -465,11 +465,11 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
 
     console.log(`Αφαίρεση αθλητή ${athId} από τον αγώνα ${compId}`);
 
-    const deleteRoute = `http://localhost:5000/api/athlites/agona/${compId}/athlete/${athId}`;
+    const deleteRoute = `/athlites/agona/${compId}/athlete/${athId}`;
     console.log("Using DELETE route:", deleteRoute);
 
     // Try to delete the athlete from the competition
-    const response = await axios.delete(deleteRoute);
+    const response = await api.delete(deleteRoute);
     console.log("API response:", response.data);
 
     // Manually update the sportsData state to remove the athlete from the competition
@@ -847,15 +847,15 @@ const handleAddCompetition = async (newCompetition) => {
     if (editCompetitionData) {
       // Ενημέρωση υπάρχοντος αγώνα
       const competitionId = editCompetitionData.id_agona || editCompetitionData.id;
-      await axios.put(`http://localhost:5000/api/athlites/agona/${competitionId}`, requestData);
+      await api.put(`/athlites/agona/${competitionId}`, requestData);
       
       // Ενημέρωση αθλητών στον αγώνα
-      await axios.post(`http://localhost:5000/api/athlites/agona/${competitionId}/athletes`, {
+      await api.post(`/athlites/agona/${competitionId}/athletes`, {
         athleteIds: requestData.athleteIds
       });
     } else {
       // Προσθήκη νέου αγώνα
-      await axios.post("http://localhost:5000/api/athlites/agona", requestData);
+      await api.post("/athlites/agona", requestData);
     }
     
     // Ανανέωση δεδομένων
@@ -881,8 +881,8 @@ const handleAddCompetition = async (newCompetition) => {
       const currentAthletes = [...athletesData];
       
       const [athletesRes, sportsRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/athlites/athletes"),
-        axios.get("http://localhost:5000/api/athlites/sports"),
+        api.get("/athlites/athletes"),
+        api.get("/athlites/sports"),
       ]);
 
       // Much more robust athlete formatting
@@ -1027,7 +1027,7 @@ const handleCompetitionAthleteSelection = async (selectedIds) => {
 
     console.log(`Προσθήκη ${validIds.length} αθλητών στον αγώνα ${selectedCompetitionId}`);
 
-    await axios.post(`http://localhost:5000/api/athlites/agona/${selectedCompetitionId}/athletes`, {
+    await api.post(`/athlites/agona/${selectedCompetitionId}/athletes`, {
       athleteIds: validIds
     });
 
@@ -1055,7 +1055,7 @@ const handleCompetitionAthleteSelection = async (selectedIds) => {
       console.log(`Διαγραφή αθλητή με ID: ${id}`);
       
       // API κλήση
-      await axios.delete(`http://localhost:5000/api/athlites/athlete/${id}`);
+      await api.delete(`/athlites/athlete/${id}`);
       
       // Άμεση ενημέρωση του τοπικού state
       setAthletesData(prevData => prevData.filter(athlete => athlete.id !== id));
@@ -1098,7 +1098,7 @@ const handleDeleteCompetition = async (competitionId) => {
     console.log(`Διαγραφή αγώνα με ID: ${id}`);
     
     // Κλήση του API για διαγραφή
-    await axios.delete(`http://localhost:5000/api/athlites/agona/${id}`);
+    await api.delete(`/athlites/agona/${id}`);
     
     // Τοπική ενημέρωση του state - αφαίρεση του αγώνα από όλα τα αθλήματα
     setSportsData(prevSportsData => {
@@ -1163,7 +1163,7 @@ const handleDeleteCompetition = async (competitionId) => {
         athlimata: newAthlete.athlimata ? newAthlete.athlimata.map(id => ({ id_athlimatos: parseInt(id) })) : [],
       };
 
-      const response = await axios.post("http://localhost:5000/api/athlites/athlete", requestData);
+      const response = await api.post("/athlites/athlete", requestData);
       
       // Προσθήκη του νέου αθλητή στα δεδομένα και κλείσιμο του dialog
       const formattedAthlete = {
@@ -1521,7 +1521,7 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
       };
 
       // Κλήση του API για ενημέρωση
-      await axios.put(`http://localhost:5000/api/athlites/athlete/${athleteId}`, requestData);
+      await api.put(`/athlites/athlete/${athleteId}`, requestData);
       
       // Ανανέωση των δεδομένων
       await refreshData();

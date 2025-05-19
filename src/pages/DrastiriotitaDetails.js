@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from '../utils/api';
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box, Typography, Paper, Container, Divider, Grid,
@@ -72,7 +72,7 @@ export default function DrastiriotitaDetails() {
       }
       
       // Fetch drastiriotita details
-      const drastiriotitaResponse = await axios.get(`http://localhost:5000/api/eksormiseis/drastiriotita/${id}`);
+      const drastiriotitaResponse = await api.get(`/eksormiseis/drastiriotita/${id}`);
       setDrastiriotita(drastiriotitaResponse.data);
       console.log("Drastiriotita data:", drastiriotitaResponse.data);
       
@@ -81,7 +81,7 @@ export default function DrastiriotitaDetails() {
       
       // Fetch participants
       try {
-        const participantsResponse = await axios.get(`http://localhost:5000/api/eksormiseis/drastiriotita/${id}/simmetexontes`);
+        const participantsResponse = await api.get(`/eksormiseis/drastiriotita/${id}/simmetexontes`);
         
         // Επεξεργασία συμμετεχόντων για σωστή διαμόρφωση πληρωμών και δραστηριοτήτων
         const processedParticipants = Array.isArray(participantsResponse.data) 
@@ -116,7 +116,7 @@ export default function DrastiriotitaDetails() {
       
       // Fetch difficulty levels
       try {
-        const difficultyResponse = await axios.get("http://localhost:5000/api/vathmoi-diskolias");
+        const difficultyResponse = await api.get("/vathmoi-diskolias");
         setDifficultyLevels(difficultyResponse.data);
       } catch (err) {
         console.error("Σφάλμα φόρτωσης βαθμών δυσκολίας:", err);
@@ -124,7 +124,7 @@ export default function DrastiriotitaDetails() {
       
       // Fetch available members
       try {
-        const membersResponse = await axios.get("http://localhost:5000/api/melitousillogou");
+        const membersResponse = await api.get("/melitousillogou");
         
         // Filter out members who are already participants
         // Χρησιμοποιούμε τα participantsIds που ορίσαμε παραπάνω
@@ -219,7 +219,7 @@ export default function DrastiriotitaDetails() {
         hmerominia: updatedDrastiriotita.hmerominia
       };
       
-      await axios.put(`http://localhost:5000/api/eksormiseis/drastiriotita/${updatedDrastiriotita.id}`, formattedData);
+      await api.put(`/eksormiseis/drastiriotita/${updatedDrastiriotita.id}`, formattedData);
       
       refreshData();
       setEditDrastiriotitaDialog(false);
@@ -238,7 +238,7 @@ export default function DrastiriotitaDetails() {
     
     try {
       const drastiriotitaId = drastiriotita.id_drastiriotitas || drastiriotita.id;
-      await axios.delete(`http://localhost:5000/api/eksormiseis/drastiriotita/${drastiriotitaId}`);
+      await api.delete(`/eksormiseis/drastiriotita/${drastiriotitaId}`);
       
       // Navigate back to eksormisi page
       if (eksormisi?.id_eksormisis) {
@@ -306,7 +306,7 @@ export default function DrastiriotitaDetails() {
   const handleAddParticipant = async (newParticipant) => {
     try {
       // Call API to add participant to this drastiriotita
-      await axios.post(`http://localhost:5000/api/eksormiseis/${eksormisi.id_eksormisis}/simmetoxi`, {
+      await api.post(`/eksormiseis/${eksormisi.id_eksormisis}/simmetoxi`, {
         id_melous: parseInt(newParticipant.id_melous),
         id_drastiriotitas: parseInt(id),
         timi: parseFloat(newParticipant.timi),
@@ -334,7 +334,7 @@ export default function DrastiriotitaDetails() {
   // Handle saving edited participant
   const handleEditParticipantSave = async (updatedParticipant) => {
     try {
-      await axios.put(`http://localhost:5000/api/eksormiseis/simmetoxi/${updatedParticipant.id_simmetoxis}`, {
+      await api.put(`/eksormiseis/simmetoxi/${updatedParticipant.id_simmetoxis}`, {
         timi: parseFloat(updatedParticipant.timi),
         katastasi: updatedParticipant.katastasi
       });
@@ -356,7 +356,7 @@ export default function DrastiriotitaDetails() {
     
     try {
       const participantId = participant.id_simmetoxis || participant.id;
-      await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${participantId}`);
+      await api.delete(`/eksormiseis/simmetoxi/${participantId}`);
       
       refreshData();
     } catch (error) {
@@ -378,8 +378,8 @@ const handleAddPayment = async (payment) => {
   try {
     if (!paymentParticipant) return;
     
-    await axios.post(
-      `http://localhost:5000/api/eksormiseis/simmetoxi/${paymentParticipant.id_simmetoxis}/payment`, 
+    await api.post(
+      `/eksormiseis/simmetoxi/${paymentParticipant.id_simmetoxis}/payment`, 
       { 
         poso_pliromis: parseFloat(payment.poso),
         hmerominia_pliromis: payment.hmerominia_pliromis || new Date().toISOString()
@@ -402,7 +402,7 @@ const handleAddPayment = async (payment) => {
     }
     
     try {
-      await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
+      await api.delete(`/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
       refreshData();
     } catch (error) {
       console.error("Σφάλμα κατά την αφαίρεση πληρωμής:", error);

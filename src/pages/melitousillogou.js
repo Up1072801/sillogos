@@ -3,7 +3,7 @@ import DataTable from "../components/DataTable/DataTable";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { el } from "date-fns/locale";
-import axios from "axios";
+import api from '../utils/api';
 import { Box, Typography } from "@mui/material";
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
@@ -481,9 +481,9 @@ export default function Meloi() {
     const fetchData = async () => {
       try {
         const [membersRes, difficultyRes, typesRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/melitousillogou"),
-          axios.get("http://localhost:5000/api/vathmoi-diskolias"),
-          axios.get("http://localhost:5000/api/eidi-sindromis")
+          api.get("/melitousillogou"),
+          api.get("/vathmoi-diskolias"),
+          api.get("/eidi-sindromis")
         ]);
 
         setDifficultyLevels(difficultyRes.data);
@@ -611,7 +611,7 @@ export default function Meloi() {
 
       console.log("Αποστέλλονται δεδομένα:", requestData);
       
-      const response = await axios.post("http://localhost:5000/api/melitousillogou", requestData);
+      const response = await api.post("/melitousillogou", requestData);
       console.log("Απάντηση:", response.data);
       
       // Κλείσιμο του dialog
@@ -760,7 +760,7 @@ export default function Meloi() {
       
       console.log("Αποστέλλονται δεδομένα ενημέρωσης:", requestData);
       
-      const response = await axios.put(`http://localhost:5000/api/melitousillogou/${id}`, requestData);
+      const response = await api.put(`/melitousillogou/${id}`, requestData);
       console.log("Απάντηση από API:", response.data);
       
       // Ενημέρωση των τοπικών δεδομένων
@@ -827,7 +827,7 @@ export default function Meloi() {
         return;
       }
 
-      await axios.delete(`http://localhost:5000/api/melitousillogou/${id}`);
+      await api.delete(`/melitousillogou/${id}`);
       setData((prevData) => prevData.filter((item) => item.id !== id));
     } catch (error) {
       console.error("Error deleting member:", error);

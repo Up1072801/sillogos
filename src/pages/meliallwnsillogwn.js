@@ -3,7 +3,7 @@ import DataTable from "../components/DataTable/DataTable";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { el } from "date-fns/locale";
-import axios from "axios";
+import api from '../utils/api';
 import { Box, Typography } from "@mui/material";
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
@@ -121,8 +121,8 @@ export default function MeliAllwn() {
     const fetchData = async () => {
       try {
         const [membersRes, difficultyRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/meliallwnsillogwn"),
-          axios.get("http://localhost:5000/api/vathmoi-diskolias")
+          api.get("/meliallwnsillogwn"),
+          api.get("/vathmoi-diskolias")
         ]);
 
         setDifficultyLevels(difficultyRes.data);
@@ -175,7 +175,7 @@ export default function MeliAllwn() {
         },
       };
 
-      const response = await axios.post("http://localhost:5000/api/meliallwnsillogwn", requestData);
+      const response = await api.post("/meliallwnsillogwn", requestData);
       setOpenAddDialog(false);
       
       // Προσθήκη του νέου μέλους στα δεδομένα και διαμόρφωση του για το UI
@@ -244,7 +244,7 @@ export default function MeliAllwn() {
         return;
       }
 
-      const response = await axios.put(`http://localhost:5000/api/meliallwnsillogwn/${id}`, requestData);
+      const response = await api.put(`/meliallwnsillogwn/${id}`, requestData);
       
       // Ενημέρωση των δεδομένων στο UI
       const updatedMember = {
@@ -269,7 +269,7 @@ export default function MeliAllwn() {
         return;
       }
   
-      await axios.delete(`http://localhost:5000/api/meliallwnsillogwn/${id}`);
+      await api.delete(`/meliallwnsillogwn/${id}`);
       setData((prevData) => prevData.filter((item) => item.id !== id));
     } catch (error) {
       console.error("Error deleting member:", error);

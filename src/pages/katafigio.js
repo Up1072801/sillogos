@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from '../utils/api';
 import "./App.css";
 
 import DataTable from "../components/DataTable/DataTable";
@@ -123,9 +123,9 @@ export default function Katafigio() {
         
         // Φορτώνουμε κρατήσεις, καταφύγια και επαφές
         const [bookingsRes, sheltersRes, contactsRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/katafigio"),
-          axios.get("http://localhost:5000/api/katafigio/katafygia"),
-          axios.get("http://localhost:5000/api/Repafes")
+          api.get("/katafigio"),
+          api.get("/katafigio/katafygia"),
+          api.get("/Repafes")
         ]);
         
         // Διαμόρφωση των επαφών για χρήση σε φόρμες
@@ -356,7 +356,7 @@ const editBookingFormFields = [
       };
       
       // Αποστολή στο API
-      const response = await axios.post("http://localhost:5000/api/katafigio", formattedBooking);
+      const response = await api.post("/katafigio", formattedBooking);
       
       // Προσθήκη στα τοπικά δεδομένα
       setBookings(prevBookings => [...prevBookings, response.data]);
@@ -394,7 +394,7 @@ const handleEditBooking = async (editedBooking) => {
     };
     
     // Αποστολή ενημέρωσης κράτησης στο API
-    const response = await axios.put(`http://localhost:5000/api/katafigio/${editBookingData.id}`, formattedBooking);
+    const response = await api.put(`/katafigio/${editBookingData.id}`, formattedBooking);
     
     // ΔΕΝ επεξεργαζόμαστε πλέον την αρχική πληρωμή στην επεξεργασία κράτησης
     let updatedBooking = response.data;
@@ -424,7 +424,7 @@ const handleDeleteBooking = async (id) => {
     //   return;
     // }
     
-    await axios.delete(`http://localhost:5000/api/katafigio/${id}`);
+    await api.delete(`/katafigio/${id}`);
     
     // Αφαίρεση από τα τοπικά δεδομένα
     setBookings(prevBookings => prevBookings.filter(booking => booking.id !== id));
@@ -463,7 +463,7 @@ const handleSubmitPayment = async (paymentData) => {
     };
     
     // Αποστολή στο API
-    const response = await axios.post(`http://localhost:5000/api/katafigio/${currentBookingId}/payment`, formattedPayment);
+    const response = await api.post(`/katafigio/${currentBookingId}/payment`, formattedPayment);
     
     // Ενημέρωση των τοπικών δεδομένων
     setBookings(prevBookings => 
@@ -549,8 +549,8 @@ const handleSaveEditedPayment = async (editedPayment) => {
     };
 
     // Κλήση στο API για επεξεργασία πληρωμής
-    const response = await axios.put(
-      `http://localhost:5000/api/katafigio/${currentBookingId}/payment/${editPaymentData.id}`, 
+    const response = await api.put(
+      `/katafigio/${currentBookingId}/payment/${editPaymentData.id}`, 
       formattedPayment
     );
 
@@ -605,7 +605,7 @@ const handleDeletePayment = async (payment) => {
     }
 
     // Κλήση του API για διαγραφή της πληρωμής
-    await axios.delete(`http://localhost:5000/api/katafigio/${bookingWithPayment.id}/payment/${payment.id}`);
+    await api.delete(`/katafigio/${bookingWithPayment.id}/payment/${payment.id}`);
 
     // Ενημέρωση των τοπικών δεδομένων
     setBookings(prevBookings => 

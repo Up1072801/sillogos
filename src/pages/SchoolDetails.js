@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from '../utils/api';
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box, Typography, Paper, Container, Divider, Grid,
@@ -81,12 +81,12 @@ const fetchData = async () => {
     }
     
     // Fetch school details
-    const response = await axios.get(`http://localhost:5000/api/sxoles/${id}`);
+    const response = await api.get(`/sxoles/${id}`);
     setSchool(response.data);
     
     // Fetch participants
     try {
-      const participantsResponse = await axios.get(`http://localhost:5000/api/sxoles/${id}/parakolouthisi`);
+      const participantsResponse = await api.get(`/sxoles/${id}/parakolouthisi`);
       // Επεξεργασία δεδομένων συμμετεχόντων πριν την αποθήκευση
       const processedParticipants = participantsResponse.data.map(participant => {
         // Δημιουργία ονοματεπώνυμου από τα δεδομένα της επαφής
@@ -117,11 +117,11 @@ const fetchData = async () => {
       // Φόρτωση διαθέσιμων μελών - διορθωμένος κώδικας
 try {
   // Πρώτα φέρνουμε τα participants για να έχουμε τα σωστά IDs
-  const participantsResponse = await axios.get(`http://localhost:5000/api/sxoles/${id}/parakolouthisi`);
+  const participantsResponse = await api.get(`/sxoles/${id}/parakolouthisi`);
   const existingParticipants = participantsResponse.data || [];
   
   // Φέρνουμε όλα τα μέλη
-  const membersResponse = await axios.get("http://localhost:5000/api/melitousillogou");
+  const membersResponse = await api.get("/melitousillogou");
   console.log("Όλα τα μέλη:", membersResponse.data);
   
   // Δημιουργία Set με τα IDs των μελών που είναι ήδη συμμετέχοντες (String μορφή)
@@ -232,7 +232,7 @@ const handleEditSchoolSave = async (updatedSchool) => {
       seira: updatedSchool.seira ? parseInt(updatedSchool.seira) : null
     };
     
-    const response = await axios.put(`http://localhost:5000/api/sxoles/${id}`, formattedSchool);
+    const response = await api.put(`/sxoles/${id}`, formattedSchool);
     
     // Άμεση ενημέρωση του state σχολής
     setSchool(prevSchool => ({
@@ -282,7 +282,7 @@ const handleSaveLocations = async (locations) => {
     };
     
     // Send to API
-    await axios.put(`http://localhost:5000/api/sxoles/${id}`, updateData);
+    await api.put(`/sxoles/${id}`, updateData);
     
     // Update local state with formatted display data
     setSchool(prevSchool => ({
@@ -348,7 +348,7 @@ const handleSaveTeacher = async (selection) => {
         };
         
         // Make the API call to associate the teacher with the school
-        await axios.post(`http://localhost:5000/api/sxoles/${id}/ekpaideutis`, {
+        await api.post(`/sxoles/${id}/ekpaideutis`, {
           id_ekpaideuti: teacherId
         });
         
@@ -422,7 +422,7 @@ const handleDeleteTeacher = async (teacherId) => {
     };
     
     // Make API call to remove teacher
-    await axios.delete(`http://localhost:5000/api/sxoles/${id}/ekpaideutis/${teacherId}`);
+    await api.delete(`/sxoles/${id}/ekpaideutis/${teacherId}`);
     
     // Update local state - FIRST remove from school's teachers
     setSchool(prevSchool => ({
@@ -549,7 +549,7 @@ const handleAddParticipant = async (formData) => {
     // Για κάθε επιλεγμένο μέλος
     for (const memberId of memberIds) {
       try {
-        const response = await axios.post(`http://localhost:5000/api/sxoles/${id}/parakolouthisi`, {
+        const response = await api.post(`/sxoles/${id}/parakolouthisi`, {
           id_melous: parseInt(memberId),
           timi: formData.timi,
           katastasi: formData.katastasi || "Ενεργή"
@@ -641,8 +641,8 @@ const handleEditParticipant = async (updatedParticipant) => {
     };
     
     // Κλήση στο API - διορθωμένο URL
-    const response = await axios.put(
-      `http://localhost:5000/api/sxoles/${id}/parakolouthisi/${updatedParticipant.id_parakolouthisis}`,
+    const response = await api.put(
+      `/sxoles/${id}/parakolouthisi/${updatedParticipant.id_parakolouthisis}`,
       participantData
     );
     
@@ -694,7 +694,7 @@ const handleRemoveParticipant = async (participantOrId) => {
       throw new Error("Δεν ήταν δυνατή η εύρεση ID συμμετέχοντα");
     }
     
-    await axios.delete(`http://localhost:5000/api/sxoles/${id}/parakolouthisi/${participantId}`);
+    await api.delete(`/sxoles/${id}/parakolouthisi/${participantId}`);
     
     setParticipants(prevParticipants => 
       prevParticipants.filter(p => p.id_parakolouthisis !== participantId)
@@ -770,8 +770,8 @@ const handleAddPayment = async (payment) => {
     console.log("Sending payment data:", paymentData, "for participant:", paymentParticipant.id_parakolouthisis);
     
     // Κλήση του API με το σωστό endpoint
-    const response = await axios.post(
-      `http://localhost:5000/api/sxoles/${id}/parakolouthisi/${paymentParticipant.id_parakolouthisis}/payment`,
+    const response = await api.post(
+      `/sxoles/${id}/parakolouthisi/${paymentParticipant.id_parakolouthisis}/payment`,
       paymentData
     );
     
@@ -826,10 +826,10 @@ const handleRemovePayment = async (paymentId, participantId) => {
       throw new Error(`Μη έγκυρο ID συμμετέχοντα (${participantId})`);
     }
     
-    console.log(`Αποστολή αιτήματος διαγραφής πληρωμής: /api/sxoles/${id}/parakolouthisi/${numericParticipantId}/payment/${numericPaymentId}`);
+    console.log(`Αποστολή αιτήματος διαγραφής πληρωμής: /sxoles/${id}/parakolouthisi/${numericParticipantId}/payment/${numericPaymentId}`);
     
     // Κλήση του API για διαγραφή
-    await axios.delete(`http://localhost:5000/api/sxoles/${id}/parakolouthisi/${numericParticipantId}/payment/${numericPaymentId}`);
+    await api.delete(`/sxoles/${id}/parakolouthisi/${numericParticipantId}/payment/${numericPaymentId}`);
     
     // Αντί για refreshData();
     setParticipants(prevParticipants => 

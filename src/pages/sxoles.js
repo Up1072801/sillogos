@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from '../utils/api';
 import { Box, Typography, Paper, TextField, IconButton, Button, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle, DialogContent, DialogActions, Checkbox, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { Link } from "react-router-dom";
 import DataTable from "../components/DataTable/DataTable";
@@ -439,8 +439,8 @@ const fetchData = async () => {
     setLoading(true);
     
     const [sxolesRes, ekpaideutesRes] = await Promise.all([
-      axios.get("http://localhost:5000/api/sxoles"),
-      axios.get("http://localhost:5000/api/Repafes/ekpaideutes-me-sxoles")
+      api.get("/sxoles"),
+      api.get("/Repafes/ekpaideutes-me-sxoles")
     ]);
     
     console.log("Loaded sxoles data:", sxolesRes.data);
@@ -884,7 +884,7 @@ const handleAddTopothesia = async (parentRow) => {
     console.log("Extracted school ID for adding location:", schoolId);
 
     // Φόρτωση υπάρχουσων τοποθεσιών για τη σχολή
-    const response = await axios.get(`http://localhost:5000/api/sxoles/${schoolId}`);
+    const response = await api.get(`/sxoles/${schoolId}`);
     const school = response.data;
     
     let existingLocations = [];
@@ -959,7 +959,7 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
     }
     
     // Ανάκτηση τρέχουσας σχολής
-    const response = await axios.get(`http://localhost:5000/api/sxoles/${schoolId}`);
+    const response = await api.get(`/sxoles/${schoolId}`);
     const school = response.data;
     
     // Εξαγωγή τοποθεσιών
@@ -1015,7 +1015,7 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
     };
     
     // Ενημέρωση της σχολής στο API
-    await axios.put(`http://localhost:5000/api/sxoles/${schoolId}`, updateData);
+    await api.put(`/sxoles/${schoolId}`, updateData);
     
     // ΑΛΛΑΓΗ: Χρήση local state update αντί για refreshData()
     setSxolesData(prev => {
@@ -1076,7 +1076,7 @@ const handleSaveLocations = async (locations) => {
     };
     
     // Send to API
-    await axios.put(`http://localhost:5000/api/sxoles/${editingSchoolForLocation}`, updateData);
+    await api.put(`/sxoles/${editingSchoolForLocation}`, updateData);
     
     // Update local state
     setSxolesData(prev => {
@@ -1124,7 +1124,7 @@ const handleEditSxoliClick = async (row) => {
     console.log("Extracted school ID:", schoolId);
 
     // Κλήση API για φόρτωση δεδομένων σχολής
-    const response = await axios.get(`http://localhost:5000/api/sxoles/${schoolId}`);
+    const response = await api.get(`/sxoles/${schoolId}`);
     if (!response.data) {
       throw new Error(`Δεν βρέθηκαν δεδομένα για τη σχολή με ID ${schoolId}`);
     }
@@ -1173,7 +1173,7 @@ const handleAddTeacherToSchool = async (parentRow) => {
 
     // Κλήση API για φόρτωση δεδομένων σχολής για εύρεση υπαρχόντων εκπαιδευτών
     try {
-      const schoolResponse = await axios.get(`http://localhost:5000/api/sxoles/${schoolId}`);
+      const schoolResponse = await api.get(`/sxoles/${schoolId}`);
       
       // Εξαγωγή των ID εκπαιδευτών που ήδη υπάρχουν στη σχολή
       const currentTeacherIds = schoolResponse.data.ekpaideutes 
@@ -1249,7 +1249,7 @@ const handleAddSelectedTeachers = async () => {
 
       // Make API call
       try {
-        await axios.post(`http://localhost:5000/api/sxoles/${currentSchoolForTeachers}/ekpaideutis`, {
+        await api.post(`/sxoles/${currentSchoolForTeachers}/ekpaideutis`, {
           id_ekpaideuti: ekpaideutis.id_ekpaideuti
         });
         addedTeachersIds.push(teacherId);
@@ -1353,7 +1353,7 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
     }
     
     // API call with the correct ID
-    await axios.delete(`http://localhost:5000/api/sxoles/${schoolId}/ekpaideutis/${actualTeacherId}`);
+    await api.delete(`/sxoles/${schoolId}/ekpaideutis/${actualTeacherId}`);
     
     // Local state updates
     // 1. Remove teacher from school's teachers list
@@ -1427,7 +1427,7 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
 
       // Αποστολή στο API με χειρισμό σφαλμάτων
       try {
-        const response = await axios.post("http://localhost:5000/api/sxoles", formattedSxoli);
+        const response = await api.post("/sxoles", formattedSxoli);
         console.log("Created new sxoli:", response.data);
         
         // Τοπική ενημέρωση - προσθήκη της νέας σχολής στο state με όλα τα απαραίτητα δεδομένα
@@ -1490,7 +1490,7 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
       }
 
       // Αποστολή στο API
-      await axios.put(`http://localhost:5000/api/sxoles/${currentSxoliId}`, formattedSxoli);
+      await api.put(`/sxoles/${currentSxoliId}`, formattedSxoli);
       console.log("Updated sxoli with ID:", currentSxoliId);
       
       // Τοπικές ενημερώσεις καταστάσεων
@@ -1561,7 +1561,7 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
       }
       
       // Απευθείας κλήση του API
-      await axios.delete(`http://localhost:5000/api/sxoles/${id}`);
+      await api.delete(`/sxoles/${id}`);
       
       // Τοπικές ενημερώσεις καταστάσεων
       // 1. Αφαίρεση σχολής από το sxolesData
@@ -1667,7 +1667,7 @@ const handleEditEkpaideutiClick = async (row) => {
       };
 
       // Αποστολή στο API
-      const response = await axios.post("http://localhost:5000/api/Repafes", formattedEkpaideutis);
+      const response = await api.post("/Repafes", formattedEkpaideutis);
       
       // Get the created teacher data with ID
       const newTeacherData = response.data;
@@ -1716,7 +1716,7 @@ const handleEditEkpaideutiClick = async (row) => {
       };
 
       // Αποστολή στο API με το νέο endpoint - διορθωμένη διεύθυνση από Repafes σε sxoles
-      await axios.put(`http://localhost:5000/api/sxoles/ekpaideutis/${currentEkpaideutisId}`, formattedEkpaideutis);
+      await api.put(`/sxoles/ekpaideutis/${currentEkpaideutisId}`, formattedEkpaideutis);
       
       // Τοπικές ενημερώσεις καταστάσεων
       // 1. Ενημέρωση του εκπαιδευτή στο ekpaideutesData
@@ -1904,7 +1904,7 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
       try {
         const schoolId = school.id_sxolis || school.id;
         console.log(`Removing instructor ${numericId} from school ${schoolId}`);
-        await axios.delete(`http://localhost:5000/api/sxoles/${schoolId}/ekpaideutis/${numericId}`);
+        await api.delete(`/sxoles/${schoolId}/ekpaideutis/${numericId}`);
       } catch (err) {
         console.error(`Failed to remove instructor from school:`, err);
       }
@@ -1912,7 +1912,7 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
 
     // ΒΗΜΑ 6: Διαγραφή του εκπαιδευτή
     console.log(`Deleting instructor with ID ${numericId}`);
-    await axios.delete(`http://localhost:5000/api/Repafes/${numericId}`);
+    await api.delete(`/Repafes/${numericId}`);
 
     // ΒΗΜΑ 7: Ενημέρωση τοπικών δεδομένων
     setEkpaideutesData(prev =>

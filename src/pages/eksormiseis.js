@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from '../utils/api';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import el from 'date-fns/locale/el';
@@ -57,7 +57,7 @@ export default function Eksormiseis() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:5000/api/eksormiseis");
+      const response = await api.get("/eksormiseis");
       
       // Debug the first eksormisi to see its structure
       if (response.data.length > 0) {
@@ -139,7 +139,7 @@ export default function Eksormiseis() {
       };
       
       // Send data to API
-      const response = await axios.post("http://localhost:5000/api/eksormiseis", formattedData);
+      const response = await api.post("/eksormiseis", formattedData);
       
       // Process the new expedition data
       const newEksormisiData = {
@@ -187,7 +187,7 @@ export default function Eksormiseis() {
       };
       
       // Send update to API
-      const response = await axios.put(`http://localhost:5000/api/eksormiseis/${editedEksormisi.id}`, formattedData);
+      const response = await api.put(`/eksormiseis/${editedEksormisi.id}`, formattedData);
       
       // Update local data
       setEksormiseisData(prevData => 
@@ -235,7 +235,7 @@ export default function Eksormiseis() {
     }
   
     try {
-      await axios.delete(`http://localhost:5000/api/eksormiseis/${id}`);
+      await api.delete(`/eksormiseis/${id}`);
       
       // Update local state directly instead of triggering refresh
       setEksormiseisData(prevData => 
@@ -335,7 +335,7 @@ export default function Eksormiseis() {
   useEffect(() => {
     const fetchDifficultyLevels = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/vathmoi-diskolias");
+        const response = await api.get("/vathmoi-diskolias");
         setDifficultyLevels(response.data);
       } catch (error) {
         // Αποτυχία φόρτωσης επιπέδων δυσκολίας
@@ -405,7 +405,7 @@ export default function Eksormiseis() {
         hmerominia: newActivity.hmerominia
       };
       
-      await axios.post(`http://localhost:5000/api/eksormiseis/${eksormisiId}/drastiriotita`, formattedData);
+      await api.post(`/eksormiseis/${eksormisiId}/drastiriotita`, formattedData);
       
       // Ανανέωση δεδομένων
       setRefreshTrigger(prev => prev + 1);
@@ -441,7 +441,7 @@ export default function Eksormiseis() {
         hmerominia: updatedActivity.hmerominia
       };
       
-      await axios.put(`http://localhost:5000/api/eksormiseis/drastiriotita/${updatedActivity.id}`, formattedData);
+      await api.put(`/eksormiseis/drastiriotita/${updatedActivity.id}`, formattedData);
       
       // Ανανέωση δεδομένων
       setRefreshTrigger(prev => prev + 1);
@@ -457,7 +457,7 @@ export default function Eksormiseis() {
     if (window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή τη δραστηριότητα;")) {
       try {
         const activityId = activity.id_drastiriotitas || activity.id;
-        await axios.delete(`http://localhost:5000/api/eksormiseis/drastiriotita/${activityId}`);
+        await api.delete(`/eksormiseis/drastiriotita/${activityId}`);
         
         // Update local data instead of refreshing
         setEksormiseisData(prevData => 

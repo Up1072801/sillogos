@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import DataTable from "../components/DataTable/DataTable";
 import * as yup from "yup";
-import axios from "axios";
+import api from '../utils/api';
 import EditDialog from "../components/DataTable/EditDialog";
 import AddDialog from "../components/DataTable/AddDialog";
 
@@ -51,7 +51,7 @@ export default function Epafes() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/Repafes");
+        const response = await api.get("/Repafes");
         setData(
           response.data.map((item) => ({
             ...item,
@@ -115,7 +115,7 @@ export default function Epafes() {
       });
   
       // Ενημέρωση της επαφής στο backend
-      const response = await axios.put(`http://localhost:5000/api/Repafes/${epafisId}`, {
+      const response = await api.put(`/Repafes/${epafisId}`, {
         onoma,
         epitheto,
         email,
@@ -145,7 +145,7 @@ export default function Epafes() {
   
   const handleAddSave = async (newRow) => {
     try {
-      const response = await axios.post("http://localhost:5000/api/Repafes", newRow);
+      const response = await api.post("/Repafes", newRow);
       setData((prevData) => [
         ...prevData,
         {
@@ -166,7 +166,7 @@ export default function Epafes() {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/Repafes/${id}`);
+      await api.delete(`/Repafes/${id}`);
       setData((prevData) => prevData.filter((item) => item.id !== id));
       setError(null);
     } catch (error) {

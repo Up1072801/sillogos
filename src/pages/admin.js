@@ -5,7 +5,7 @@ import {
   Dialog, DialogActions, DialogContent, DialogTitle, IconButton,
   Alert, Snackbar, CircularProgress, Grid
 } from "@mui/material";
-import axios from "axios";
+import api from '../utils/api';
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -48,7 +48,7 @@ export default function AdminPage() {
   const fetchSports = async () => {
     try {
       setLoading(prev => ({ ...prev, sports: true }));
-      const response = await axios.get("http://localhost:5000/api/athlites/sports-list");
+      const response = await api.get("/athlites/sports-list");
       setSports(response.data);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση αθλημάτων:", error);
@@ -62,7 +62,7 @@ export default function AdminPage() {
   const fetchDifficultyLevels = async () => {
     try {
       setLoading(prev => ({ ...prev, difficulty: true }));
-      const response = await axios.get("http://localhost:5000/api/vathmoi-diskolias");
+      const response = await api.get("/vathmoi-diskolias");
       setDifficultyLevels(response.data);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση βαθμών δυσκολίας:", error);
@@ -76,7 +76,7 @@ export default function AdminPage() {
   const fetchSubscriptionTypes = async () => {
     try {
       setLoading(prev => ({ ...prev, subscription: true }));
-      const response = await axios.get("http://localhost:5000/api/eidi-sindromis");
+      const response = await api.get("/eidi-sindromis");
       setSubscriptionTypes(response.data);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση ειδών συνδρομής:", error);
@@ -90,7 +90,7 @@ export default function AdminPage() {
   const fetchRefugePrices = async () => {
     try {
       setLoading(prev => ({ ...prev, refuge: true }));
-      const response = await axios.get("http://localhost:5000/api/katafigio/katafygia");
+      const response = await api.get("/katafigio/katafygia");
       setRefugePrices(response.data);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση τιμών καταφυγίου:", error);
@@ -112,7 +112,7 @@ export default function AdminPage() {
   // Υλοποίηση λειτουργιών CRUD για αθλήματα
   const handleAddSport = async () => {
     try {
-      await axios.post("http://localhost:5000/api/athlites/sport", { onoma: sportDialog.data.onoma });
+      await api.post("/athlites/sport", { onoma: sportDialog.data.onoma });
       await fetchSports();
       setSportDialog({...sportDialog, open: false});
       showNotification("Το άθλημα προστέθηκε επιτυχώς");
@@ -124,7 +124,7 @@ export default function AdminPage() {
 
   const handleUpdateSport = async () => {
     try {
-      await axios.put(`http://localhost:5000/api/athlites/sport/${sportDialog.data.id_athlimatos}`, 
+      await api.put(`/athlites/sport/${sportDialog.data.id_athlimatos}`, 
         { onoma: sportDialog.data.onoma }
       );
       await fetchSports();
@@ -141,7 +141,7 @@ export default function AdminPage() {
       return;
     }
     try {
-      await axios.delete(`http://localhost:5000/api/athlites/sport/${id}`);
+      await api.delete(`/athlites/sport/${id}`);
       await fetchSports();
       showNotification("Το άθλημα διαγράφηκε επιτυχώς");
     } catch (error) {
@@ -153,7 +153,7 @@ export default function AdminPage() {
   // Υλοποίηση λειτουργιών CRUD για βαθμούς δυσκολίας
   const handleAddDifficulty = async () => {
     try {
-      await axios.post("http://localhost:5000/api/vathmoi-diskolias", { 
+      await api.post("/vathmoi-diskolias", { 
         epipedo: difficultyDialog.data.epipedo
       });
       await fetchDifficultyLevels();
@@ -167,7 +167,7 @@ export default function AdminPage() {
 
   const handleUpdateDifficulty = async () => {
     try {
-      await axios.put(`http://localhost:5000/api/vathmoi-diskolias/${difficultyDialog.data.id_vathmou_diskolias}`, { 
+      await api.put(`/vathmoi-diskolias/${difficultyDialog.data.id_vathmou_diskolias}`, { 
         epipedo: difficultyDialog.data.epipedo 
       });
       await fetchDifficultyLevels();
@@ -184,7 +184,7 @@ export default function AdminPage() {
       return;
     }
     try {
-      await axios.delete(`http://localhost:5000/api/vathmoi-diskolias/${id}`);
+      await api.delete(`/vathmoi-diskolias/${id}`);
       await fetchDifficultyLevels();
       showNotification("Ο βαθμός δυσκολίας διαγράφηκε επιτυχώς");
     } catch (error) {
@@ -200,7 +200,7 @@ export default function AdminPage() {
         titlos: subscriptionDialog.data.titlos,
         timi: subscriptionDialog.data.kostos
       };
-      await axios.post("http://localhost:5000/api/eidi-sindromis", data);
+      await api.post("/eidi-sindromis", data);
       await fetchSubscriptionTypes();
       setSubscriptionDialog({...subscriptionDialog, open: false});
       showNotification("Το είδος συνδρομής προστέθηκε επιτυχώς");
@@ -216,7 +216,7 @@ export default function AdminPage() {
         titlos: subscriptionDialog.data.titlos,
         timi: subscriptionDialog.data.kostos
       };
-      await axios.put(`http://localhost:5000/api/eidi-sindromis/${subscriptionDialog.data.id_eidous}`, data);
+      await api.put(`/eidi-sindromis/${subscriptionDialog.data.id_eidous}`, data);
       await fetchSubscriptionTypes();
       setSubscriptionDialog({...subscriptionDialog, open: false});
       showNotification("Το είδος συνδρομής ενημερώθηκε επιτυχώς");
@@ -231,7 +231,7 @@ export default function AdminPage() {
       return;
     }
     try {
-      await axios.delete(`http://localhost:5000/api/eidi-sindromis/${id}`);
+      await api.delete(`/eidi-sindromis/${id}`);
       await fetchSubscriptionTypes();
       showNotification("Το είδος συνδρομής διαγράφηκε επιτυχώς");
     } catch (error) {
@@ -243,7 +243,7 @@ export default function AdminPage() {
   // Υλοποίηση λειτουργιών CRUD για καταφύγια
   const handleAddRefuge = async () => {
     try {
-      await axios.post("http://localhost:5000/api/katafigio/katafygia", refugeDialog.data);
+      await api.post("/katafigio/katafygia", refugeDialog.data);
       await fetchRefugePrices();
       setRefugeDialog({...refugeDialog, open: false});
       showNotification("Το καταφύγιο προστέθηκε επιτυχώς");
@@ -255,7 +255,7 @@ export default function AdminPage() {
 
   const handleUpdateRefuge = async () => {
     try {
-      await axios.put(`http://localhost:5000/api/katafigio/katafygia/${refugeDialog.data.id_katafigiou}`, 
+      await api.put(`/katafigio/katafygia/${refugeDialog.data.id_katafigiou}`, 
         refugeDialog.data
       );
       await fetchRefugePrices();
@@ -272,7 +272,7 @@ export default function AdminPage() {
       return;
     }
     try {
-      await axios.delete(`http://localhost:5000/api/katafigio/katafygia/${id}`);
+      await api.delete(`/katafigio/katafygia/${id}`);
       await fetchRefugePrices();
       showNotification("Το καταφύγιο διαγράφηκε επιτυχώς");
     } catch (error) {

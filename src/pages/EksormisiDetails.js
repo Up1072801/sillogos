@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from '../utils/api';
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box, Typography, Paper, Container, Divider, Grid,
@@ -132,12 +132,12 @@ export default function EksormisiDetails() {
       }
       
       // Fetch eksormisi details
-      const eksormisiResponse = await axios.get(`http://localhost:5000/api/eksormiseis/${id}`);
+      const eksormisiResponse = await api.get(`/eksormiseis/${id}`);
       setEksormisi(eksormisiResponse.data);
       
       // Fetch drastiriotites
       try {
-        const drastiriotitesResponse = await axios.get(`http://localhost:5000/api/eksormiseis/${id}/drastiriotites`);
+        const drastiriotitesResponse = await api.get(`/eksormiseis/${id}/drastiriotites`);
         if (Array.isArray(drastiriotitesResponse.data)) {
           // Φόρτωσε συμμετέχοντες για κάθε δραστηριότητα
           const drastiriotitesWithParticipants = await Promise.all(
@@ -154,7 +154,7 @@ export default function EksormisiDetails() {
               // Φέρε συμμετέχοντες για κάθε δραστηριότητα
               let simmetexontes = [];
               try {
-                const resp = await axios.get(`http://localhost:5000/api/eksormiseis/drastiriotita/${item.id_drastiriotitas || item.id}/simmetexontes`);
+                const resp = await api.get(`/eksormiseis/drastiriotita/${item.id_drastiriotitas || item.id}/simmetexontes`);
                 if (Array.isArray(resp.data)) {
                   simmetexontes = resp.data.map(s => ({
                     ...s,
@@ -191,7 +191,7 @@ export default function EksormisiDetails() {
       
       // Fetch participants
       try {
-        const participantsResponse = await axios.get(`http://localhost:5000/api/eksormiseis/${id}/simmetexontes`);
+        const participantsResponse = await api.get(`/eksormiseis/${id}/simmetexontes`);
         
         if (Array.isArray(participantsResponse.data)) {
           const formattedParticipants = participantsResponse.data.map(item => {
@@ -240,7 +240,7 @@ export default function EksormisiDetails() {
       
       // Fetch difficulty levels
       try {
-        const difficultyResponse = await axios.get("http://localhost:5000/api/vathmoi-diskolias");
+        const difficultyResponse = await api.get("/vathmoi-diskolias");
         setDifficultyLevels(difficultyResponse.data);
       } catch (err) {
         // Silently handle error
@@ -248,7 +248,7 @@ export default function EksormisiDetails() {
       
       // Fetch available members
       try {
-        const membersResponse = await axios.get("http://localhost:5000/api/melitousillogou");
+        const membersResponse = await api.get("/melitousillogou");
         
         // Create a Set of the IDs of members who are already participants
         const existingMemberIds = new Set(
@@ -308,7 +308,7 @@ export default function EksormisiDetails() {
         hmerominia_afiksis: updatedEksormisi.hmerominia_afiksis
       };
       
-      await axios.put(`http://localhost:5000/api/eksormiseis/${id}`, formattedData);
+      await api.put(`/eksormiseis/${id}`, formattedData);
       
       // Update local state directly instead of refreshing
       setEksormisi(prevEksormisi => ({
@@ -410,7 +410,7 @@ const handleAddDrastiriotita = async (newDrastiriotita) => {
       id_vathmou_diskolias: parseInt(newDrastiriotita.id_vathmou_diskolias)
     };
     
-    const response = await axios.post(`http://localhost:5000/api/eksormiseis/${id}/drastiriotita`, formattedData);
+    const response = await api.post(`/eksormiseis/${id}/drastiriotita`, formattedData);
     
     // Find the difficulty level object
     const vathmos_diskolias = difficultyLevels.find(
@@ -480,7 +480,7 @@ const handleEditDrastiriotitaSave = async (updatedDrastiriotita) => {
       id_vathmou_diskolias: parseInt(updatedDrastiriotita.id_vathmou_diskolias)
     };
     
-    await axios.put(`http://localhost:5000/api/eksormiseis/drastiriotita/${updatedDrastiriotita.id}`, formattedData);
+    await api.put(`/eksormiseis/drastiriotita/${updatedDrastiriotita.id}`, formattedData);
     
     // Find the difficulty level object
     const vathmos_diskolias = difficultyLevels.find(
@@ -534,7 +534,7 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
   }
   
   try {
-    await axios.delete(`http://localhost:5000/api/eksormiseis/drastiriotita/${drastiriotitaId}`);
+    await api.delete(`/eksormiseis/drastiriotita/${drastiriotitaId}`);
     
     // Get participants from this activity to possibly add them back to available members
     const activityParticipants = participants.filter(p => 
@@ -719,7 +719,7 @@ const handleAddParticipant = async (formData) => {
       };
       
       try {
-        const response = await axios.post(`http://localhost:5000/api/eksormiseis/${id}/simmetoxi`, formattedData);
+        const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedData);
         successResults.push(response.data);
         
         // Find the activity details
@@ -875,7 +875,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
     const memberPhone = originalParticipant.tilefono || originalParticipant.melos?.epafes?.tilefono || "-";
     
     // Update basic participant information
-    await axios.put(`http://localhost:5000/api/eksormiseis/simmetoxi/${updatedParticipant.id_simmetoxis}`, formattedData);
+    await api.put(`/eksormiseis/simmetoxi/${updatedParticipant.id_simmetoxis}`, formattedData);
     
     // Gather current activity IDs and selected activity IDs
     const currentActivityIds = [];
@@ -925,7 +925,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
         
         if (simmetoxiToRemove && simmetoxiToRemove.id_simmetoxis) {
           // Delete the participation
-          await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${simmetoxiToRemove.id_simmetoxis}`);
+          await api.delete(`/eksormiseis/simmetoxi/${simmetoxiToRemove.id_simmetoxis}`);
           
           // Update local state
           setDrastiriotites(prev => prev.map(d => {
@@ -958,7 +958,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
         };
         
         // FIX: Add the expedition ID to the URL
-        const response = await axios.post(`http://localhost:5000/api/eksormiseis/${id}/simmetoxi`, formattedAddData);
+        const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedAddData);
         
         // Find activity details
         const activityDetails = drastiriotites.find(d => 
@@ -1076,7 +1076,7 @@ const handleRemoveParticipant = async (participant) => {
   }
   
   try {
-    await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${participantId}`);
+    await api.delete(`/eksormiseis/simmetoxi/${participantId}`);
     
     // First, get the member ID for later use
     const memberId = fullParticipantData?.id_melous;
@@ -1111,7 +1111,7 @@ const handleRemoveParticipant = async (participant) => {
       // If this was their only participation, add them back to available members
       if (!memberHasOtherParticipations) {
         try {
-          const response = await axios.get(`http://localhost:5000/api/melitousillogou/${memberId}`);
+          const response = await api.get(`/melitousillogou/${memberId}`);
           if (response.data) {
             const memberData = {
               ...response.data,
@@ -1203,8 +1203,8 @@ const handleAddPayment = async (payment) => {
       hmerominia_pliromis: payment.hmerominia_pliromis || new Date().toISOString()
     };
     
-    const response = await axios.post(
-      `http://localhost:5000/api/eksormiseis/simmetoxi/${simmetoxiId}/payment`, 
+    const response = await api.post(
+      `/eksormiseis/simmetoxi/${simmetoxiId}/payment`, 
       formattedData
     );
     
@@ -1262,7 +1262,7 @@ const handleRemovePayment = async (paymentId, simmetoxiId) => {
   }
   
   try {
-    await axios.delete(`http://localhost:5000/api/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
+    await api.delete(`/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
     
     // Update participants state by removing the payment
     setParticipants(prevParticipants => 
@@ -1864,7 +1864,7 @@ const handleAddActivityParticipant = async (formData) => {
       katastasi: formData.katastasi || "Ενεργή"
     };
     
-    const response = await axios.post(`http://localhost:5000/api/eksormiseis/${id}/simmetoxi`, formattedData);
+    const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedData);
     
     // Find the selected member's details
     const selectedMember = availableMembers.find(m => (m.id_es_melous || m.id) === memberId);
@@ -1965,7 +1965,7 @@ const handleAddActivityParticipant = async (formData) => {
           const id = row.id_drastiriτοitas || row.id;
           if (!id) return [];
           
-          const response = await axios.get(`http://localhost:5000/api/eksormiseis/drastiriotita/${id}/simmetexontes`);
+          const response = await api.get(`/eksormiseis/drastiriotita/${id}/simmetexontes`);
           
           if (Array.isArray(response.data)) {
             return response.data.map(item => ({

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import DataTable from "../components/DataTable/DataTable";
 import * as yup from "yup";
 import { Add, Edit, Delete } from "@mui/icons-material";
-import axios from "axios";
+import api from '../utils/api';
 import AddDialog from "../components/DataTable/AddDialog";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -236,11 +236,11 @@ useEffect(() => {
       setLoading(true);
       
       // Φόρτωση εξοπλισμού
-      const eksoplismosResponse = await axios.get("http://localhost:5000/api/eksoplismos");
+      const eksoplismosResponse = await api.get("/eksoplismos");
       console.log("Δεδομένα εξοπλισμού από API:", eksoplismosResponse.data);
       
       // Φόρτωση δανεισμών
-      const daneismoiResponse = await axios.get("http://localhost:5000/api/eksoplismos/daneismoi");
+      const daneismoiResponse = await api.get("/eksoplismos/daneismoi");
       console.log("Δεδομένα δανεισμών από API:", daneismoiResponse.data);
       
       // Επεξεργασία δεδομένων εξοπλισμού και προσθήκη δανεισμών για κάθε εξοπλισμό
@@ -301,7 +301,7 @@ const processedLoans = daneismoiResponse.data.map(item => {
       setDaneismoiData(processedLoans);
       
       // Φόρτωση επαφών
-      const contactsResponse = await axios.get("http://localhost:5000/api/Repafes");
+      const contactsResponse = await api.get("/Repafes");
       const processedContacts = contactsResponse.data.map(contact => ({
         id: contact.id_epafis,
         id_epafis: contact.id_epafis,
@@ -441,7 +441,7 @@ const processLoanData = (loan) => {
 // Νέα συνάρτηση για ενημέρωση του backend για εκπρόθεσμους δανεισμούς
 const updateLoanStatusToOverdue = async (loanId) => {
   try {
-    await axios.put(`http://localhost:5000/api/eksoplismos/daneismos/${loanId}/status`, {
+    await api.put(`/eksoplismos/daneismos/${loanId}/status`, {
       katastasi_daneismou: "Εκπρόθεσμο"
     });
     console.log(`Ο δανεισμός με ID: ${loanId} ενημερώθηκε ως εκπρόθεσμος`);
@@ -468,7 +468,7 @@ useEffect(() => {
   // Χειρισμός προσθήκης νέου εξοπλισμού
   const handleAddEquipment = async (newEquipment) => {
     try {
-      const response = await axios.post("http://localhost:5000/api/eksoplismos", newEquipment);
+      const response = await api.post("/eksoplismos", newEquipment);
       setEksoplismosData(prevData => [...prevData, {
         ...response.data,
         id: response.data.id_eksoplismou
@@ -520,7 +520,7 @@ const handleAddLoan = async (newLoan) => {
     
     console.log("Αποστολή δεδομένων για προσθήκη δανεισμού:", formattedLoan);
     
-    const response = await axios.post("http://localhost:5000/api/eksoplismos/daneismos", formattedLoan);
+    const response = await api.post("/eksoplismos/daneismos", formattedLoan);
     console.log("API response:", response.data);
     
     // Δημιουργία πλήρους αντικειμένου με όλα τα απαραίτητα δεδομένα
@@ -618,7 +618,7 @@ const handleEditLoan = async (editedLoan) => {
     
     console.log("Αποστολή δεδομένων για επεξεργασία:", formattedLoan);
     
-    const response = await axios.put(`http://localhost:5000/api/eksoplismos/daneismos/${editLoanData.id}`, formattedLoan);
+    const response = await api.put(`/eksoplismos/daneismos/${editLoanData.id}`, formattedLoan);
     
     // Βρίσκουμε τις πλήρεις λεπτομέρειες για την επαφή και τον εξοπλισμό (διατήρηση υπαρχόντων)
     const borrower = contactsList.find(c => parseInt(c.id_epafis) === parseInt(id_epafis));
@@ -764,8 +764,8 @@ const handleEditEquipment = async (editedEquipment) => {
       id: equipmentId
     };
     
-    const response = await axios.put(
-      `http://localhost:5000/api/eksoplismos/${equipmentId}`,
+    const response = await api.put(
+      `/eksoplismos/${equipmentId}`,
       dataToSend
     );
     
@@ -819,7 +819,7 @@ const handleEditEquipment = async (editedEquipment) => {
       }
 
       // 2. Διαγραφή του εξοπλισμού στο backend
-      await axios.delete(`http://localhost:5000/api/eksoplismos/${id}`);
+      await api.delete(`/eksoplismos/${id}`);
       
       // 3. Βρες τα IDs των δανεισμών που σχετίζονται με αυτόν τον εξοπλισμό
       const equipmentId = parseInt(id);
@@ -855,7 +855,7 @@ const handleEditEquipment = async (editedEquipment) => {
   // Χειρισμός διαγραφής δανεισμού
   const handleDeleteLoan = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/eksoplismos/daneismos/${id}`);
+      await api.delete(`/eksoplismos/daneismos/${id}`);
       
       // Αφαίρεση από τον πίνακα δανεισμών
       const updatedDaneismoiData = daneismoiData.filter(item => item.id !== id);
