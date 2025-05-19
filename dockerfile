@@ -1,43 +1,31 @@
-# 1️⃣ Χρήση επίσημου Node.js image
-FROM node:18
+# 1️⃣ Χρήση επίσημου Node.js image για το build
+FROM node:18 AS build
 
 # 2️⃣ Ορισμός του working directory
 WORKDIR /app
 
-# 3️⃣ Αντιγραφή package.json και εγκατάσταση dependencies για frontend
+# 3️⃣ Αντιγραφή package.json και εγκατάσταση dependencies
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# 4️⃣ Αντιγραφή και build του frontend
+# 4️⃣ Αντιγραφή του υπόλοιπου κώδικα και δημιουργία production build
 COPY public/ public/
 COPY src/ src/
 ARG REACT_APP_API_URL=/api
 ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 RUN npm run build
 
-# 5️⃣ Εγκατάσταση και ρύθμιση του backend
-WORKDIR /app/backend
-COPY backend/package*.json ./
-RUN npm install
+# 5️⃣ Χρήση ενός ελαφριού Nginx image για να σερβίρει το site
+FROM nginx:alpine
 
-# 6️⃣ Αντιγραφή του backend κώδικα
-COPY backend/ ./
+# 6️⃣ Αντιγραφή του built React app στον Nginx
+COPY --from=build /app/build /usr/share/nginx/html
 
-# 7️⃣ Εγκατάσταση nginx
-RUN apt-get update && apt-get install -y nginx
+# 7️⃣ Αντιγραφή custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# 8️⃣ Ρύθμιση nginx για να δείχνει στο τοπικό backend
-COPY nginx.conf.monolith /etc/nginx/conf.d/default.conf
+# 8️⃣ Εξαγωγή του Port 80
+EXPOSE 80
 
-# 9️⃣ Αντιγραφή του React build στον nginx
-RUN cp -r /app/build/* /usr/share/nginx/html/
-
-# 🔟 Εξαγωγή των ports
-EXPOSE 80 5000
-
-# 1️⃣1️⃣ Startup script
-COPY start-services.sh /start-services.sh
-RUN chmod +x /start-services.sh
-
-# 1️⃣2️⃣ Εκκίνηση του nginx και του Node.js server
-CMD ["/start-services.sh"]
+# 9️⃣ Εκκίνηση του Nginx server
+CMD ["nginx", "-g", "daemon off;"]
