@@ -1,0 +1,38 @@
+server {
+    listen 80;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Διαχείριση API αιτημάτων με πρόθεμα /api
+    location /api/ {
+        # Αφαίρεση του /api/ εντελώς
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass ${BACKEND_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        
+        # CORS headers
+        add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization';
+    }
+
+    # Συγκεκριμένα API endpoints
+    location ~ ^/(katafigio|Repafes|R[a-zA-Z]+|meli.*|eksormiseis|sxoles|eksoplismos|vathmoi-diskolias|eidi-sindromis|admin|athlites) {
+        proxy_pass ${BACKEND_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Serve static files
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
