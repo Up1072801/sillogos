@@ -4,7 +4,6 @@ services:
     env: docker
     plan: free
     healthCheckPath: /health
-    port: 80
     envVars:
       - key: NODE_ENV
         value: production

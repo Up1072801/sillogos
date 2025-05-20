@@ -42,6 +42,11 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN mkdir -p /etc/supervisor.d/
 COPY supervisord.conf /etc/supervisor.d/supervisord.ini
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor.d/supervisord.ini"]
+# Προσθέστε αυτή τη γραμμή μετά την αντιγραφή του supervisord.conf
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Τροποποιήστε την εντολή CMD στο τέλος του Dockerfile
+CMD ["/start.sh"]
 
 EXPOSE 80 10000
