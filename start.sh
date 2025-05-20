@@ -5,13 +5,10 @@ set -e
 cd /app/backend
 npx prisma migrate deploy
 
-# Χρήση της PORT που παρέχει το Render ή 80 ως προεπιλογή
-PORT=${PORT:-80}
-
-# Δημιουργία της παραμετροποίησης nginx με την σωστή θύρα
+# Δημιουργία της παραμετροποίησης nginx με σταθερή θύρα 80
 cat > /etc/nginx/conf.d/default.conf << EOF
 server {
-    listen ${PORT};
+    listen 80;
 
     location / {
         root /usr/share/nginx/html;
