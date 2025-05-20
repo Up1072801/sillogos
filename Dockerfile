@@ -1,7 +1,7 @@
 # Stage 1: Build frontend
 FROM node:18 AS frontend-build
 
-WORKDIR /app/frontend
+WORKDIR /app
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
@@ -31,14 +31,14 @@ RUN apt-get update && apt-get install -y \
     libssl-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy frontend build
-COPY --from=frontend-build /app/frontend/build /usr/share/nginx/html
+# Copy frontend build (προσοχή: το build βγαίνει στο /app/build)
+COPY --from=frontend-build /app/build /usr/share/nginx/html
 
 # Copy backend
 WORKDIR /app/backend
 COPY --from=backend-build /app/backend /app/backend
 
-# Copy nginx configuration (will be overwritten by start.sh)
+# Copy nginx configuration (θα αντικατασταθεί από το start.sh)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy supervisor configuration
