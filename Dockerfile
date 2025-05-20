@@ -25,8 +25,11 @@ RUN npx prisma generate
 # Stage 3: Production image
 FROM nginx:alpine
 
-# Install Node.js and OpenSSL (χωρίς το libssl1.1)
-RUN apk add --no-cache nodejs npm supervisor openssl
+# Install Node.js and correct OpenSSL version for Prisma
+RUN apk add --no-cache nodejs npm supervisor openssl openssl-dev
+
+# For Alpine Linux, ensure we install the correct OpenSSL libraries
+RUN apk add --no-cache libssl1.1 || apk add --no-cache openssl
 
 # Copy frontend build
 COPY --from=frontend-build /app/frontend/build /usr/share/nginx/html
