@@ -42,8 +42,4 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN mkdir -p /etc/supervisor.d/
 COPY supervisord.conf /etc/supervisor.d/supervisord.ini
 
-# Expose ports
-EXPOSE 80
-
-# Start supervisor to manage both processes
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor.d/supervisord.ini"]
