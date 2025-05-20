@@ -1,14 +1,26 @@
 services:
-  - type: web
-    name: eospatras
-    env: docker
-    plan: free
-    healthCheckPath: /health
-    buildCommand: DOCKER_BUILDKIT=0 docker build -t eospatras .
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 10000
-      - key: DATABASE_URL
-        value: postgresql://sillogosbase_user:SEk4MxnU8Q3FMQJupYHzwyXcNTScBTw9@dpg-d0lmge9r0fns738gu810-a.oregon-postgres.render.com/sillogosbase
+  frontend:
+    build:
+      context: .
+      dockerfile: dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: backend-build
+    environment:
+      - DATABASE_URL=postgresql://sillogosbase_user:SEk4MxnU8Q3FMQJupYHzwyXcNTScBTw9@dpg-d0lmge9r0fns738gu810-a.oregon-postgres.render.com/sillogosbase
+      - NODE_ENV=production
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

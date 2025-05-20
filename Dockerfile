@@ -16,17 +16,25 @@ RUN npm run build
 FROM node:18-alpine AS backend-build
 
 WORKDIR /app/backend
-COPY backend/package.json ./
+COPY backend/package*.json ./
 RUN npm install --legacy-peer-deps
 
+# Install required dependencies for Prisma in Alpine
+RUN apk add --no-cache openssl openssl-dev
+
 COPY backend/ ./
-RUN npx prisma generate
+RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Stage 3: Production image
 FROM node:18-slim
 
-# Install Nginx and supervisor
-RUN apt-get update && apt-get install -y nginx supervisor openssl
+# Install dependencies including OpenSSL 3.0
+RUN apt-get update && apt-get install -y \
+    nginx \
+    supervisor \
+    openssl \
+    libssl-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy frontend build
 COPY --from=frontend-build /app/frontend/build /usr/share/nginx/html

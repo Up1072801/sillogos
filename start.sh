@@ -1,4 +1,9 @@
 #!/bin/bash
+set -e
+
+# Run database migrations
+cd /app/backend
+npx prisma migrate deploy
 
 # Χρήση της PORT που παρέχει το Render ή 80 ως προεπιλογή
 PORT=${PORT:-80}
