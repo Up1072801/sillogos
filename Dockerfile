@@ -43,3 +43,5 @@ RUN mkdir -p /etc/supervisor.d/
 COPY supervisord.conf /etc/supervisor.d/supervisord.ini
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor.d/supervisord.ini"]
+
+EXPOSE 80 10000
