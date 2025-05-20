@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Χρήση της PORT που παρέχει το Render ή 80 ως προεπιλογή
 PORT=${PORT:-80}
@@ -35,5 +35,5 @@ server {
 }
 EOF
 
-# Εκκίνηση supervisor
-supervisord -c /etc/supervisor.d/supervisord.ini
+# Εκκίνηση supervisor με το σωστό μονοπάτι
+/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

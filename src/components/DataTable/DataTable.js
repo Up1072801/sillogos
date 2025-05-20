@@ -241,7 +241,7 @@ const DataTable = React.memo(({
                                   </TableRow>
 
                                   {/* Αν η γραμμή είναι επεκταμένη, εμφανίζουμε το περιεχόμενο */}
-                                  {tableConfig.renderExpandedRow && expandedRows.has(rowData.id || rowData.id_agona) && (
+                                  {tableConfig.renderExpandedRow && expandedRows.has(rowData.id || rowData.id_agona) ? (
                                     <TableRow key={`expanded-row-${rowData.id || rowData.id_agona}`}>
                                       <TableCell 
                                         colSpan={
@@ -255,7 +255,7 @@ const DataTable = React.memo(({
                                         </Box>
                                       </TableCell>
                                     </TableRow>
-                                  )}
+                                  ) : null}
                                 </React.Fragment>
                               );
                             })}

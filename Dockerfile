@@ -23,13 +23,10 @@ COPY backend/ ./
 RUN npx prisma generate
 
 # Stage 3: Production image
-FROM nginx:alpine
+FROM node:18-slim
 
-# Install Node.js and correct OpenSSL version for Prisma
-RUN apk add --no-cache nodejs npm supervisor openssl openssl-dev
-
-# For Alpine Linux, ensure we install the correct OpenSSL libraries
-RUN apk add --no-cache libssl1.1 || apk add --no-cache openssl
+# Install Nginx and supervisor
+RUN apt-get update && apt-get install -y nginx supervisor openssl
 
 # Copy frontend build
 COPY --from=frontend-build /app/frontend/build /usr/share/nginx/html
@@ -41,15 +38,13 @@ COPY --from=backend-build /app/backend /app/backend
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Create supervisor configuration to run both nginx and node
-RUN mkdir -p /etc/supervisor.d/
-COPY supervisord.conf /etc/supervisor.d/supervisord.ini
+# Create supervisor configuration
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Προσθέστε αυτή τη γραμμή μετά την αντιγραφή του supervisord.conf
+# Copy start script
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-# Τροποποιήστε την εντολή CMD στο τέλος του Dockerfile
 CMD ["/start.sh"]
 
 EXPOSE 80 10000
