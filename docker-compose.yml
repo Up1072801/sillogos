@@ -1,11 +1,10 @@
+
 services:
   # Nginx για το frontend και ως reverse proxy
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        - REACT_APP_API_URL=/api/  # Ορίστε το σωστό prefix για το API
+      dockerfile: dockerfile
     ports:
       - "80:80"
     depends_on:
@@ -19,31 +18,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/app_db?schema=public
+      - DATABASE_URL=postgresql://sillogosbase_user:SEk4MxnU8Q3FMQJupYHzwyXcNTScBTw9@dpg-d0lmge9r0fns738gu810-a.oregon-postgres.render.com/sillogosbase
       - NODE_ENV=production
-      - PORT=5000
-    depends_on:
-      - db
-    networks:
-      - app-network
-
-  # Database (PostgreSQL)
-  db:
-    image: postgres:14
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=app_db
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - app-network
     ports:
-      - "5433:5432"
+      - "5000:5000"
+    networks:
+      - app-network
 
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  postgres-data:
