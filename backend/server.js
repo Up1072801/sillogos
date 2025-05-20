@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const path = require("path");
 const epafesRoutes = require("./routes/Repafes");
 const melitousillogouRoutes = require("./routes/Rmelitousillogou");
 const athlitesRoutes = require("./routes/Rathlites");
@@ -26,11 +27,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
-// Ρίζα διαδρομής
-app.get("/", (_req, res) => {
-  res.send("Ο server λειτουργεί! Χρησιμοποίησε τα διαθέσιμα API endpoints.");
-});
+// Σερβίρισμα του React frontend από το build directory που το nginx προσπαθεί να σερβίρει
+// Αυτό επιτρέπει στο Node.js να σερβίρει το frontend αν το Render στέλνει τα requests εδώ
+app.use(express.static('/usr/share/nginx/html'));
 
+// API endpoints
 // Health check endpoint
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
@@ -48,6 +49,38 @@ app.use("/eksormiseis", eksormiseisRoutes);
 app.use('/vathmoi-diskolias', vathmoiDiskoliasRouter);
 app.use('/eidi-sindromis', eidiSindromisRouter);
 app.use(adminRouter);
+
+// Ρίζα διαδρομής - πλέον απαντά μόνο αν δεν ταιριάξει με στατικό αρχείο
+app.get("/", (_req, res) => {
+  // Προτιμούμε να σερβίρουμε το React αν υπάρχει
+  if (process.env.NODE_ENV === "production") {
+    res.sendFile(path.join('/usr/share/nginx/html', 'index.html'));
+  } else {
+    res.send("Ο server λειτουργεί! Χρησιμοποίησε τα διαθέσιμα API endpoints.");
+  }
+});
+
+// Σερβίρισμα του React app για όλα τα άλλα routes - πρέπει να είναι τελευταίο
+app.get('*', (req, res) => {
+  // Εξαίρεση για τα API endpoints που δεν υπάρχουν
+  if (req.path.startsWith('/api/') || 
+      req.path.startsWith('/Repafes') || 
+      req.path.startsWith('/melitousillogou') ||
+      req.path.startsWith('/athlites') ||
+      req.path.startsWith('/meliallwnsillogwn') ||
+      req.path.startsWith('/eksoplismos') ||
+      req.path.startsWith('/katafigio') ||
+      req.path.startsWith('/sxoles') ||
+      req.path.startsWith('/eksormiseis') ||
+      req.path.startsWith('/vathmoi-diskolias') ||
+      req.path.startsWith('/eidi-sindromis') ||
+      req.path.startsWith('/health')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  
+  // Σερβίρισμα του React app
+  res.sendFile(path.join('/usr/share/nginx/html', 'index.html'));
+});
 
 // Make sure server listens on all interfaces
 const PORT = (process.env.PORT && process.env.PORT !== "80") ? process.env.PORT : 10000;
