@@ -12,15 +12,13 @@ PORT=${PORT:-80}
 cat > /etc/nginx/conf.d/default.conf << EOF
 server {
     listen ${PORT};
-    
-    # Εξυπηρέτηση των στατικών αρχείων του React
+
     location / {
         root /usr/share/nginx/html;
         try_files \$uri \$uri/ /index.html;
         index index.html index.htm;
     }
-    
-    # Προώθηση των API αιτημάτων στον backend server
+
     location /api/ {
         proxy_pass http://127.0.0.1:10000/;
         proxy_http_version 1.1;
@@ -30,7 +28,6 @@ server {
         proxy_cache_bypass \$http_upgrade;
     }
 
-    # Health check endpoint - εκτεθειμένο απευθείας
     location /health {
         proxy_pass http://127.0.0.1:10000/health;
         proxy_http_version 1.1;
@@ -40,5 +37,5 @@ server {
 }
 EOF
 
-# Εκκίνηση supervisor με το σωστό μονοπάτι
+# Εκκίνηση supervisor
 /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

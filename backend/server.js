@@ -24,8 +24,6 @@ const corsOptions = {
   credentials: true
 };
 app.use(cors(corsOptions));
-
-// Middleware για ανάλυση JSON
 app.use(bodyParser.json());
 
 // Ρίζα διαδρομής
@@ -38,7 +36,7 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Routes - αφαιρέστε το /api/ από αυτά αφού το nginx ήδη προσθέτει το prefix
+// Χωρίς το /api/ prefix εδώ, το προσθέτει το nginx
 app.use("/Repafes", epafesRoutes);
 app.use("/melitousillogou", melitousillogouRoutes);
 app.use("/athlites", athlitesRoutes);
@@ -53,21 +51,6 @@ app.use(adminRouter);
 
 // Make sure server listens on all interfaces
 const PORT = process.env.PORT || 10000;
-const server = app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
-});
-
-// Διαχείριση σφάλματος "address already in use"
-server.on('error', (e) => {
-  if (e.code === 'EADDRINUSE') {
-    console.log(`Port ${PORT} already in use, waiting 10 seconds to retry...`);
-    setTimeout(() => {
-      console.log('Retrying connection...');
-      server.close();
-      server.listen(PORT, '0.0.0.0');
-    }, 10000);
-  } else {
-    console.error('Server error:', e);
-    process.exit(1);
-  }
 });

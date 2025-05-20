@@ -7,7 +7,6 @@ RUN npm install --legacy-peer-deps
 
 COPY public/ public/
 COPY src/ src/
-
 ARG REACT_APP_API_URL=/api
 ENV REACT_APP_API_URL=/api
 RUN npm run build
@@ -18,17 +17,13 @@ FROM node:18-alpine AS backend-build
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm install --legacy-peer-deps
-
-# Install required dependencies for Prisma in Alpine
 RUN apk add --no-cache openssl openssl-dev
-
 COPY backend/ ./
 RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Stage 3: Production image
 FROM node:18-slim
 
-# Install dependencies including OpenSSL 3.0
 RUN apt-get update && apt-get install -y \
     nginx \
     supervisor \
@@ -43,10 +38,10 @@ COPY --from=frontend-build /app/frontend/build /usr/share/nginx/html
 WORKDIR /app/backend
 COPY --from=backend-build /app/backend /app/backend
 
-# Copy nginx configuration
+# Copy nginx configuration (will be overwritten by start.sh)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Create supervisor configuration
+# Copy supervisor configuration
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Copy start script
@@ -55,4 +50,4 @@ RUN chmod +x /start.sh
 
 CMD ["/start.sh"]
 
-EXPOSE 80 10000
+EXPOSE 80
