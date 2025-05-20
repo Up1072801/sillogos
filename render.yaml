@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: eospatras
+    env: docker
+    buildCommand: docker build -t eospatras .
+    startCommand: docker run -p $PORT:80 eospatras
