@@ -2,5 +2,12 @@ services:
   - type: web
     name: eospatras
     env: docker
-    buildCommand: docker build -t eospatras .
-    startCommand: docker run -p $PORT:80 eospatras
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        value: postgresql://sillogosbase_user:SEk4MxnU8Q3FMQJupYHzwyXcNTScBTw9@dpg-d0lmge9r0fns738gu810-a.oregon-postgres.render.com/sillogosbase
