@@ -1,9 +1,12 @@
 #!/bin/sh
 
+# Set a default port if not provided
+PORT=${PORT:-80}
+
 # Δημιουργία nginx.conf με τη σωστή θύρα
 cat > /etc/nginx/conf.d/default.conf << EOF
 server {
-    listen \${PORT};
+    listen ${PORT};
     
     # Εξυπηρέτηση των στατικών αρχείων του React
     location / {
