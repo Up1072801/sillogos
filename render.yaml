@@ -1,26 +1,10 @@
 services:
-  frontend:
+  app:
     build:
       context: .
       dockerfile: dockerfile
     ports:
       - "80:80"
-    depends_on:
-      - backend
-    networks:
-      - app-network
-
-  backend:
-    build:
-      context: .
-      dockerfile: dockerfile
-      target: backend-build
-    environment:
-      - DATABASE_URL=postgresql://sillogosbase_user:SEk4MxnU8Q3FMQJupYHzwyXcNTScBTw9@dpg-d0lmge9r0fns738gu810-a.oregon-postgres.render.com/sillogosbase
+    env:
+      - DATABASE_URL=postgresql://sillogosbase_0ss9_user:T0QddYyleriq2YeaU80dmZ1aHPEnqGrV@dpg-d0mba43uibrs73eidmjg-a.oregon-postgres.render.com/sillogosbase_0ss9
       - NODE_ENV=production
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
