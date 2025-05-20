@@ -5,7 +5,6 @@ services:
     plan: free
     healthCheckPath: /api/health
     buildCommand: DOCKER_BUILDKIT=0 docker build -t eospatras .
-  
     envVars:
       - key: NODE_ENV
         value: production

@@ -148,11 +148,12 @@ const DataTable = React.memo(({
                               {tableConfig.renderExpandedRow && (
                                 <TableCell padding="checkbox" style={{ width: '48px' }}></TableCell>
                               )}
-                              {tableConfig.columns.map((column, colIndex) => (
+                              {(tableConfig.columns && Array.isArray(tableConfig.columns)) ? tableConfig.columns.map((column, colIndex) => (
                                 <TableCell key={`header-${colIndex}`}>
                                   <strong>{column.header}</strong>
                                 </TableCell>
-                              ))}
+                              )) : null}
+
                               {/* Στήλη ενεργειών στο τέλος */}
                               {(tableConfig.onEdit || tableConfig.onDelete) && (
                                 <TableCell align="right" style={{ width: '160px' }}>
@@ -162,15 +163,13 @@ const DataTable = React.memo(({
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {tableData.map((rowData, rowIndex) => {
+                            {Array.isArray(tableData) ? tableData.map((rowData, rowIndex) => {
                               // Προσθήκη ελέγχου για null/undefined
                               const rowIdValue = ((rowData.id !== undefined && rowData.id !== null) ? rowData.id : 
-                                                  (rowData.id_sxolis !== undefined && rowData.id_sxolis !== null) ? rowData.id_sxolis : 
-                                                  (rowData.id_agona !== undefined && rowData.id_agona !== null) ? rowData.id_agona : 
-                                                  rowIndex);
+                                                  (rowData.id_agona !== undefined && rowData.id_agona !== null) ? rowData.id_agona : rowIndex);
                               
                               return (
-                                <React.Fragment key={`row-${rowIdValue}`}>
+                                <React.Fragment key={`row-${rowIdValue}-${rowIndex}`}>
                                   <TableRow 
                                     hover={!tableConfig.noRowHover}
                                     sx={{ cursor: tableConfig.noRowClick ? 'default' : 'pointer' }}

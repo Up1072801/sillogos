@@ -59,65 +59,41 @@ export default function Eksormiseis() {
       setLoading(true);
       const response = await api.get("/eksormiseis");
       
-      // Debug the first eksormisi to see its structure
-      if (response.data.length > 0) {
-        console.log("First eksormisi data:", response.data[0]);
-      }
+      // Προσθήκη ελέγχου για array πριν τη χρήση .map()
+      const processedData = Array.isArray(response.data) 
+        ? response.data.map(eksormisi => {
+            const id = eksormisi.id_eksormisis || eksormisi.id;
+            
+            // Create a Set of unique member IDs to count unique participants
+            const uniqueParticipantIds = new Set();
+            (eksormisi.summetexei || []).forEach(s => {
+              if (s.id_melous) uniqueParticipantIds.add(s.id_melous);
+            });
+            const uniqueParticipantsCount = uniqueParticipantIds.size;
+            
+            return {
+              id,
+              id_eksormisis: id,
+              titlos: eksormisi.titlos || "Χωρίς Τίτλο",
+              proorismos: eksormisi.proorismos || "Χωρίς Προορισμό",
+              timi: Number(eksormisi.timi || 0),
+              hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis ? new Date(eksormisi.hmerominia_anaxorisis) : null,
+              hmerominia_afiksis: eksormisi.hmerominia_afiksis ? new Date(eksormisi.hmerominia_afiksis) : null,
+              participantsCount: uniqueParticipantsCount,
+              drastiriotites: Array.isArray(eksormisi.drastiriotites)
+                ? eksormisi.drastiriotites.map(dr => ({
+                    id: dr.id_drastiriotitas || dr.id,
+                    id_drastiriotitas: dr.id_drastiriotitas || dr.id,
+                    titlos: dr.titlos || "Χωρίς Τίτλο",
+                    vathmos_diskolias: dr.vathmos_diskolias || {
+                      epipedo: "Άγνωστο"
+                    }
+                  }))
+                : []
+            };
+          }) 
+        : []; // Επιστροφή κενού πίνακα αν response.data δεν είναι array
       
-      const processedData = response.data.map(eksormisi => {
-        const id = eksormisi.id_eksormisis || eksormisi.id;
-        
-        // Create a Set of unique member IDs to count unique participants
-        const uniqueParticipantIds = new Set();
-        
-        // Check if we have simmetoxi directly in the eksormisi object
-        if (eksormisi.simmetoxi && Array.isArray(eksormisi.simmetoxi)) {
-          eksormisi.simmetoxi.forEach(s => {
-            if (s.id_melous) {
-              uniqueParticipantIds.add(s.id_melous);
-            }
-          });
-        }
-        
-        // Also check in drastiriotites as before
-        if (eksormisi.drastiriotites && Array.isArray(eksormisi.drastiriotites)) {
-          eksormisi.drastiriotites.forEach(dr => {
-            if (dr.simmetoxi && Array.isArray(dr.simmetoxi)) {
-              dr.simmetoxi.forEach(s => {
-                if (s.id_melous) {
-                  uniqueParticipantIds.add(s.id_melous);
-                }
-              });
-            }
-          });
-        }
-        
-        // Log the participants found for debugging
-        console.log(`Eksormisi ${id} (${eksormisi.titlos}) has ${uniqueParticipantIds.size} unique participants`);
-        
-        // Count of unique participants
-        const uniqueParticipantsCount = uniqueParticipantIds.size;
-        
-        return {
-          id: id,
-          id_eksormisis: id,
-          titlos: String(eksormisi.titlos || "Χωρίς Τίτλο"),
-          proorismos: String(eksormisi.proorismos || "Χωρίς Προορισμό"),
-          timi: Number(eksormisi.timi || 0),
-          hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis ? new Date(eksormisi.hmerominia_anaxorisis) : null,
-          hmerominia_afiksis: eksormisi.hmerominia_afiksis ? new Date(eksormisi.hmerominia_afiksis) : null,
-          participantsCount: uniqueParticipantsCount, // Use our calculated unique count
-          drastiriotites: (eksormisi.drastiriotites || []).map(dr => ({
-            id: dr.id_drastiriotitas || dr.id,
-            id_drastiriotitas: dr.id_drastiriotitas || dr.id,
-            titlos: dr.titlos || "Χωρίς Τίτλο",
-            vathmos_diskolias: dr.vathmos_diskolias || {
-              epipedo: "Άγνωστο"
-            }
-          }))
-        };
-      });
-
       setEksormiseisData(processedData);
       setLoading(false);
     } catch (error) {

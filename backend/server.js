@@ -57,7 +57,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Add this error handler
+// Προσθήκη χειρισμού σφαλμάτων
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     console.log(`Port ${PORT} already in use, waiting 10 seconds to retry...`);
