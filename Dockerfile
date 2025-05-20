@@ -34,6 +34,8 @@ RUN apt-get update && apt-get install -y \
 # Copy frontend build (προσοχή: το build βγαίνει στο /app/build)
 COPY --from=frontend-build /app/build /usr/share/nginx/html
 
+RUN ls -l /usr/share/nginx/html
+
 # Copy backend
 WORKDIR /app/backend
 COPY --from=backend-build /app/backend /app/backend
