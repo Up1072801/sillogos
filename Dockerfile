@@ -13,7 +13,7 @@ ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 RUN npm run build
 
 # Stage 2: Build backend
-FROM node:18 AS backend-build
+FROM node:18-alpine AS backend-build
 
 WORKDIR /app/backend
 COPY backend/package.json ./
