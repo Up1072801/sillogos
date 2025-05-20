@@ -1,9 +1,9 @@
 #!/bin/sh
 
-# Set a default port if not provided
+# Χρήση της PORT που παρέχει το Render ή 80 ως προεπιλογή
 PORT=${PORT:-80}
 
-# Δημιουργία nginx.conf με τη σωστή θύρα
+# Δημιουργία της παραμετροποίησης nginx με την σωστή θύρα
 cat > /etc/nginx/conf.d/default.conf << EOF
 server {
     listen ${PORT};
@@ -24,8 +24,16 @@ server {
         proxy_set_header Host \$host;
         proxy_cache_bypass \$http_upgrade;
     }
+
+    # Health check endpoint - εκτεθειμένο απευθείας
+    location /health {
+        proxy_pass http://127.0.0.1:10000/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
 }
 EOF
 
-# Εκκίνηση supervisor για να διαχειριστεί τις υπηρεσίες
+# Εκκίνηση supervisor
 supervisord -c /etc/supervisor.d/supervisord.ini

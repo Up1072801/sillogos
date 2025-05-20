@@ -57,7 +57,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Προσθήκη χειρισμού σφαλμάτων
+// Διαχείριση σφάλματος "address already in use"
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     console.log(`Port ${PORT} already in use, waiting 10 seconds to retry...`);
@@ -65,9 +65,9 @@ server.on('error', (e) => {
       console.log('Retrying connection...');
       server.close();
       server.listen(PORT, '0.0.0.0');
-    }, 10000); // 10 second delay before retry
+    }, 10000);
   } else {
     console.error('Server error:', e);
-    process.exit(1); // Exit with error for supervisord to restart cleanly
+    process.exit(1);
   }
 });
