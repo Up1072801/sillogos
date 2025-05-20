@@ -37,17 +37,27 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Χωρίς το /api/ prefix εδώ, το προσθέτει το nginx
+// Διαδρομές τόσο με όσο και χωρίς το /api/ prefix
 app.use("/Repafes", epafesRoutes);
+app.use("/api/Repafes", epafesRoutes);
 app.use("/melitousillogou", melitousillogouRoutes);
+app.use("/api/melitousillogou", melitousillogouRoutes);
 app.use("/athlites", athlitesRoutes);
+app.use("/api/athlites", athlitesRoutes);
 app.use("/meliallwnsillogwn", meliallwnsillogwnRoutes);
+app.use("/api/meliallwnsillogwn", meliallwnsillogwnRoutes);
 app.use("/eksoplismos", eksoplismosRoutes);
+app.use("/api/eksoplismos", eksoplismosRoutes);
 app.use("/katafigio", katafigioRoutes);
+app.use("/api/katafigio", katafigioRoutes);
 app.use("/sxoles", sxolesRoutes);
+app.use("/api/sxoles", sxolesRoutes);
 app.use("/eksormiseis", eksormiseisRoutes);
+app.use("/api/eksormiseis", eksormiseisRoutes);
 app.use('/vathmoi-diskolias', vathmoiDiskoliasRouter);
+app.use('/api/vathmoi-diskolias', vathmoiDiskoliasRouter);
 app.use('/eidi-sindromis', eidiSindromisRouter);
+app.use('/api/eidi-sindromis', eidiSindromisRouter);
 app.use(adminRouter);
 
 // Ρίζα διαδρομής - πλέον απαντά μόνο αν δεν ταιριάξει με στατικό αρχείο
