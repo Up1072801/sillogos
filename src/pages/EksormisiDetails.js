@@ -248,7 +248,8 @@ export default function EksormisiDetails() {
       
       // Fetch available members
       try {
-        const membersResponse = await api.get("/melitousillogou");
+        // Get all members (both internal and external)
+        const membersResponse = await api.get("/melitousillogou/all");
         
         // Create a Set of the IDs of members who are already participants
         const existingMemberIds = new Set(
@@ -257,26 +258,19 @@ export default function EksormisiDetails() {
         
         const filteredMembers = membersResponse.data
           .filter(member => {
-            const memberId = parseInt(member.id_es_melous || member.id);
+            const memberId = parseInt(member.id_es_melous || member.id_ekso_melous || member.id);
             // Only include members that aren't already participants
             return !existingMemberIds.has(memberId);
           })
           .map(member => ({
             ...member,
-            id: member.id_es_melous || member.id,
-            // Format fullName with lastName first
-            fullName: `${member.melos?.epafes?.epitheto || ''} ${member.melos?.epafes?.onoma || ''}`.trim(),
-            status: member.athlitis ? "Αθλητής" : 
-                   (member.melos?.tipo_melous === "eksoteriko" ? "Εξωτερικό Μέλος" : 
-                   member.sindromitis?.katastasi_sindromis || "-")
+            id: member.id_es_melous || member.id_ekso_melous || member.id,
           }));
-        
-        // Sort by lastName, firstName
-        filteredMembers.sort((a, b) => a.fullName.localeCompare(b.fullName, 'el'));
         
         setAvailableMembers(filteredMembers);
       } catch (err) {
-        console.error("Σφάλμα φόρτωσης μελών:", err);
+        console.error("Error loading members:", err);
+        setAvailableMembers([]);
       }
       
       setLoading(false);
@@ -429,7 +423,7 @@ const handleAddDrastiriotita = async (newDrastiriotita) => {
       titlos: newDrastiriotita.titlos,
       hmerominia: hmeroDate,
       ores_poreias: newDrastiriotita.ores_poreias ? parseInt(newDrastiriotita.ores_poreias) : null,
-      diafora_ipsous: newDrastiriotita.diafora_ipsous ? parseInt(newDrastiriotita.diafora_ipsous) : null,
+diafora_ipsous: newDrastiriotita.diafora_ipsous ? parseInt(newDrastiriotita.diafora_ipsous) : null,
       megisto_ipsometro: newDrastiriotita.megisto_ipsometro ? parseInt(newDrastiriotita.megisto_ipsometro) : null,
       id_vathmou_diskolias: parseInt(newDrastiriotita.id_vathmou_diskolias),
       vathmos_diskolias: vathmos_diskolias,
@@ -447,7 +441,7 @@ const handleAddDrastiriotita = async (newDrastiriotita) => {
   // Handle editing drastiriotita
   const handleEditDrastiriotitaClick = (drastiriotita) => {
     setCurrentDrastiriotita({
-      id: drastiriotita.id_drastiriτοitas || drastiriotita.id,
+      id: drastiriotita.id_drastiriotitas || drastiriotita.id,
       titlos: drastiriotita.titlos,
       hmerominia: drastiriotita.hmerominia ? new Date(drastiriotita.hmerominia).toISOString().split('T')[0] : "",
       ores_poreias: drastiriotita.ores_poreias,
@@ -480,7 +474,7 @@ const handleEditDrastiriotitaSave = async (updatedDrastiriotita) => {
       titlos: updatedDrastiriotita.titlos,
       hmerominia: hmeroDate ? hmeroDate.toISOString() : null, // Ensure ISO format for backend
       ores_poreias: updatedDrastiriotita.ores_poreias ? parseInt(updatedDrastiriotita.ores_poreias) : null,
-      diafora_ipsous: updatedDrastiriotita.diafora_ipsous ? parseInt(updatedDrastiriotita.diafora_ipsous) : null,
+diafora_ipsous: updatedDrastiriotita.diafora_ipsous ? parseInt(updatedDrastiriotita.diafora_ipsous) : null,
       megisto_ipsometro: updatedDrastiriotita.megisto_ipsometro ? parseInt(updatedDrastiriotita.megisto_ipsometro) : null,
       id_vathmou_diskolias: parseInt(updatedDrastiriotita.id_vathmou_diskolias)
     };
@@ -495,7 +489,7 @@ const handleEditDrastiriotitaSave = async (updatedDrastiriotita) => {
     // Update local state
     setDrastiriotites(prevDrastiriotites => 
       prevDrastiriotites.map(item => {
-        if (item.id_drastiriτοτας === updatedDrastiriotita.id || item.id === updatedDrastiriotita.id) {
+        if (item.id_drastiriotitas === updatedDrastiriotita.id || item.id === updatedDrastiriotita.id) {
           return {
             ...item,
             titlos: updatedDrastiriotita.titlos,
@@ -527,7 +521,7 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
   if (typeof drastiriotita === 'number' || typeof drastiriotita === 'string') {
     drastiriotitaId = drastiriotita;
   } else if (drastiriotita && typeof drastiriotita === 'object') {
-    drastiriotitaId = drastiriotita.id_drastiriτοτας || drastiriotita.id;
+    drastiriotitaId = drastiriotita.id_drastiriotitas || drastiriotita.id;
   } else {
     alert("Σφάλμα: Δεν προσδιορίστηκε η δραστηριότητα προς διαγραφή");
     return;
@@ -549,7 +543,7 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
     // Update local state by removing the deleted drastiriotita
     setDrastiriotites(prevDrastiriotites => 
       prevDrastiriotites.filter(item => 
-        item.id_drastiriτοτας !== drastiriotitaId && item.id !== drastiriotitaId
+        item.id_drastριτοτας !== drastiriotitaId && item.id !== drastiriotitaId
       )
     );
     
@@ -565,7 +559,7 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
         // check if they're part of any other activities
         if (p.id_drastiriotitas == drastiriotitaId) {
           return p.simmetoxes && p.simmetoxes.some(s => 
-            s.drastiriotita?.id_drastiriτοτας != drastiriotitaId &&
+            s.drastiriotita?.id_drastiriotitas != drastiriotitaId &&
             s.drastiriotita?.id != drastiriotitaId
           );
         }
@@ -590,7 +584,8 @@ const participantFormFields = [
     pageSize: 5,                       
     columns: [                         
       { field: "fullName", header: "Ονοματεπώνυμο" },
-      { field: "status", header: "Κατάσταση Συνδρομής" }
+      { field: "status", header: "Κατάσταση Συνδρομής" },
+      { field: "vathmos", header: "Βαθμός Δυσκολίας" } // This column exists
     ],
     searchFields: ["fullName"], 
     noDataMessage: "Δεν βρέθηκαν μέλη",
@@ -619,7 +614,7 @@ const participantFormFields = [
           // Αν είναι αντικείμενο, προσπαθούμε να εξάγουμε χρήσιμες πληροφορίες
           if (typeof value === "object") {
             if (value.epipedo) return `Βαθμός ${value.epipedo}`;
-            if (value.id_vathmou_diskolias) return `Βαθμός ${value.id_vathmou_diskolias}`;
+if (value.id_vathmou_diskolias) return `Βαθμός ${value.id_vathmou_diskolias}`;
           }
           // Fallback
           return String(value);
@@ -643,8 +638,6 @@ const participantFormFields = [
     type: "select",
     options: [
       { value: "Ενεργή", label: "Ενεργή" },
-      { value: "Εκκρεμής", label: "Εκκρεμής" },
-      { value: "Ολοκληρωμένη", label: "Ολοκληρωμένη" },
       { value: "Ακυρωμένη", label: "Ακυρωμένη" }
     ],
     defaultValue: "Ενεργή",
@@ -681,6 +674,33 @@ const handleAddParticipant = async (formData) => {
       return;
     }
 
+    // Find the selected member from availableMembers
+    let memberIdToFind;
+    if (typeof formData.id_melous === 'object' && formData.id_melous !== null) {
+      // Handle case where formData.id_melous is an object (which happens with tableSelect)
+      if (formData.id_melous.melos && formData.id_melous.melos.id_melous) {
+        memberIdToFind = formData.id_melous.melos.id_melous;
+      } else {
+        memberIdToFind = formData.id_melous.id;
+      }
+    } else {
+      memberIdToFind = formData.id_melous;
+    }
+
+    const selectedMember = availableMembers.find(m => 
+      String(m.id_es_melous || m.id_ekso_melous || m.id) === String(memberIdToFind)
+    );
+
+    if (!selectedMember) {
+      alert("Το επιλεγμένο μέλος δεν βρέθηκε");
+      return;
+    }
+
+    // Get member name and contact info
+    const memberName = `${selectedMember?.melos?.epafes?.epitheto || ''} ${selectedMember?.melos?.epafes?.onoma || ''}`.trim();
+    const memberEmail = selectedMember?.melos?.epafes?.email || '-';
+    const memberPhone = selectedMember?.melos?.epafes?.tilefono || '-';
+
     // Convert the id_drastiriotitas from tableSelect to an array if it's not already
     const activityIds = Array.isArray(formData.id_drastiriotitas) 
       ? formData.id_drastiriotitas 
@@ -696,28 +716,9 @@ const handleAddParticipant = async (formData) => {
     const fixedPrice = parseFloat(formData.timi); // Get the price once for all activities
     const newParticipants = [];
     
-    // Find the selected member's details - ensure we get the complete object
-    const memberId = typeof formData.id_melous === 'object' ? formData.id_melous.id : parseInt(formData.id_melous);
-    const selectedMember = availableMembers.find(m => (m.id_es_melous || m.id) === memberId);
-    
-    if (!selectedMember) {
-      alert("Σφάλμα: Δεν βρέθηκαν στοιχεία για το επιλεγμένο μέλος");
-      return;
-    }
-    
-    // Prepare member data that will be used for all activities
-    const memberName = `${selectedMember?.melos?.epafes?.epitheto || ''} ${selectedMember?.melos?.epafes?.onoma || ''}`.trim();
-    const memberEmail = selectedMember?.melos?.epafes?.email || '-';
-    const memberPhone = selectedMember?.melos?.epafes?.tilefono || '-';
-    
-    // Get detailed activity data for each selected activity
-    const activitiesData = activityIds.map(actId => 
-      drastiriotites.find(d => (d.id_drastiriτοτας == actId || d.id == actId))
-    ).filter(Boolean);
-    
     for (const activityId of activityIds) {
       const formattedData = {
-        id_melous: memberId,
+        id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
         id_drastiriotitas: parseInt(activityId),
         timi: fixedPrice,
         katastasi: formData.katastasi || "Ενεργή"
@@ -729,7 +730,7 @@ const handleAddParticipant = async (formData) => {
         
         // Find the activity details
         const activityDetails = drastiriotites.find(d => 
-          (d.id_drastiriτοτας == activityId || d.id == activityId)
+          (d.id_drastiriotitas == activityId || d.id == activityId)
         );
         
         // Add to our local new participants array with complete data
@@ -737,7 +738,7 @@ const handleAddParticipant = async (formData) => {
           id: response.data.id_simmetoxis,
           id_simmetoxis: response.data.id_simmetoxis,
           id_drastiriotitas: parseInt(activityId),
-          id_melous: memberId,
+          id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
           memberName: memberName,
           email: memberEmail,
           tilefono: memberPhone,
@@ -771,7 +772,7 @@ const handleAddParticipant = async (formData) => {
         if (activityDetails) {
           const participantData = {
             id_simmetoxis: response.data.id_simmetoxis,
-            id_melous: memberId,
+            id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
             memberName: memberName,
             email: memberEmail,
             tilefono: memberPhone, // Make sure this is set directly
@@ -784,7 +785,7 @@ const handleAddParticipant = async (formData) => {
           
           setDrastiriotites(prev => 
             prev.map(d => {
-              if (d.id_drastiriτοτας == activityId || d.id == activityId) {
+              if (d.id_drastiriotitas == activityId || d.id == activityId) {
                 return {
                   ...d,
                   simmetexontes: [...(d.simmetexontes || []), participantData]
@@ -805,7 +806,7 @@ const handleAddParticipant = async (formData) => {
       
       // Remove the member from available members
       setAvailableMembers(prev => 
-        prev.filter(m => (m.id_es_melous || m.id) !== memberId)
+        prev.filter(m => (m.id_es_melous || m.id) !== selectedMember.id_es_melous)
       );
       
       setAddParticipantDialog(false);
@@ -828,7 +829,7 @@ const handleEditParticipantClick = (participant) => {
   if (participant.simmetoxes && Array.isArray(participant.simmetoxes)) {
     participant.simmetoxes.forEach(simmetoxi => {
       if (simmetoxi.drastiriotita) {
-        const activityId = simmetoxi.drastiriotita.id_drastiriτοτας || simmetoxi.drastiriotita.id;
+        const activityId = simmetoxi.drastiriotita.id_drastiriotitas || simmetoxi.drastiriotita.id;
         if (activityId) {
           participantActivities.push(activityId);
         }
@@ -889,7 +890,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
     if (originalParticipant.simmetoxes && Array.isArray(originalParticipant.simmetoxes)) {
       originalParticipant.simmetoxes.forEach(s => {
         if (s.drastiriotita) {
-          const actId = s.drastiriotita.id_drastiriτοτας || s.drastiriotita.id;
+          const actId = s.drastiriotita.id_drastiriotitas || s.drastiriotita.id;
           if (actId) currentActivityIds.push(String(actId));
         }
       });
@@ -924,7 +925,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
         // Find the participation ID from local data
         const simmetoxiToRemove = originalParticipant.simmetoxes?.find(s => 
           s.drastiriotita && 
-          (String(s.drastiriotita.id_drastiriτοτας) === String(activityId) || 
+          (String(s.drastiriotita.id_drastiriotitas) === String(activityId) || 
            String(s.drastiriotita.id) === String(activityId))
         );
         
@@ -934,7 +935,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
           
           // Update local state
           setDrastiriotites(prev => prev.map(d => {
-            if (String(d.id_drastiriτοτας) === String(activityId) || String(d.id) === String(activityId)) {
+            if (String(d.id_drastiriotitas) === String(activityId) || String(d.id) === String(activityId)) {
               return {
                 ...d,
                 simmetexontes: (d.simmetexontes || []).filter(s => 
@@ -967,7 +968,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
         
         // Find activity details
         const activityDetails = drastiriotites.find(d => 
-          String(d.id_drastiriτοτας) === String(activityId) || String(d.id) === String(activityId)
+          String(d.id_drastiriotitas) === String(activityId) || String(d.id) === String(activityId)
         );
         
         if (activityDetails && response.data) {
@@ -979,7 +980,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
           
           // Update activity's participants list
           setDrastiriotites(prev => prev.map(d => {
-            if (String(d.id_drastiriτοτας) === String(activityId) || String(d.id) === String(activityId)) {
+            if (String(d.id_drastiriotitas) === String(activityId) || String(d.id) === String(activityId)) {
               return {
                 ...d,
                 simmetexontes: [
@@ -1012,7 +1013,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
           let updatedSimmetoxes = p.simmetoxes
             ? p.simmetoxes.filter(s => {
                 if (!s.drastiriotita) return false;
-                const actId = s.drastiriotita.id_drastiriτοτας || s.drastiriotita.id;
+                const actId = s.drastiriotita.id_drastiriotitas || s.drastiriotita.id;
                 return !activitiesToRemove.includes(String(actId));
               })
             : [];
@@ -1305,7 +1306,7 @@ const drastiriotitesColumns = [
     accessorKey: "titlos", 
     header: "Τίτλος",
     Cell: ({ row }) => {
-      const id = row.original.id_drastiriτοτας || row.original.id;
+      const id = row.original.id_drastiriotitas || row.original.id;
       const title = row.original.titlos || "Χωρίς Τίτλο";
       
       return (
@@ -1479,7 +1480,7 @@ const participantDetailPanel = {
           Cell: ({ row }) => {
             if (!row?.original) return "-";
             
-            const id = row.original.id_drastiriτοτας || row.original.id;
+            const id = row.original.id_drastiriotitas || row.original.id;
             return (
               <Box 
                 sx={{ 
@@ -1514,7 +1515,7 @@ const participantDetailPanel = {
       ],
       getRowId: (row) => {
         if (!row) return `random-${Math.random().toString(36).substring(2)}`;
-        return row.id_drastiriτοτας || row.id || `random-${Math.random().toString(36).substring(2)}`;
+        return row.id_drastiriotitas || row.id || `random-${Math.random().toString(36).substring(2)}`;
       },
       emptyMessage: "Δεν συμμετέχει σε καμία δραστηριότητα"
     },
@@ -1740,7 +1741,7 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
         <DataTable
           data={drastiriotites}
           columns={activityColumns}
-          getRowId={(row) => row.id_drastiriτοτας || row.id}
+          getRowId={(row) => row.id_drastiriotitas || row.id}
           enableRowSelection
           enableMultiRowSelection
           onRowSelectionModelChange={(ids) => {
@@ -1762,7 +1763,7 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
       {/* Price and Status */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6}>
-          <TextField
+                                     <TextField
             fullWidth
             label="Τιμή"
             type="number"
@@ -1782,8 +1783,6 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
             onChange={(e) => setStatus(e.target.value)}
           >
             <option value="Ενεργή">Ενεργή</option>
-            <option value="Εκκρεμής">Εκκρεμής</option>
-            <option value="Ολοκληρωμένη">Ολοκληρωμένη</option>
             <option value="Ακυρωμένη">Ακυρωμένη</option>
           </TextField>
         </Grid>
@@ -1815,7 +1814,7 @@ const handleAddActivityParticipant = async (formData) => {
       return;
     }
     
-    const activityId = selectedActivityForParticipant.id_drastiriτοτας || selectedActivityForParticipant.id;
+    const activityId = selectedActivityForParticipant.id_drastiriotitas || selectedActivityForParticipant.id;
     
     // Better handling of member ID
     let memberId;
@@ -1864,7 +1863,7 @@ const handleAddActivityParticipant = async (formData) => {
     // Update the drastiriotites array to include this participant
     setDrastiriotites(prev => 
       prev.map(d => {
-        if (d.id_drastiriτοτας == activityId || d.id == activityId) {
+        if (d.id_drastiriotitas == activityId || d.id == activityId) {
           return {
             ...d,
             simmetexontes: [...(d.simmetexontes || []), {
@@ -1936,7 +1935,7 @@ const handleAddActivityParticipant = async (formData) => {
         if (!row) return [];
         
         try {
-          const id = row.id_drastiriτοτας || row.id;
+          const id = row.id_drastiriotitas || row.id;
           if (!id) return [];
           
           const response = await api.get(`/eksormiseis/drastiriotita/${id}/simmetexontes`);
@@ -1977,7 +1976,7 @@ const updateParticipantActivityLists = (deletedActivityId) => {
       // Update the simmetoxes array to remove the deleted activity
       if (p.simmetoxes && Array.isArray(p.simmetoxes)) {
         const updatedSimmetoxes = p.simmetoxes.filter(s => 
-          s.drastiriotita?.id_drastiriτοτας != deletedActivityId && 
+          s.drastiriotita?.id_drastiriotitas != deletedActivityId && 
           s.drastiriotita?.id != deletedActivityId
         );
         
@@ -2124,12 +2123,12 @@ const updateParticipantActivityLists = (deletedActivityId) => {
             <DataTable 
               data={drastiriotites}
               columns={drastiriotitesColumns}
-              getRowId={(row) => row.id_drastiriτοτας || row.id}
+              getRowId={(row) => row.id_drastiriotitas || row.id}
               initialState={{ 
-                columnVisibility: { id_drastiriτοτας: false },
+                columnVisibility: { id_drastiriotitas: false },
                 sorting: [{ id: "hmerominia", desc: false }] // Default sort by date
               }}
-              handleRowClick={(row) => navigate(`/drastiriotita/${row.id_drastiriτοτας || row.id}`)}
+              handleRowClick={(row) => navigate(`/drastiriotita/${row.id_drastiriotitas || row.id}`)}
               handleEditClick={handleEditDrastiriotitaClick}
               handleDelete={(row) => handleDeleteDrastiriotita(row.original || row)}
               enableRowActions={true}
@@ -2236,25 +2235,28 @@ const updateParticipantActivityLists = (deletedActivityId) => {
           fields={participantFormFields}
           resourceData={{
             membersList: availableMembers.map(member => ({
-              id: member.id_es_melous || member.id,
+              id: member.id_es_melous || member.id_ekso_melous || member.id,
               onoma: member.melos?.epafes?.onoma || "",
               epitheto: member.melos?.epafes?.epitheto || "",
               fullName: `${member.melos?.epafes?.epitheto || ''} ${member.melos?.epafes?.onoma || ''}`.trim(),
-              // Include subscription status similar to melitousillogou.js
-              status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || '-'
+              // Update status to correctly identify external members
+              status: member.athlitis ? "Αθλητής" : 
+       (member.melos?.tipo_melous === "eksoteriko" ? "Εξωτερικό Μέλος" : 
+       member.sindromitis?.katastasi_sindromis || '-'),
+           vathmos: member.melos?.vathmos_diskolias?.epipedo ? 
+             `Βαθμός ${member.melos.vathmos_diskolias.epipedo}` : "-"
             })),
             drastiriotitesList: drastiriotites.map(dr => {
               // Enhanced difficulty level extraction
               let vathmosDisplay = "-";
-              if (dr.vathmos_diskolias?.epipedo) {
-                vathmosDisplay = `Βαθμός ${dr.vathmos_diskolias.epipedo}`;
+              if (dr.vathmou_diskolias?.epipedo) {
+                vathmosDisplay = `Βαθμός ${dr.vathmou_diskolias.epipedo}`;
               } else if (dr.id_vathmou_diskolias) {
-                // Fallback to ID if epipedo is not available
-                vathmosDisplay = `Βαθμός ${dr.id_vathmou_diskolias}`;
+                vathmosDisplay = `Βαθμος ${dr.id_vathmou_diskolias}`;
               }
               
               return {
-                id: dr.id_drastiriτοτας || dr.id,
+                id: dr.id_drastiriotitas || dr.id,
                 titlos: dr.titlos || "Άγνωστη δραστηριότητα",
                 hmerominia: dr.hmerominia ? new Date(dr.hmerominia).toLocaleDateString('el-GR') : "-",
                 vathmos_diskolias: vathmosDisplay // εγγυημένο string
@@ -2263,64 +2265,80 @@ const updateParticipantActivityLists = (deletedActivityId) => {
           }}
         />
         
-        {currentParticipant && (
-          <EditDialog
-            open={editParticipantDialog}
-            onClose={() => {
-              setEditParticipantDialog(false);
-              setCurrentParticipant(null);
-            }}
-            handleEditSave={handleEditParticipantSave}
-            editValues={currentParticipant}
-            title="Επεξεργασία Συμμετέχοντα"
-            fields={[
-              { accessorKey: "id_simmetoxis", header: "ID", type: "hidden" },
-              { accessorKey: "id_melous", header: "ID μέλους", type: "hidden" },
-              { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική") },
-              { 
-                accessorKey: "katastasi", 
-                header: "Κατάσταση", 
-                type: "select",
-                options: [
-                  { value: "Ενεργή", label: "Ενεργή" },
-                  { value: "Εκκρεμής", label: "Εκκρεμής" },
-                  { value: "Ολοκληρωμένη", label: "Ολοκληρωμένη" },
-                  { value: "Ακυρωμένη", label: "Ακυρωμένη" }
-                ]
-              },
-              {
-                accessorKey: "activities",
-                header: "Δραστηριότητες",
-                type: "tableSelect",
-                dataKey: "drastiriotitesList",
-                multiSelect: true,
-                pageSize: 5,
-                columns: [
-                  { field: "titlos", header: "Τίτλος" },
-                  { field: "hmerominia", header: "Ημερομηνία" },
-                  { field: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" }
-                ]
-              }
-            ]}
-            resourceData={{
-              drastiriotitesList: drastiriotites.map(dr => {
-                let vathmosDisplay = "-";
-                if (dr.vathmos_diskolias?.epipedo) {
-                  vathmosDisplay = `Βαθμός ${dr.vathmos_diskolias.epipedo}`;
-                } else if (dr.id_vathmou_diskolias) {
-                  vathmosDisplay = `Βαθμός ${dr.id_vathmou_diskolias}`;
-                }
-                
-                return {
-                  id: dr.id_drastiriτοτας || dr.id,
-                  titlos: dr.titlos || "Άγνωστη δραστηριότητα",
-                  hmerominia: dr.hmerominia ? formatDateGR(dr.hmerominia) : "-",
-                  vathmos_diskolias: vathmosDisplay
-                };
-              })
-            }}
-          />
-        )}
+{currentParticipant && (
+  <EditDialog
+    open={editParticipantDialog}
+    onClose={() => {
+      setEditParticipantDialog(false);
+      setCurrentParticipant(null);
+    }}
+    handleEditSave={handleEditParticipantSave}
+    editValues={currentParticipant}
+    title="Επεξεργασία Συμμετέχοντα"
+ // In the EditDialog for participants (around line 2254-2290), modify the fields array:
+
+fields={[
+  // Add these hidden ID fields back
+  { accessorKey: "id_simmetoxis", header: "ID", type: "hidden" },
+  { accessorKey: "id_melous", header: "ID Μέλους", type: "hidden" },
+  
+  // Keep the existing visible fields
+  { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική") },
+  { 
+    accessorKey: "katastasi", 
+    header: "Κατάσταση", 
+    type: "select",
+    options: [
+      { value: "Ενεργή", label: "Ενεργή" },
+      { value: "Ακυρωμένη", label: "Ακυρωμένη" }
+    ]
+  },
+  {
+    accessorKey: "activities",
+    header: "Δραστηριότητες",
+    type: "tableSelect",
+    dataKey: "drastiriotitesList",
+    multiSelect: true,
+    pageSize: 5,
+    columns: [
+      { field: "titlos", header: "Τίτλος" },
+      { field: "hmerominia", header: "Ημερομηνία" },
+      { field: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" }
+    ],
+    validation: yup.array()
+      .min(1, "Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα")
+      .required("Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα")
+  }
+]}
+    // Add custom validation to prevent saving if no activities are selected
+    customValidation={(formData) => {
+      if (!formData.activities || formData.activities.length === 0) {
+        return {
+          isValid: false,
+          errorMessage: "Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα"
+        };
+      }
+      return { isValid: true };
+    }}
+    resourceData={{
+      drastiriotitesList: drastiriotites.map(dr => {
+        let vathmosDisplay = "-";
+        if (dr.vathmou_diskolias?.epipedo) {
+          vathmosDisplay = `Βαθμός ${dr.vathmou_diskolias.epipedo}`;
+        } else if (dr.id_vathmou_diskolias) {
+          vathmosDisplay = `Βαθμός ${dr.id_vathmou_diskolias}`;
+        }
+        
+        return {
+          id: dr.id_drastiriotitas || dr.id,
+          titlos: dr.titlos || "Άγνωστη δραστηριότητα",
+          hmerominia: dr.hmerominia ? formatDateGR(dr.hmerominia) : "-",
+          vathmos_diskolias: vathmosDisplay
+        };
+      })
+    }}
+  />
+)}
         
         {paymentParticipant && (
           <AddDialog
@@ -2357,7 +2375,8 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                 pageSize: 5,                       
                 columns: [                         
                   { field: "fullName", header: "Ονοματεπώνυμο" },
-                  { field: "status", header: "Κατάσταση Συνδρομής" }
+                  { field: "status", header: "Κατάσταση Συνδρομής" },
+                  { field: "vathmos", header: "Βαθμός Δυσκολίας" }
                 ],
                 searchFields: ["fullName"], 
                 noDataMessage: "Δεν βρέθηκαν μέλη",
@@ -2378,8 +2397,6 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                 type: "select",
                 options: [
                   { value: "Ενεργή", label: "Ενεργή" },
-                  { value: "Εκκρεμής", label: "Εκκρεμής" },
-                  { value: "Ολοκληρωμένη", label: "Ολοκληρωμένη" },
                   { value: "Ακυρωμένη", label: "Ακυρωμένη" }
                 ],
                 defaultValue: "Ενεργή",
@@ -2388,11 +2405,17 @@ const updateParticipantActivityLists = (deletedActivityId) => {
             ]}
             resourceData={{
               membersList: availableMembers.map(member => ({
-                id: member.id_es_melous || member.id,
+                id: member.id_es_melous || member.id_ekso_melous || member.id,
                 onoma: member.melos?.epafes?.onoma || "",
                 epitheto: member.melos?.epafes?.epitheto || "",
                 fullName: `${member.melos?.epafes?.epitheto || ''} ${member.melos?.epafes?.onoma || ''}`.trim(),
-                status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || '-'
+                // Update status to correctly identify external members
+                status: member.athlitis ? "Αθλητής" : 
+                       (member.melos?.tipo_melous === "eksoteriko" ? "Εξωτερικό Μέλος" : 
+                       member.sindromitis?.katastasi_sindromis || '-'),
+                // Add vathmos (difficulty level) information
+                vathmos: member.melos?.vathmos_diskolias?.epipedo ? 
+                         `Βαθμός ${member.melos.vathmos_diskolias.epipedo}` : "-"
               }))
             }}
           />

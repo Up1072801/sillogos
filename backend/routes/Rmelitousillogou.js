@@ -690,4 +690,72 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// Add this new route to get all members (both internal and external)
+router.get("/all", async (_req, res) => {
+  try {
+    // Get all internal members
+    const internalMembers = await prisma.esoteriko_melos.findMany({
+      include: {
+        melos: {
+          include: {
+            epafes: true,
+            vathmos_diskolias: true,
+          }
+        },
+        sindromitis: {
+          include: {
+            exei: {
+              include: {
+                sindromi: true
+              }
+            }
+          }
+        },
+        athlitis: true
+      }
+    });
+
+    // Get all external members
+    const externalMembers = await prisma.eksoteriko_melos.findMany({
+      include: {
+        melos: {
+          include: {
+            epafes: true,
+            vathmos_diskolias: true,
+          }
+        }
+      }
+    });
+
+    // Format internal members
+    const formattedInternalMembers = internalMembers.map(member => ({
+      id_es_melous: member.id_es_melous,
+      melos: member.melos,
+      sindromitis: member.sindromitis,
+      athlitis: member.athlitis,
+      // Additional fields needed for UI
+      tipo_melous: "esoteriko"
+    }));
+
+    // Format external members
+    const formattedExternalMembers = externalMembers.map(member => ({
+      id_ekso_melous: member.id_ekso_melous,
+      melos: {
+        ...member.melos,
+        tipo_melous: "eksoteriko"
+      },
+      // Additional fields needed for UI
+      onoma_sillogou: member.onoma_sillogou,
+      tipo_melous: "eksoteriko"
+    }));
+
+    // Combine both types of members
+    const allMembers = [...formattedInternalMembers, ...formattedExternalMembers];
+    res.json(allMembers);
+  } catch (error) {
+    console.error("Error fetching all members:", error);
+    res.status(500).json({ error: "Error fetching all members" });
+  }
+});
+
 module.exports = router;

@@ -8,7 +8,7 @@ let baseURL = process.env.REACT_APP_API_URL;
 // Αν δεν έχει οριστεί το REACT_APP_API_URL 
 if (!baseURL) {
   // Έλεγχος αν τρέχει σε περιβάλλον παραγωγής (Docker) ή ανάπτυξης (τοπικά)
-  baseURL = process.env.NODE_ENV === 'production' ? '/api/' : 'http://localhost:5000/';
+  baseURL = process.env.NODE_ENV === 'production' ? '/api/' : 'http://localhost:10000/';
 }
 
 console.log('API Base URL:', baseURL);
