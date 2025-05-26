@@ -380,9 +380,8 @@ await prisma.ekpaideutis.createMany({
   ]
 });
 
-
-  // 2. Δημιουργία Εξορμήσεων
- await prisma.eksormisi.createMany({
+// First create the eksormisi entries WITHOUT the id_ypefthynou field
+await prisma.eksormisi.createMany({
   data: [
     {
       id_eksormisis: 1,
@@ -391,7 +390,6 @@ await prisma.ekpaideutis.createMany({
       hmerominia_anaxorisis: new Date("2023-11-01"),
       hmerominia_afiksis: new Date("2023-11-05"),
       titlos: "Παραδοσιακά Χωριά",
-      id_ypefthynou: 1
     },
     {
       id_eksormisis: 2,
@@ -400,7 +398,6 @@ await prisma.ekpaideutis.createMany({
       hmerominia_anaxorisis: new Date("2025-12-01"),
       hmerominia_afiksis: new Date("2025-12-05"),
       titlos: "Ορειβασία στην Πίνδο",
-      id_ypefthynou: 2
     },
     {
       id_eksormisis: 3,
@@ -409,6 +406,23 @@ await prisma.ekpaideutis.createMany({
       hmerominia_anaxorisis: new Date("2025-05-01"),
       hmerominia_afiksis: new Date("2025-05-07"),
       titlos: "Αναρρίχηση στον Όλυμπο",
+    }
+  ]
+});
+
+// Then create the relationships in the junction table
+await prisma.ypefthynoi_eksormisis.createMany({
+  data: [
+    {
+      id_eksormisis: 1,
+      id_ypefthynou: 1
+    },
+    {
+      id_eksormisis: 2,
+      id_ypefthynou: 2
+    },
+    {
+      id_eksormisis: 3,
       id_ypefthynou: 3
     }
   ]

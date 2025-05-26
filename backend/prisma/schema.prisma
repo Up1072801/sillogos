@@ -42,7 +42,7 @@ model melos {
 }
 
 model esoteriko_melos {
-  id_es_melous        Int              @id @map("id_melous") // Το id_es_melous είναι το ίδιο με το id_melous
+  id_es_melous        Int              @id @map("id_melous")
   hmerominia_gennhshs DateTime?
   patronimo           String?
   odos                String?
@@ -52,8 +52,8 @@ model esoteriko_melos {
   athlitis            athlitis?
   sindromitis         sindromitis?
   
-  // Νέα σχέση: μέλος ως υπεύθυνος σε πολλές εξορμίσεις (προαιρετικά)
-  ypefthynos_eksormisis eksormisi[]    @relation("YpefthynosEksormisis")
+  // Αλλαγή της σχέσης
+  ypefthinos_se      ypefthynoi_eksormisis[]
 
   @@map("EsoterikoMelos")
 }
@@ -112,13 +112,25 @@ model eksormisi {
   hmerominia_anaxorisis DateTime?
   hmerominia_afiksis    DateTime?
   titlos                String?
-  id_ypefthynou         Int?      // Προαιρετικό πεδίο για το ID του υπεύθυνου
-
+  // Αφαίρεση του id_ypefthynou απ' εδώ
+  
   drastiriotita         drastiriotita[]
-  simmetoxi             simmetoxi[]     // Προσθήκη άμεσης σχέσης με συμμετοχές
-  ypefthynos            esoteriko_melos? @relation("YpefthynosEksormisis", fields: [id_ypefthynou], references: [id_es_melous], onDelete: SetNull)
+  simmetoxi             simmetoxi[]
+  // Αλλαγή της σχέσης για πολλαπλούς υπευθύνους
+  ypefthinoi           ypefthynoi_eksormisis[]
 
   @@map("Eksormisi")
+}
+
+model ypefthynoi_eksormisis {
+  id_eksormisis        Int
+  id_ypefthynou        Int
+  
+  eksormisi            eksormisi        @relation(fields: [id_eksormisis], references: [id_eksormisis], onDelete: Cascade)
+  ypefthynos           esoteriko_melos  @relation(fields: [id_ypefthynou], references: [id_es_melous], onDelete: Cascade)
+
+  @@id([id_eksormisis, id_ypefthynou])
+  @@map("YpefthynoiEksormisis")
 }
 
 model katafigio {
