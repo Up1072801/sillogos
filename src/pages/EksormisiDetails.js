@@ -1749,6 +1749,8 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
               setSelectedMember(availableMembers.find(m => 
                 (m.id_es_melous || m.id) === ids[0]
               
+                                         
+                           
               ));
             } else {
               setSelectedMember(null);
@@ -2059,8 +2061,16 @@ const updateParticipantActivityLists = (deletedActivityId) => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
-      <Box sx={{ p: 3 }}>
-        <Box sx={{ my: 4 }}>
+      <Box sx={{ 
+  p: 3,
+  width: '100%',
+  // Remove the maxWidth constraint that's shrinking your content
+}}>
+        <Box sx={{ 
+    my: 4,
+    // Remove the maxWidth constraint or increase it significantly
+    // maxWidth: '2000px' would be better than 1400px if you need a constraint 
+  }}>
           {/* Header/Title with back button */}
           <Box sx={{ mb: 4, display: 'flex', alignItems: 'center' }}>
             <IconButton onClick={() => navigate('/eksormiseis')} sx={{ mr: 2 }}>
@@ -2081,7 +2091,7 @@ const updateParticipantActivityLists = (deletedActivityId) => {
           {/* Two-column layout for main content */}
           <Grid container spacing={3}>
             {/* Left column - Main details */}
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12}>
               <Paper sx={{ p: 3, mb: 4 }}>
                 <Box sx={{ mb: 3 }}>
                   {/* First section - Στοιχεία Εξόρμησης */}
@@ -2163,31 +2173,36 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                         <Divider sx={{ mb: 2 }} />
                         
                         {ypefthynoi.length > 0 ? (
-                          ypefthynoi.map(ypefthynos => (
-                            <Box key={ypefthynos.id_es_melous} sx={{ mb: 3 }}>
-                              <Grid container spacing={2}>
-                                <Grid item xs={9}>
-                                  <Typography variant="subtitle2" color="text.secondary">Ονοματεπώνυμο</Typography>
-                                  <Typography variant="body1">{ypefthynos.fullName || '-'}</Typography>
-                                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Email</Typography>
-                                  <Typography variant="body1">{ypefthynos.email || '-'}</Typography>
-                                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Τηλέφωνο</Typography>
-                                  <Typography variant="body1">{ypefthynos.tilefono || '-'}</Typography>
-                                </Grid>
-                                <Grid item xs={3} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                  <IconButton 
-                                    color="error"
-                                    onClick={() => handleRemoveResponsiblePerson(ypefthynos.id_es_melous)}
-                                    size="small"
-                                    sx={{ alignSelf: 'flex-start' }}
-                                  >
-                                    <DeleteIcon />
-                                  </IconButton>
-                                </Grid>
-                              </Grid>
-                              {ypefthynoi.length > 1 && <Divider sx={{ my: 2 }} />}
-                            </Box>
-                          ))
+                          <TableContainer sx={{ maxHeight: 240 }}>
+                            <Table size="small" stickyHeader>
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Ονοματεπώνυμο</TableCell>
+                                  <TableCell>Email</TableCell>
+                                  <TableCell>Τηλέφωνο</TableCell>
+                                  <TableCell align="right">Ενέργειες</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {ypefthynoi.map((ypefthynos) => (
+                                  <TableRow key={ypefthynos.id_es_melous}>
+                                    <TableCell>{ypefthynos.fullName || '-'}</TableCell>
+                                    <TableCell>{ypefthynos.email || '-'}</TableCell>
+                                    <TableCell>{ypefthynos.tilefono || '-'}</TableCell>
+                                    <TableCell align="right">
+                                      <IconButton 
+                                        size="small" 
+                                        color="error" 
+                                        onClick={() => handleRemoveResponsiblePerson(ypefthynos.id_es_melous)}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
                         ) : (
                           <Typography variant="body2" color="text.secondary" align="center">
                             Δεν έχουν οριστεί υπεύθυνοι για την εξόρμηση
@@ -2282,19 +2297,8 @@ const updateParticipantActivityLists = (deletedActivityId) => {
             </Grid>
             
             {/* Right column - removed the responsible person section from here */}
-            <Grid item xs={12} md={4}>
               {/* Any additional content for the right side if needed */}
-            </Grid>
           </Grid>
-          
-          {/* Activities and Participants sections for mobile layout (will be hidden on desktop) */}
-          <Box sx={{ display: { md: 'none' } }}>
-            {/* Add your activities and participants sections here */}
-            {/* ... */}
-          </Box>
-          
-          {/* Rest of the content (dialogs, etc.) */}
-          {/* ... */}
         </Box>
         
         {/* Dialogs */}
