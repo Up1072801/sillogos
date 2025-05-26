@@ -251,14 +251,23 @@ export default function EksormisiDetails() {
         // Get all members (both internal and external)
         const membersResponse = await api.get("/melitousillogou/all");
         
-        // Create a Set of the IDs of members who are already participants
+        // Create a Set of member IDs that already participate (CONVERT ALL TO STRINGS)
         const existingMemberIds = new Set(
-          participants.map(p => parseInt(p.id_melous))
+          participants.map(p => String(p.id_melous || p.id))
         );
-        
+
+        console.log("Existing member IDs:", [...existingMemberIds]);
+
         const filteredMembers = membersResponse.data
           .filter(member => {
-            const memberId = parseInt(member.id_es_melous || member.id_ekso_melous || member.id);
+            // Extract ID and convert to string
+            const memberId = String(member.id_es_melous || member.id_ekso_melous || member.id);
+            
+            // Debug logging
+            if (existingMemberIds.has(memberId)) {
+              console.log(`Filtering out member ${memberId}: ${member.melos?.epafes?.onoma} ${member.melos?.epafes?.epitheto}`);
+            }
+            
             // Only include members that aren't already participants
             return !existingMemberIds.has(memberId);
           })
@@ -815,7 +824,11 @@ const handleAddParticipant = async (formData) => {
       
       // Remove the member from available members
       setAvailableMembers(prev => 
-        prev.filter(m => String(m.id_es_melous || m.id) !== String(selectedMember.id_es_melous || selectedMember.id))
+        prev.filter(m => {
+          const availableMemberId = String(m.id_es_melous || m.id_ekso_melous || m.id);
+          const selectedMemberId = String(selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id);
+          return availableMemberId !== selectedMemberId;
+        })
       );
       
       setAddParticipantDialog(false);
@@ -1893,9 +1906,13 @@ const handleAddActivityParticipant = async (formData) => {
       })
     );
     
-    // Remove the member from available members if they're not in any other activity
+    // Remove the member from available members
     setAvailableMembers(prev => 
-      prev.filter(m => (m.id_es_melous || m.id) !== memberId)
+      prev.filter(m => {
+        const availableMemberId = String(m.id_es_melous || m.id_ekso_melous || m.id);
+        const selectedMemberId = String(selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id);
+        return availableMemberId !== selectedMemberId;
+      })
     );
     
     setAddActivityParticipantDialog(false);
@@ -2287,41 +2304,39 @@ const updateParticipantActivityLists = (deletedActivityId) => {
     handleEditSave={handleEditParticipantSave}
     editValues={currentParticipant}
     title="Επεξεργασία Συμμετέχοντα"
- // In the EditDialog for participants (around line 2254-2290), modify the fields array:
-
-fields={[
-  // Add these hidden ID fields back
-  { accessorKey: "id_simmetoxis", header: "ID", type: "hidden" },
-  { accessorKey: "id_melous", header: "ID Μέλους", type: "hidden" },
-  
-  // Keep the existing visible fields
-  { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική") },
-  { 
-    accessorKey: "katastasi", 
-    header: "Κατάσταση", 
-    type: "select",
-    options: [
-      { value: "Ενεργή", label: "Ενεργή" },
-      { value: "Ακυρωμένη", label: "Ακυρωμένη" }
-    ]
-  },
-  {
-    accessorKey: "activities",
-    header: "Δραστηριότητες",
-    type: "tableSelect",
-    dataKey: "drastiriotitesList",
-    multiSelect: true,
-    pageSize: 5,
-    columns: [
-      { field: "titlos", header: "Τίτλος" },
-      { field: "hmerominia", header: "Ημερομηνία" },
-      { field: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" }
-    ],
-    validation: yup.array()
-      .min(1, "Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα")
-      .required("Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα")
-  }
-]}
+    fields={[
+      // Add these hidden ID fields back
+      { accessorKey: "id_simmetoxis", header: "ID", type: "hidden" },
+      { accessorKey: "id_melous", header: "ID Μέλους", type: "hidden" },
+      
+      // Keep the existing visible fields
+      { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική") },
+      { 
+        accessorKey: "katastasi", 
+        header: "Κατάσταση", 
+        type: "select",
+        options: [
+          { value: "Ενεργή", label: "Ενεργή" },
+          { value: "Ακυρωμένη", label: "Ακυρωμένη" }
+        ]
+      },
+      {
+        accessorKey: "activities",
+        header: "Δραστηριότητες",
+        type: "tableSelect",
+        dataKey: "drastiriotitesList",
+        multiSelect: true,
+        pageSize: 5,
+        columns: [
+          { field: "titlos", header: "Τίτλος" },
+          { field: "hmerominia", header: "Ημερομηνία" },
+          { field: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" }
+        ],
+        validation: yup.array()
+          .min(1, "Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα")
+          .required("Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα")
+      }
+    ]}
     // Add custom validation to prevent saving if no activities are selected
     customValidation={(formData) => {
       if (!formData.activities || formData.activities.length === 0) {
