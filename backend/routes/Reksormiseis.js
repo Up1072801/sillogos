@@ -12,21 +12,32 @@ router.get("/", async (req, res) => {
         drastiriotita: {
           include: {
             vathmos_diskolias: true,
-            simmetoxi: true
+            simmetoxi_drastiriotites: {
+              include: {
+                simmetoxi: {
+                  include: {
+                    melos: { include: { epafes: true } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        simmetoxi: {
+          include: {
+            melos: { include: { epafes: true } }
           }
         }
       }
     });
 
     const serializedEksormiseis = eksormiseis.map(eksormisi => {
-      // Υπολογισμός μοναδικών συμμετεχόντων
+      // Υπολογισμός μοναδικών συμμετεχόντων από τις συμμετοχές της εξόρμησης
       const uniqueParticipantIds = new Set();
-      eksormisi.drastiriotita?.forEach(dr => {
-        dr.simmetoxi?.forEach(sim => {
-          if (sim.id_melous) {
-            uniqueParticipantIds.add(sim.id_melous);
-          }
-        });
+      eksormisi.simmetoxi?.forEach(sim => {
+        if (sim.id_melous) {
+          uniqueParticipantIds.add(sim.id_melous);
+        }
       });
       const participantsCount = uniqueParticipantIds.size;
 
@@ -39,14 +50,11 @@ router.get("/", async (req, res) => {
         hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis,
         hmerominia_afiksis: eksormisi.hmerominia_afiksis,
         participantsCount: participantsCount,
-        // ΣΗΜΑΝΤΙΚΟ: Μετονομασία δραστηριοτήτων σε "drastiriotites" όπως περιμένει το frontend
         drastiriotites: eksormisi.drastiriotita?.map(dr => ({
           id: dr.id_drastiriotitas,
           id_drastiriotitas: dr.id_drastiriotitas,
           titlos: dr.titlos || "",
           hmerominia: dr.hmerominia,
-          // Συμπερίληψη των δεδομένων συμμετοχής για κάθε δραστηριότητα
-          simmetoxi: dr.simmetoxi || [],
           vathmos_diskolias: dr.vathmos_diskolias
             ? {
                 id_vathmou_diskolias: dr.vathmos_diskolias.id_vathmou_diskolias,
@@ -57,7 +65,6 @@ router.get("/", async (req, res) => {
       };
     });
 
-    console.log("API sending data:", serializedEksormiseis);
     res.json(serializedEksormiseis);
   } catch (error) {
     console.error("Σφάλμα κατά την ανάκτηση των εξορμήσεων:", error);
@@ -79,6 +86,16 @@ router.get("/:id", async (req, res) => {
         drastiriotita: {
           include: {
             vathmos_diskolias: true
+          }
+        },
+        // Add this include for ypefthynos data
+        ypefthynos: {
+          include: {
+            melos: {
+              include: {
+                epafes: true
+              }
+            }
           }
         }
       },
@@ -108,11 +125,16 @@ router.get("/:id", async (req, res) => {
         vathmos_diskolias: drastiriotita.vathmos_diskolias
           ? {
               id_vathmou_diskolias: drastiriotita.vathmos_diskolias.id_vathmou_diskolias,
-              onoma: drastiriotita.vathmos_diskolias.onoma,
-              perigrafi: drastiriotita.vathmos_diskolias.perigrafi
+              epipedo: drastiriotita.vathmos_diskolias.epipedo
             }
           : null
       })),
+      ypefthynos: eksormisi.ypefthynos ? {
+        id_es_melous: eksormisi.ypefthynos.id_es_melous,
+        fullName: `${eksormisi.ypefthynos.melos?.epafes?.epitheto || ''} ${eksormisi.ypefthynos.melos?.epafes?.onoma || ''}`.trim(),
+        email: eksormisi.ypefthynos.melos?.epafes?.email,
+        tilefono: eksormisi.ypefthynos.melos?.epafes?.tilefono?.toString()
+      } : null
     };
 
     res.json(serializedEksormisi);
@@ -150,8 +172,7 @@ router.get("/:id/drastiriotites", async (req, res) => {
       vathmos_diskolias: drastiriotita.vathmos_diskolias
         ? {
             id_vathmou_diskolias: drastiriotita.vathmos_diskolias.id_vathmou_diskolias,
-            onoma: drastiriotita.vathmos_diskolias.onoma,
-            perigrafi: drastiriotita.vathmos_diskolias.perigrafi
+            epipedo: drastiriotita.vathmos_diskolias.epipedo
           }
         : null
     }));
@@ -228,192 +249,104 @@ router.get("/:id/simmetexontes", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID εξόρμησης" });
     }
     
-    const drastiriotites = await prisma.drastiriotita.findMany({
-      where: { id_eksormisis: id },
-      select: { id_drastiriotitas: true }
-    });
-
-    const drastiriotitesIds = drastiriotites.map(d => d.id_drastiriotitas);
-
-    const simmetexontes = await prisma.simmetoxi.findMany({
-      where: { id_drastiriotitas: { in: drastiriotitesIds } },
-      include: {
-        melos: {
-          include: {
-            epafes: true
-          }
-        },
-        plironei: true,
-        drastiriotita: true
-      }
-    });
-
-    const groupedSimmetexontes = [];
-    const processedMembers = new Set();
-
-    for (const simmetoxi of simmetexontes) {
-      const memberId = simmetoxi.id_melous;
-      
-      if (!processedMembers.has(memberId)) {
-        processedMembers.add(memberId);
-        
-        // Βρίσκουμε όλες τις συμμετοχές του μέλους σε δραστηριότητες αυτής της εξόρμησης
-        const memberSimmetoxes = simmetexontes.filter(s => s.id_melous === memberId);
-        
-        // Υπολογίζουμε το συνολικό ποσό πληρωμών
-        const totalPaid = memberSimmetoxes.reduce((sum, s) => 
-          sum + s.plironei.reduce((pSum, p) => pSum + (p.poso_pliromis || 0), 0), 0);
-        
-        // Χρησιμοποιούμε την τιμή από την πρώτη συμμετοχή ως σταθερή τιμή
-        const fixedPrice = memberSimmetoxes[0].timi || 0;
-        
-        // Υπολογίζουμε το υπόλοιπο χρησιμοποιώντας τη σταθερή τιμή
-        const ypoloipo = fixedPrice - totalPaid;
-
-        // Δημιουργούμε ένα αντικείμενο για το μέλος με όλες τις συμμετοχές του
-        groupedSimmetexontes.push({
-          id_simmetoxis: memberSimmetoxes[0].id_simmetoxis, // Χρησιμοποιούμε το ID της πρώτης συμμετοχής
-          id_melous: memberId,
-          timi: fixedPrice, // Χρησιμοποιούμε τη σταθερή τιμή
-          ypoloipo: ypoloipo < 0 ? 0 : ypoloipo,
-          katastasi: memberSimmetoxes[0].katastasi || "Ενεργή", // Χρησιμοποιούμε την κατάσταση της πρώτης συμμετοχής
-          hmerominia_dilosis: memberSimmetoxes[0].hmerominia_dilosis,
-          memberName: `${simmetoxi.melos.epafes?.onoma || ''} ${simmetoxi.melos.epafes?.epitheto || ''}`.trim() || "Άγνωστο",
-          melos: simmetoxi.melos,
-          simmetoxes: memberSimmetoxes.map(s => ({
-            id_simmetoxis: s.id_simmetoxis,
-            id_drastiriotitas: s.id_drastiriotitas,
-            timi: s.timi,
-            katastasi: s.katastasi,
-            hmerominia_dilosis: s.hmerominia_dilosis,
-            drastiriotita: s.drastiriotita
-              ? {
-                  id_drastiriotitas: s.drastiriotita.id_drastiriotitas,
-                  titlos: s.drastiriotita.titlos,
-                  hmerominia: s.drastiriotita.hmerominia,
-                  vathmos_diskolias: s.drastiriotita.vathmos_diskolias
-                    ? {
-                        epipedo: s.drastiriotita.vathmos_diskolias.epipedo
-                      }
-                    : null
-                }
-              : null
-          })),
-          katavalei: memberSimmetoxes.flatMap(s => s.plironei.map(p => ({
-            id: p.id,
-            id_melous: p.id_melous,
-            id_simmetoxis: p.id_simmetoxis,
-            poso: p.poso_pliromis,
-            hmerominia_katavolhs: p.hmerominia_pliromis
-          })))
-        });
-      }
-    }
-
-    res.json(groupedSimmetexontes);
-  } catch (error) {
-    console.error("Σφάλμα κατά την ανάκτηση των συμμετεχόντων:", error);
-    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση των συμμετεχόντων" });
-  }
-});
-
-// GET: Ανάκτηση συμμετεχόντων δραστηριότητας
-router.get("/drastiriotita/:id/simmetexontes", async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ error: "Μη έγκυρο ID δραστηριότητας" });
-    }
-    
-    const simmetexontes = await prisma.simmetoxi.findMany({
-      where: { id_drastiriotitas: id },
+    const participants = await prisma.simmetoxi.findMany({
+      where: {
+        id_eksormisis: id
+      },
       include: {
         melos: {
           include: {
             epafes: true,
-            vathmos_diskolias: true // Σιγουρέψου ότι υπάρχει αυτή η γραμμή
+            vathmos_diskolias: true
           }
         },
-        plironei: true
-      }
-    });
-
-    const serializedSimmetexontes = simmetexontes.map(simmetoxi => {
-      // Υπολογισμός συνολικού ποσού πληρωμών
-      const totalPaid = simmetoxi.plironei.reduce((sum, p) => sum + (p.poso_pliromis || 0), 0);
-      
-      // Υπολογισμός υπολοίπου
-      const ypoloipo = (simmetoxi.timi || 0) - totalPaid;
-
-      return {
-        id_simmetoxis: simmetoxi.id_simmetoxis,
-        id_melous: simmetoxi.id_melous,
-        id_drastiriotitas: simmetoxi.id_drastiriotitas,
-        timi: simmetoxi.timi,
-        ypoloipo: ypoloipo,
-        katastasi: simmetoxi.katastasi || "Ενεργή",
-        hmerominia_dilosis: simmetoxi.hmerominia_dilosis,
-        hmerominia_akirosis: simmetoxi.hmerominia_akirosis,
-        memberName: `${simmetoxi.melos.epafes?.onoma || ''} ${simmetoxi.melos.epafes?.epitheto || ''}`.trim() || "Άγνωστο",
-        melos: {
-          id_melous: simmetoxi.melos.id_melous,
-          tipo_melous: simmetoxi.melos.tipo_melous,
-          id_vathmou_diskolias: simmetoxi.melos.id_vathmou_diskolias,
-          vathmos_diskolias: simmetoxi.melos.vathmos_diskolias ? {
-            id_vathmou_diskolias: simmetoxi.melos.vathmos_diskolias.id_vathmou_diskolias,
-            onoma: simmetoxi.melos.vathmos_diskolias.onoma,
-            perigrafi: simmetoxi.melos.vathmos_diskolias.perigrafi
-          } : null,
-          epafes: simmetoxi.melos.epafes ? {
-            id_epafis: simmetoxi.melos.epafes.id_epafis,
-            onoma: simmetoxi.melos.epafes.onoma,
-            epitheto: simmetoxi.melos.epafes.epitheto,
-            email: simmetoxi.melos.epafes.email,
-            tilefono: simmetoxi.melos.epafes.tilefono ? simmetoxi.melos.epafes.tilefono.toString() : null
-          } : null
-        },
-        katavalei: simmetoxi.plironei.map(p => ({
-          id: p.id,
-          id_melous: p.id_melous,
-          id_simmetoxis: p.id_simmetoxis,
-          poso: p.poso_pliromis,
-          hmerominia_katavolhs: p.hmerominia_pliromis
-        }))
-      };
-    });
-
-    res.json(serializedSimmetexontes);
-  } catch (error) {
-    console.error("Σφάλμα κατά την ανάκτηση των συμμετεχόντων:", error);
-    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση των συμμετεχόντων" });
-  }
-});
-
-// GET: Ανάκτηση συμμετεχόντων δραστηριότητας
-router.get("/eksormiseis/:id/simmetexontes", async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ error: "Μη έγκυρο ID εξόρμησης" });
-    }
-
-    const simmetexontes = await prisma.simmetoxi.findMany({
-      where: { drastiriotita: { id_eksormisis: id } },
-      include: {
-        melos: {
+        plironei: true,
+        simmetoxi_drastiriotites: {
           include: {
-            epafes: true
+            drastiriotita: {
+              include: {
+                vathmos_diskolias: true
+              }
+            }
           }
-        },
-        drastiriotita: true,
-        plironei: true // ΠΡΟΣΘΕΣΕ ΑΥΤΟ ΓΙΑ ΝΑ ΕΠΙΣΤΡΕΦΕΙ ΤΙΣ ΠΛΗΡΩΜΕΣ
+        }
       }
     });
 
-    res.json(simmetexontes);
+    const formattedParticipants = [];
+
+    participants.forEach(participant => {
+      const totalPaid = (participant.plironei || []).reduce((sum, payment) => sum + (payment.poso_pliromis || 0), 0);
+      const ypoloipo = (participant.timi || 0) - totalPaid;
+      
+      // ΔΙΟΡΘΩΣΗ: Βεβαιωνόμαστε ότι το activities array έχει τη σωστή δομή
+      const participantActivities = (participant.simmetoxi_drastiriotites || []).map(sd => ({
+        id_drastiriotitas: sd.id_drastiriotitas,
+        id: sd.id_drastiriotitas,
+        titlos: sd.drastiriotita?.titlos || 'Άγνωστη δραστηριότητα',
+        hmerominia: sd.drastiriotita?.hmerominia,
+        vathmos_diskolias: sd.drastiriotita?.vathmos_diskolias
+      }));
+
+      formattedParticipants.push({
+        id_simmetoxis: participant.id_simmetoxis,
+        id_melous: participant.id_melous,
+        timi: participant.timi,
+        katastasi: participant.katastasi,
+        ypoloipo: ypoloipo,
+        hmerominia_dilosis: participant.hmerominia_dilosis,
+        memberName: `${participant.melos?.epafes?.epitheto || ''} ${participant.melos?.epafes?.onoma || ''}`.trim(),
+        email: participant.melos?.epafes?.email || '-',
+        vathmosDiskolias: participant.melos?.vathmos_diskolias?.epipedo || 'Άγνωστο',
+        
+        melos: {
+          id_melous: participant.melos?.id_melous,
+          epafes: participant.melos?.epafes ? {
+            onoma: participant.melos.epafes.onoma,
+            epitheto: participant.melos.epafes.epitheto,
+            email: participant.melos.epafes.email,
+            tilefono: participant.melos.epafes.tilefono ? participant.melos.epafes.tilefono.toString() : null
+          } : null,
+          vathmos_diskolias: participant.melos?.vathmos_diskolias
+        },
+        
+        // ΚΥΡΙΟ ΠΕΔΙΟ - activities array για το frontend
+        activities: participantActivities,
+        
+        // Πληρωμές με σωστή δομή
+        plironei: (participant.plironei || []).map(p => ({
+          id: p.id,
+          id_plironei: p.id,
+          poso_pliromis: p.poso_pliromis || 0,
+          hmerominia_pliromis: p.hmerominia_pliromis
+        })),
+
+        // Διατηρείται για συμβατότητα
+        simmetoxi_drastiriotites: participantActivities.map(activity => ({
+          id_drastiriotitas: activity.id_drastiriotitas,
+          drastiriotita: {
+            id_drastiriotitas: activity.id_drastiriotitas,
+            titlos: activity.titlos,
+            hmerominia: activity.hmerominia,
+            vathmos_diskolias: activity.vathmos_diskolias
+          }
+        })),
+
+        // Για backwards compatibility
+        id_drastiriotitas: participantActivities.length > 0 ? participantActivities[0].id_drastiriotitas : null,
+        drastiriotita: participantActivities.length > 0 ? {
+          id_drastiriotitas: participantActivities[0].id_drastiriotitas,
+          titlos: participantActivities[0].titlos,
+          hmerominia: participantActivities[0].hmerominia,
+          vathmos_diskolias: participantActivities[0].vathmos_diskolias
+        } : null
+      });
+    });
+
+    res.json(formattedParticipants);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Σφάλμα κατά την ανάκτηση συμμετεχόντων:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση συμμετεχόντων" });
   }
 });
 
@@ -422,13 +355,9 @@ router.post("/", async (req, res) => {
   try {
     const { titlos, proorismos, timi, hmerominia_anaxorisis, hmerominia_afiksis } = req.body;
 
-    // Έλεγχος υποχρεωτικών πεδίων
     if (!titlos || !proorismos || !hmerominia_anaxorisis || !hmerominia_afiksis) {
       return res.status(400).json({ error: "Λείπουν υποχρεωτικά πεδία" });
     }
-
-    // Επαναφορά της ακολουθίας ID
-    await prisma.$executeRaw`SELECT setval('"Eksormisi_id_eksormisis_seq"', coalesce((SELECT MAX(id_eksormisis) FROM "Eksormisi"), 0))`;
 
     const newEksormisi = await prisma.eksormisi.create({
       data: {
@@ -472,13 +401,9 @@ router.post("/:id/drastiriotita", async (req, res) => {
       hmerominia 
     } = req.body;
 
-    // Έλεγχος υποχρεωτικών πεδίων
     if (!titlos) {
       return res.status(400).json({ error: "Ο τίτλος της δραστηριότητας είναι υποχρεωτικός" });
     }
-
-    // Επαναφορά της ακολουθίας ID
-    await prisma.$executeRaw`SELECT setval('"Drastiriotita_id_drastiriotitas_seq"', coalesce((SELECT MAX(id_drastiriotitas) FROM "Drastiriotita"), 0))`;
 
     const newDrastiriotita = await prisma.drastiriotita.create({
       data: {
@@ -508,8 +433,7 @@ router.post("/:id/drastiriotita", async (req, res) => {
       vathmos_diskolias: newDrastiriotita.vathmos_diskolias
         ? {
             id_vathmou_diskolias: newDrastiriotita.vathmos_diskolias.id_vathmou_diskolias,
-            onoma: newDrastiriotita.vathmos_diskolias.onoma,
-            perigrafi: newDrastiriotita.vathmos_diskolias.perigrafi
+            epipedo: newDrastiriotita.vathmos_diskolias.epipedo
           }
         : null
     });
@@ -519,7 +443,7 @@ router.post("/:id/drastiriotita", async (req, res) => {
   }
 });
 
-// POST: Προσθήκη συμμετέχοντα σε δραστηριότητα
+// POST: Προσθήκη συμμετέχοντα σε εξόρμηση με πολλές δραστηριότητες
 router.post("/:id/simmetoxi", async (req, res) => {
   try {
     const id_eksormisis = parseInt(req.params.id);
@@ -527,10 +451,10 @@ router.post("/:id/simmetoxi", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID εξόρμησης" });
     }
 
-    const { id_melous, id_drastiriotitas, timi, katastasi } = req.body;
+    const { id_melous, id_drastiriotitas_array, timi, katastasi } = req.body;
 
-    if (!id_melous || !id_drastiriotitas) {
-      return res.status(400).json({ error: "Απαιτείται ID μέλους και ID δραστηριότητας" });
+    if (!id_melous) {
+      return res.status(400).json({ error: "Απαιτείται ID μέλους" });
     }
 
     // Έλεγχος αν το μέλος υπάρχει
@@ -543,38 +467,26 @@ router.post("/:id/simmetoxi", async (req, res) => {
       return res.status(404).json({ error: "Το μέλος δεν βρέθηκε" });
     }
 
-    // Έλεγχος αν η δραστηριότητα υπάρχει και ανήκει στην εξόρμηση
-    const drastiriotita = await prisma.drastiriotita.findFirst({
-      where: { 
-        id_drastiriotitas: parseInt(id_drastiriotitas),
+    // Έλεγχος αν υπάρχει ήδη συμμετοχή του μέλους στην εξόρμηση
+    const existingSimmetoxi = await prisma.simmetoxi.findFirst({
+      where: {
+        id_melous: parseInt(id_melous),
         id_eksormisis: id_eksormisis
       }
     });
 
-    if (!drastiriotita) {
-      return res.status(404).json({ error: "Η δραστηριότητα δεν βρέθηκε ή δεν ανήκει στην επιλεγμένη εξόρμηση" });
-    }
-
-    // Έλεγχος αν υπάρχει ήδη συμμετοχή
-    const existingSimmetoxi = await prisma.simmetoxi.findFirst({
-      where: {
-        id_melous: parseInt(id_melous),
-        id_drastiriotitas: parseInt(id_drastiriotitas)
-      }
-    });
-
     if (existingSimmetoxi) {
-      return res.status(400).json({ error: "Το μέλος συμμετέχει ήδη στη δραστηριότητα" });
+      return res.status(400).json({ 
+        error: "Το μέλος συμμετέχει ήδη σε αυτή την εξόρμηση",
+        existing_simmetoxi_id: existingSimmetoxi.id_simmetoxis
+      });
     }
 
-    // Επαναφορά της ακολουθίας ID
-    await prisma.$executeRaw`SELECT setval('"Simmetoxi_id_simmetoxis_seq"', coalesce((SELECT MAX(id_simmetoxis) FROM "Simmetoxi"), 0))`;
-
-    // Δημιουργία συμμετοχής
+    // Δημιουργία νέας συμμετοχής
     const newSimmetoxi = await prisma.simmetoxi.create({
       data: {
         id_melous: parseInt(id_melous),
-        id_drastiriotitas: parseInt(id_drastiriotitas),
+        id_eksormisis: id_eksormisis,
         timi: timi ? parseInt(timi) : null,
         katastasi: katastasi || "Ενεργή",
         hmerominia_dilosis: new Date(),
@@ -582,84 +494,53 @@ router.post("/:id/simmetoxi", async (req, res) => {
       }
     });
 
+    // Σύνδεση με δραστηριότητες
+    const activityIds = Array.isArray(id_drastiriotitas_array) 
+      ? id_drastiriotitas_array 
+      : [id_drastiriotitas_array || req.body.id_drastiriotitas];
+
+    if (activityIds.length > 0 && activityIds[0]) {
+      // Remove duplicates first
+      const uniqueActivityIds = [...new Set(activityIds)].filter(id => id);
+      
+      await Promise.all(
+        uniqueActivityIds.map(async (activityId) => {
+          // Use newSimmetoxi.id_simmetoxis instead of id_simmetoxis
+          const exists = await prisma.simmetoxi_drastiriotita.findUnique({
+            where: {
+              id_simmetoxis_id_drastiriotitas: {
+                id_simmetoxis: newSimmetoxi.id_simmetoxis,  // CHANGE THIS LINE
+                id_drastiriotitas: parseInt(activityId)
+              }
+            }
+          });
+          
+          if (!exists) {
+            await prisma.simmetoxi_drastiriotita.create({
+              data: {
+                id_simmetoxis: newSimmetoxi.id_simmetoxis,  // CHANGE THIS LINE
+                id_drastiriotitas: parseInt(activityId)
+              }
+            });
+          }
+        })
+      );
+    }
+
     const fullName = `${melos.epafes?.onoma || ''} ${melos.epafes?.epitheto || ''}`.trim() || "Άγνωστο";
 
     res.status(201).json({
       id_simmetoxis: newSimmetoxi.id_simmetoxis,
       id_melous: newSimmetoxi.id_melous,
-      id_drastiriotitas: newSimmetoxi.id_drastiriotitas,
+      id_eksormisis: newSimmetoxi.id_eksormisis,
       timi: newSimmetoxi.timi,
       katastasi: newSimmetoxi.katastasi,
-      hmerominia_dilosis: newSimmetoxi.hmerominia_dilosis,
-      ypoloipo: newSimmetoxi.ypoloipo,
-      memberName: fullName
+      memberName: fullName,
+      connected_activities: activityIds.filter(id => id).length
     });
   } catch (error) {
     console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα:", error);
     res.status(500).json({ error: "Σφάλμα κατά την προσθήκη συμμετέχοντα" });
-  }
-});
-
-// POST: Προσθήκη πληρωμής
-router.post("/simmetoxi/:id/payment", async (req, res) => {
-  try {
-    const id_simmetoxis = parseInt(req.params.id);
-    if (isNaN(id_simmetoxis)) {
-      return res.status(400).json({ error: "Μη έγκυρο ID συμμετοχής" });
-    }
-
-    const { poso, hmerominia_pliromis } = req.body;
-
-    if (!poso) {
-      return res.status(400).json({ error: "Το ποσό είναι υποχρεωτικό" });
-    }
-
-    // Έλεγχος αν η συμμετοχή υπάρχει
-    const simmetoxi = await prisma.simmetoxi.findUnique({
-      where: { id_simmetoxis }
-    });
-
-    if (!simmetoxi) {
-      return res.status(404).json({ error: "Η συμμετοχή δεν βρέθηκε" });
-    }
-
-    // Επαναφορά της ακολουθίας ID
-    await prisma.$executeRaw`SELECT setval('"Plironei_id_seq"', coalesce((SELECT MAX(id) FROM "Plironei"), 0))`;
-
-    // Δημιουργία πληρωμής
-    const newPayment = await prisma.plironei.create({
-      data: {
-        id_melous: simmetoxi.id_melous,
-        id_simmetoxis,
-        poso_pliromis: parseInt(poso),
-        hmerominia_pliromis: hmerominia_pliromis ? new Date(hmerominia_pliromis) : new Date()
-      }
-    });
-
-    // Ενημέρωση του υπολοίπου
-    const payments = await prisma.plironei.findMany({
-      where: { id_simmetoxis }
-    });
-    
-    const totalPaid = payments.reduce((sum, p) => sum + (p.poso_pliromis || 0), 0);
-    const newBalance = (simmetoxi.timi || 0) - totalPaid;
-    
-    await prisma.simmetoxi.update({
-      where: { id_simmetoxis },
-      data: { ypoloipo: newBalance < 0 ? 0 : newBalance }
-    });
-
-    res.status(201).json({
-      id: newPayment.id,
-      id_melous: newPayment.id_melous,
-      id_simmetoxis: newPayment.id_simmetoxis,
-      poso: newPayment.poso_pliromis,
-      hmerominia_katavolhs: newPayment.hmerominia_pliromis,
-      newBalance: newBalance < 0 ? 0 : newBalance
-    });
-  } catch (error) {
-    console.error("Σφάλμα κατά την προσθήκη πληρωμής:", error);
-    res.status(500).json({ error: "Σφάλμα κατά την προσθήκη πληρωμής" });
   }
 });
 
@@ -673,23 +554,14 @@ router.put("/:id", async (req, res) => {
 
     const { titlos, proorismos, timi, hmerominia_anaxorisis, hmerominia_afiksis } = req.body;
 
-    // Έλεγχος αν η εξόρμηση υπάρχει
-    const eksormisi = await prisma.eksormisi.findUnique({
-      where: { id_eksormisis: id }
-    });
-
-    if (!eksormisi) {
-      return res.status(404).json({ error: "Η εξόρμηση δεν βρέθηκε" });
-    }
-
     const updatedEksormisi = await prisma.eksormisi.update({
       where: { id_eksormisis: id },
       data: {
-        titlos: titlos || eksormisi.titlos,
-        proorismos: proorismos || eksormisi.proorismos,
-        timi: timi !== undefined ? parseInt(timi) : eksormisi.timi,
-        hmerominia_anaxorisis: hmerominia_anaxorisis ? new Date(hmerominia_anaxorisis) : eksormisi.hmerominia_anaxorisis,
-        hmerominia_afiksis: hmerominia_afiksis ? new Date(hmerominia_afiksis) : eksormisi.hmerominia_afiksis
+        titlos,
+        proorismos,
+        timi: timi ? parseInt(timi) : null,
+        hmerominia_anaxorisis: new Date(hmerominia_anaxorisis),
+        hmerominia_afiksis: new Date(hmerominia_afiksis)
       }
     });
 
@@ -725,25 +597,15 @@ router.put("/drastiriotita/:id", async (req, res) => {
       hmerominia 
     } = req.body;
 
-    // Έλεγχος αν η δραστηριότητα υπάρχει
-    const drastiriotita = await prisma.drastiriotita.findUnique({
-      where: { id_drastiriotitas: id },
-      include: { vathmos_diskolias: true }
-    });
-
-    if (!drastiriotita) {
-      return res.status(404).json({ error: "Η δραστηριότητα δεν βρέθηκε" });
-    }
-
     const updatedDrastiriotita = await prisma.drastiriotita.update({
       where: { id_drastiriotitas: id },
       data: {
-        titlos: titlos || drastiriotita.titlos,
-        id_vathmou_diskolias: id_vathmou_diskolias !== undefined ? parseInt(id_vathmou_diskolias) : drastiriotita.id_vathmou_diskolias,
-        ores_poreias: ores_poreias !== undefined ? parseInt(ores_poreias) : drastiriotita.ores_poreias,
-        diafora_ipsous: diafora_ipsous !== undefined ? parseInt(diafora_ipsous) : drastiriotita.diafora_ipsous,
-        megisto_ipsometro: megisto_ipsometro !== undefined ? parseInt(megisto_ipsometro) : drastiriotita.megisto_ipsometro,
-        hmerominia: hmerominia ? new Date(hmerominia) : drastiriotita.hmerominia
+        titlos,
+        id_vathmou_diskolias: id_vathmou_diskolias ? parseInt(id_vathmou_diskolias) : null,
+        ores_poreias: ores_poreias ? parseInt(ores_poreias) : null,
+        diafora_ipsous: diafora_ipsous ? parseInt(diafora_ipsous) : null,
+        megisto_ipsometro: megisto_ipsometro ? parseInt(megisto_ipsometro) : null,
+        hmerominia: hmerominia ? new Date(hmerominia) : null
       },
       include: {
         vathmos_diskolias: true
@@ -753,7 +615,6 @@ router.put("/drastiriotita/:id", async (req, res) => {
     res.json({
       id: updatedDrastiriotita.id_drastiriotitas,
       id_drastiriotitas: updatedDrastiriotita.id_drastiriotitas,
-      id_eksormisis: updatedDrastiriotita.id_eksormisis,
       titlos: updatedDrastiriotita.titlos,
       id_vathmou_diskolias: updatedDrastiriotita.id_vathmou_diskolias,
       ores_poreias: updatedDrastiriotita.ores_poreias,
@@ -761,12 +622,6 @@ router.put("/drastiriotita/:id", async (req, res) => {
       megisto_ipsometro: updatedDrastiriotita.megisto_ipsometro,
       hmerominia: updatedDrastiriotita.hmerominia,
       vathmos_diskolias: updatedDrastiriotita.vathmos_diskolias
-        ? {
-            id_vathmou_diskolias: updatedDrastiriotita.vathmos_diskolias.id_vathmou_diskolias,
-            onoma: updatedDrastiriotita.vathmos_diskolias.onoma,
-            perigrafi: updatedDrastiriotita.vathmos_diskolias.perigrafi
-          }
-        : null
     });
   } catch (error) {
     console.error("Σφάλμα κατά την ενημέρωση της δραστηριότητας:", error);
@@ -774,65 +629,148 @@ router.put("/drastiriotita/:id", async (req, res) => {
   }
 });
 
-// PUT: Ενημέρωση συμμετοχής
-router.put("/simmetoxi/:id", async (req, res) => {
+// PUT: Ενημέρωση δραστηριοτήτων συμμετοχής
+router.put("/simmetoxi/:id/update-activities", async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
+    const id_simmetoxis = parseInt(req.params.id);
+    const { id_drastiriotitas_array, timi, katastasi } = req.body;
+    
+    if (isNaN(id_simmetoxis)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID συμμετοχής" });
+    }
+    
+    const simmetoxi = await prisma.simmetoxi.findUnique({
+      where: { id_simmetoxis: id_simmetoxis },
+      include: {
+        plironei: true,
+        melos: { include: { epafes: true } },
+        simmetoxi_drastiriotites: {
+          include: { drastiriotita: true }
+        }
+      }
+    });
+    
+    if (!simmetoxi) {
+      return res.status(404).json({ error: "Η συμμετοχή δεν βρέθηκε" });
+    }
+    
+    await prisma.$transaction(async (prisma) => {
+      await prisma.simmetoxi.update({
+        where: { id_simmetoxis: id_simmetoxis },
+        data: {
+          timi: timi !== undefined ? parseFloat(timi) : simmetoxi.timi,
+          katastasi: katastasi !== undefined ? katastasi : simmetoxi.katastasi
+        }
+      });
+
+      await prisma.simmetoxi_drastiriotita.deleteMany({
+        where: { id_simmetoxis: id_simmetoxis }
+      });
+
+      const activityIds = Array.isArray(id_drastiriotitas_array) 
+        ? id_drastiriotitas_array 
+        : [id_drastiriotitas_array];
+
+      if (activityIds.length > 0 && activityIds[0]) {
+        // Remove duplicates first
+        const uniqueActivityIds = [...new Set(activityIds)].filter(id => id);
+        
+        await Promise.all(
+          uniqueActivityIds.map(async (activityId) => {
+            // Use createMany with skipDuplicates option or check if exists first
+            const exists = await prisma.simmetoxi_drastiriotita.findUnique({
+              where: {
+                id_simmetoxis_id_drastiriotitas: {
+                  id_simmetoxis: id_simmetoxis,
+                  id_drastiriotitas: parseInt(activityId)
+                }
+              }
+            });
+            
+            if (!exists) {
+              await prisma.simmetoxi_drastiriotita.create({
+                data: {
+                  id_simmetoxis: id_simmetoxis,
+                  id_drastiriotitas: parseInt(activityId)
+                }
+              });
+            }
+          })
+        );
+      }
+    });
+
+    const updatedSimmetoxi = await prisma.simmetoxi.findUnique({
+      where: { id_simmetoxis: id_simmetoxis },
+      include: {
+        melos: { include: { epafes: true } },
+        plironei: true,
+        simmetoxi_drastiriotites: {
+          include: { drastiriotita: true }
+        }
+      }
+    });
+    
+    res.json({
+      id_simmetoxis: updatedSimmetoxi.id_simmetoxis,
+      id_melous: updatedSimmetoxi.id_melous,
+      id_eksormisis: updatedSimmetoxi.id_eksormisis,
+      timi: updatedSimmetoxi.timi,
+      katastasi: updatedSimmetoxi.katastasi,
+      ypoloipo: updatedSimmetoxi.ypoloipo,
+      memberName: `${updatedSimmetoxi.melos?.epafes?.epitheto || ''} ${updatedSimmetoxi.melos?.epafes?.onoma || ''}`.trim(),
+      plironei: updatedSimmetoxi.plironei,
+      activities: updatedSimmetoxi.simmetoxi_drastiriotites.map(sd => ({
+        id_drastiriotitas: sd.id_drastiriotitas,
+        titlos: sd.drastiriotita?.titlos
+      }))
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση συμμετοχής:", error);
+    res.status(500).json({ 
+      error: "Σφάλμα κατά την ενημέρωση συμμετοχής", 
+      details: error.message 
+    });
+  }
+});
+
+// POST: Προσθήκη πληρωμής
+router.post("/simmetoxi/:id/payment", async (req, res) => {
+  try {
+    const id_simmetoxis = parseInt(req.params.id);
+    const { poso, hmerominia_pliromis } = req.body;
+
+    if (isNaN(id_simmetoxis)) {
       return res.status(400).json({ error: "Μη έγκυρο ID συμμετοχής" });
     }
 
-    const { timi, katastasi } = req.body;
-
-    // Έλεγχος αν η συμμετοχή υπάρχει
     const simmetoxi = await prisma.simmetoxi.findUnique({
-      where: { id_simmetoxis: id },
-      include: {
-        plironei: true,
-        melos: {
-          include: { epafes: true }
-        }
-      }
+      where: { id_simmetoxis: id_simmetoxis }
     });
 
     if (!simmetoxi) {
       return res.status(404).json({ error: "Η συμμετοχή δεν βρέθηκε" });
     }
 
-    // Υπολογισμός νέου υπολοίπου
-    const totalPaid = simmetoxi.plironei.reduce((sum, p) => sum + (p.poso_pliromis || 0), 0);
-    const newTimi = timi !== undefined ? parseInt(timi) : simmetoxi.timi;
-    const newBalance = (newTimi || 0) - totalPaid;
-
-    const updatedSimmetoxi = await prisma.simmetoxi.update({
-      where: { id_simmetoxis: id },
+    const newPayment = await prisma.plironei.create({
       data: {
-        timi: newTimi,
-        katastasi: katastasi || simmetoxi.katastasi,
-        ypoloipo: newBalance < 0 ? 0 : newBalance,
-        hmerominia_akirosis: katastasi === "Ακυρωμένη" && simmetoxi.katastasi !== "Ακυρωμένη" ? new Date() : undefined
-      },
-      include: {
-        melos: { include: { epafes: true } }
+        id_melous: simmetoxi.id_melous,
+        id_simmetoxis: id_simmetoxis,
+        poso_pliromis: parseFloat(poso),
+        hmerominia_pliromis: hmerominia_pliromis ? new Date(hmerominia_pliromis) : new Date()
       }
     });
 
-    const fullName = `${simmetoxi.melos.epafes?.onoma || ''} ${simmetoxi.melos.epafes?.epitheto || ''}`.trim() || "Άγνωστο";
-
-    res.json({
-      id_simmetoxis: updatedSimmetoxi.id_simmetoxis,
-      id_melous: updatedSimmetoxi.id_melous,
-      id_drastiriotitas: updatedSimmetoxi.id_drastiriotitas,
-      timi: updatedSimmetoxi.timi,
-      katastasi: updatedSimmetoxi.katastasi,
-      ypoloipo: updatedSimmetoxi.ypoloipo,
-      hmerominia_dilosis: updatedSimmetoxi.hmerominia_dilosis,
-      hmerominia_akirosis: updatedSimmetoxi.hmerominia_akirosis,
-      memberName: fullName
+    res.status(201).json({
+      id: newPayment.id,
+      id_melous: newPayment.id_melous,
+      id_simmetoxis: newPayment.id_simmetoxis,
+      poso_pliromis: newPayment.poso_pliromis,
+      hmerominia_pliromis: newPayment.hmerominia_pliromis
     });
   } catch (error) {
-    console.error("Σφάλμα κατά την ενημέρωση της συμμετοχής:", error);
-    res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση της συμμετοχής" });
+    console.error("Σφάλμα κατά την προσθήκη πληρωμής:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την προσθήκη πληρωμής" });
   }
 });
 
@@ -844,50 +782,11 @@ router.delete("/:id", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID εξόρμησης" });
     }
 
-    // Έλεγχος αν η εξόρμηση υπάρχει
-    const eksormisi = await prisma.eksormisi.findUnique({
-      where: { id_eksormisis: id },
-      include: { drastiriotita: true }
+    await prisma.eksormisi.delete({
+      where: { id_eksormisis: id }
     });
 
-    if (!eksormisi) {
-      return res.status(404).json({ error: "Η εξόρμηση δεν βρέθηκε" });
-    }
-
-    // Συλλογή όλων των IDs των δραστηριοτήτων
-    const drastiriotitaIds = eksormisi.drastiriotita.map(d => d.id_drastiriotitas);
-
-    // Διαγραφή με transaction για να διασφαλιστεί η ακεραιότητα των δεδομένων
-    await prisma.$transaction(async (prisma) => {
-      // Βρίσκουμε όλες τις συμμετοχές που σχετίζονται με τις δραστηριότητες
-      const simmetoxes = await prisma.simmetoxi.findMany({
-        where: { id_drastiriotitas: { in: drastiriotitaIds } }
-      });
-
-      const simmetoxiIds = simmetoxes.map(s => s.id_simmetoxis);
-
-      // Διαγραφή όλων των πληρωμών
-      await prisma.plironei.deleteMany({
-        where: { id_simmetoxis: { in: simmetoxiIds } }
-      });
-
-      // Διαγραφή όλων των συμμετοχών
-      await prisma.simmetoxi.deleteMany({
-        where: { id_drastiriotitas: { in: drastiriotitaIds } }
-      });
-
-      // Διαγραφή όλων των δραστηριοτήτων
-      await prisma.drastiriotita.deleteMany({
-        where: { id_eksormisis: id }
-      });
-
-      // Διαγραφή της εξόρμησης
-      await prisma.eksormisi.delete({
-        where: { id_eksormisis: id }
-      });
-    });
-
-    res.json({ message: "Η εξόρμηση και όλες οι σχετικές εγγραφές διαγράφηκαν" });
+    res.json({ message: "Η εξόρμηση διαγράφηκε επιτυχώς" });
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή της εξόρμησης:", error);
     res.status(500).json({ error: "Σφάλμα κατά τη διαγραφή της εξόρμησης" });
@@ -902,41 +801,11 @@ router.delete("/drastiriotita/:id", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID δραστηριότητας" });
     }
 
-    // Έλεγχος αν η δραστηριότητα υπάρχει
-    const drastiriotita = await prisma.drastiriotita.findUnique({
+    await prisma.drastiriotita.delete({
       where: { id_drastiriotitas: id }
     });
 
-    if (!drastiriotita) {
-      return res.status(404).json({ error: "Η δραστηριότητα δεν βρέθηκε" });
-    }
-
-    // Διαγραφή με transaction για να διασφαλιστεί η ακεραιότητα των δεδομένων
-    await prisma.$transaction(async (prisma) => {
-      // Βρίσκουμε όλες τις συμμετοχές
-      const simmetoxes = await prisma.simmetoxi.findMany({
-        where: { id_drastiriotitas: id }
-      });
-
-      const simmetoxiIds = simmetoxes.map(s => s.id_simmetoxis);
-
-      // Διαγραφή όλων των πληρωμών
-      await prisma.plironei.deleteMany({
-        where: { id_simmetoxis: { in: simmetoxiIds } }
-      });
-
-      // Διαγραφή όλων των συμμετοχών
-      await prisma.simmetoxi.deleteMany({
-        where: { id_drastiriotitas: id }
-      });
-
-      // Διαγραφή της δραστηριότητας
-      await prisma.drastiriotita.delete({
-        where: { id_drastiriotitas: id }
-      });
-    });
-
-    res.json({ message: "Η δραστηριότητα και όλες οι σχετικές εγγραφές διαγράφηκαν" });
+    res.json({ message: "Η δραστηριότητα διαγράφηκε επιτυχώς" });
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή της δραστηριότητας:", error);
     res.status(500).json({ error: "Σφάλμα κατά τη διαγραφή της δραστηριότητας" });
@@ -951,29 +820,11 @@ router.delete("/simmetoxi/:id", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID συμμετοχής" });
     }
 
-    // Έλεγχος αν η συμμετοχή υπάρχει
-    const simmetoxi = await prisma.simmetoxi.findUnique({
+    await prisma.simmetoxi.delete({
       where: { id_simmetoxis: id }
     });
 
-    if (!simmetoxi) {
-      return res.status(404).json({ error: "Η συμμετοχή δεν βρέθηκε" });
-    }
-
-    // Διαγραφή με transaction για να διασφαλιστεί η ακεραιότητα των δεδομένων
-    await prisma.$transaction(async (prisma) => {
-      // Διαγραφή όλων των πληρωμών
-      await prisma.plironei.deleteMany({
-        where: { id_simmetoxis: id }
-      });
-
-      // Διαγραφή της συμμετοχής
-      await prisma.simmetoxi.delete({
-        where: { id_simmetoxis: id }
-      });
-    });
-
-    res.json({ message: "Η συμμετοχή και όλες οι πληρωμές διαγράφηκαν" });
+    res.json({ message: "Η συμμετοχή διαγράφηκε επιτυχώς" });
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή της συμμετοχής:", error);
     res.status(500).json({ error: "Σφάλμα κατά τη διαγραφή της συμμετοχής" });
@@ -983,51 +834,165 @@ router.delete("/simmetoxi/:id", async (req, res) => {
 // DELETE: Διαγραφή πληρωμής
 router.delete("/simmetoxi/:simmetoxiId/payment/:paymentId", async (req, res) => {
   try {
-    const id_simmetoxis = parseInt(req.params.simmetoxiId);
-    const id_payment = parseInt(req.params.paymentId);
+    const paymentId = parseInt(req.params.paymentId);
+    const simmetoxiId = parseInt(req.params.simmetoxiId);
 
-    if (isNaN(id_simmetoxis) || isNaN(id_payment)) {
+    if (isNaN(paymentId) || isNaN(simmetoxiId)) {
       return res.status(400).json({ error: "Μη έγκυρα IDs" });
     }
 
-    // Έλεγχος αν η πληρωμή υπάρχει
-    const payment = await prisma.plironei.findFirst({
+    await prisma.plironei.delete({
       where: { 
-        id: id_payment,
-        id_simmetoxis: id_simmetoxis
+        id: paymentId,
+        id_simmetoxis: simmetoxiId 
       }
     });
 
-    if (!payment) {
-      return res.status(404).json({ error: "Η πληρωμή δεν βρέθηκε" });
-    }
-
-    // Διαγραφή πληρωμής
-    await prisma.plironei.delete({
-      where: { id: id_payment }
-    });
-
-    // Ενημέρωση υπολοίπου
-    const simmetoxi = await prisma.simmetoxi.findUnique({
-      where: { id_simmetoxis },
-      include: { plironei: true }
-    });
-
-    const totalPaid = simmetoxi.plironei.reduce((sum, p) => sum + (p.poso_pliromis || 0), 0);
-    const newBalance = (simmetoxi.timi || 0) - totalPaid;
-
-    await prisma.simmetoxi.update({
-      where: { id_simmetoxis },
-      data: { ypoloipo: newBalance < 0 ? 0 : newBalance }
-    });
-
-    res.json({ 
-      message: "Η πληρωμή διαγράφηκε", 
-      newBalance: newBalance < 0 ? 0 : newBalance 
-    });
+    res.json({ message: "Η πληρωμή διαγράφηκε επιτυχώς" });
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή της πληρωμής:", error);
     res.status(500).json({ error: "Σφάλμα κατά τη διαγραφή της πληρωμής" });
+  }
+});
+
+// GET: Ανάκτηση συμμετεχόντων συγκεκριμένης δραστηριότητας
+router.get("/drastiriotita/:id/simmetexontes", async (req, res) => {
+  try {
+    const id_drastiriotitas = parseInt(req.params.id);
+    if (isNaN(id_drastiriotitas)) {
+      return res.status(400).json({ error: "Μη έγκυρο ID δραστηριότητας" });
+    }
+
+    // Βρίσκουμε τις συμμετοχές για τη συγκεκριμένη δραστηριότητα
+    const participants = await prisma.simmetoxi_drastiriotita.findMany({
+      where: {
+        id_drastiriotitas: id_drastiriotitas
+      },
+      include: {
+        simmetoxi: {
+          include: {
+            melos: {
+              include: {
+                epafes: true,
+                vathmos_diskolias: true
+              }
+            },
+            plironei: true
+          }
+        },
+        drastiriotita: {
+          include: {
+            vathmos_diskolias: true
+          }
+        }
+      }
+    });
+
+    const formattedParticipants = participants.map(sd => {
+      const simmetoxi = sd.simmetoxi;
+      const totalPaid = (simmetoxi.plironei || []).reduce((sum, payment) => sum + (payment.poso_pliromis || 0), 0);
+      const ypoloipo = (simmetoxi.timi || 0) - totalPaid;
+
+      return {
+        id_simmetoxis: simmetoxi.id_simmetoxis,
+        id_melous: simmetoxi.id_melous,
+        id_drastiriotitas: sd.id_drastiriotitas,
+        timi: simmetoxi.timi,
+        katastasi: simmetoxi.katastasi,
+        ypoloipo: ypoloipo,
+        hmerominia_dilosis: simmetoxi.hmerominia_dilosis,
+        memberName: `${simmetoxi.melos?.epafes?.epitheto || ''} ${simmetoxi.melos?.epafes?.onoma || ''}`.trim(),
+        email: simmetoxi.melos?.epafes?.email || '-',
+        vathmosDiskolias: simmetoxi.melos?.vathmos_diskolias?.epipedo || 'Άγνωστο',
+        melos: simmetoxi.melos,
+        plironei: simmetoxi.plironei
+      };
+    });
+
+    res.json(formattedParticipants);
+  } catch (error) {
+    console.error("Σφάλμα κατά την ανάκτηση συμμετεχόντων δραστηριότητας:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση συμμετεχόντων δραστηριότητας" });
+  }
+});
+
+// PUT: Update the responsible person for an expedition
+router.put("/:id/ypefthynos", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { id_ypefthynou } = req.body;
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid expedition ID" });
+    }
+    
+    if (!id_ypefthynou || isNaN(parseInt(id_ypefthynou))) {
+      return res.status(400).json({ error: "Invalid responsible person ID" });
+    }
+    
+    // Check if member exists and is internal
+    const member = await prisma.esoteriko_melos.findUnique({
+      where: { id_es_melous: parseInt(id_ypefthynou) },
+      include: { melos: { include: { epafes: true } } }
+    });
+    
+    if (!member) {
+      return res.status(404).json({ error: "Internal member not found" });
+    }
+    
+    // Update expedition with new responsible person
+    const updatedEksormisi = await prisma.eksormisi.update({
+      where: { id_eksormisis: id },
+      data: { id_ypefthynou: parseInt(id_ypefthynou) },
+      include: {
+        ypefthynos: { 
+          include: { 
+            melos: { include: { epafes: true } } 
+          } 
+        }
+      }
+    });
+    
+    res.json({
+      message: "Ο υπεύθυνος ενημερώθηκε επιτυχώς",
+      ypefthynos: updatedEksormisi.ypefthynos ? {
+        id_es_melous: updatedEksormisi.ypefthynos.id_es_melous,
+        fullName: `${updatedEksormisi.ypefthynos.melos?.epafes?.epitheto || ''} ${updatedEksormisi.ypefthynos.melos?.epafes?.onoma || ''}`.trim(),
+        email: updatedEksormisi.ypefthynos.melos?.epafes?.email,
+        tilefono: updatedEksormisi.ypefthynos.melos?.epafes?.tilefono?.toString()
+      } : null
+    });
+  } catch (error) {
+    console.error("Error updating responsible person:", error);
+    res.status(500).json({ 
+      error: "Error updating responsible person", 
+      details: error.message 
+    });
+  }
+});
+
+// DELETE: Remove responsible person from expedition
+router.delete("/:id/ypefthynos", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid expedition ID" });
+    }
+    
+    // Update expedition to remove responsible person
+    await prisma.eksormisi.update({
+      where: { id_eksormisis: id },
+      data: { id_ypefthynou: null }
+    });
+    
+    res.json({ message: "Ο υπεύθυνος αφαιρέθηκε επιτυχώς" });
+  } catch (error) {
+    console.error("Error removing responsible person:", error);
+    res.status(500).json({ 
+      error: "Error removing responsible person", 
+      details: error.message 
+    });
   }
 });
 

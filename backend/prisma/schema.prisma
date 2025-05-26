@@ -115,6 +115,7 @@ model eksormisi {
   id_ypefthynou         Int?      // Προαιρετικό πεδίο για το ID του υπεύθυνου
 
   drastiriotita         drastiriotita[]
+  simmetoxi             simmetoxi[]     // Προσθήκη άμεσης σχέσης με συμμετοχές
   ypefthynos            esoteriko_melos? @relation("YpefthynosEksormisis", fields: [id_ypefthynou], references: [id_es_melous], onDelete: SetNull)
 
   @@map("Eksormisi")
@@ -191,7 +192,9 @@ model drastiriotita {
   megisto_ipsometro    Int?
   eksormisi            eksormisi?         @relation(fields: [id_eksormisis], references: [id_eksormisis], onDelete: Cascade)
   vathmos_diskolias    vathmos_diskolias? @relation(fields: [id_vathmou_diskolias], references: [id_vathmou_diskolias], onDelete: Cascade)
-  simmetoxi            simmetoxi[]        // Αντίστροφη σχέση με το simmetoxi
+  
+  // Νέα σχέση many-to-many με συμμετοχές μέσω του junction table
+  simmetoxi_drastiriotites simmetoxi_drastiriotita[]
 
   @@map("Drastiriotita")
 }
@@ -272,7 +275,7 @@ model ekpaideuei {
 model simmetoxi {
   id_simmetoxis        Int              @id @default(autoincrement())
   id_melous            Int
-  id_drastiriotitas    Int?
+  id_eksormisis        Int?             // Προσθήκη για άμεση σύνδεση με εξόρμηση
   poso_epistrofis      Int?
   timi                 Int?
   katastasi            String?
@@ -280,12 +283,28 @@ model simmetoxi {
   hmerominia_dilosis   DateTime?
   hmerominia_akirosis  DateTime?
   melos                melos            @relation(fields: [id_melous], references: [id_melous], onDelete: Cascade)
+  eksormisi            eksormisi?       @relation(fields: [id_eksormisis], references: [id_eksormisis], onDelete: Cascade)
   plironei             plironei[]       // Αντίστροφη σχέση με το plironei
-  drastiriotita        drastiriotita?   @relation(fields: [id_drastiriotitas], references: [id_drastiriotitas], onDelete: Cascade)
+  
+  // Νέα σχέση many-to-many με δραστηριότητες μέσω του junction table
+  simmetoxi_drastiriotites simmetoxi_drastiriotita[]
 
   @@map("Simmetoxi")
-
 }
+
+
+// Νέος πίνακας για τη σχέση many-to-many
+model simmetoxi_drastiriotita {
+  id_simmetoxis        Int
+  id_drastiriotitas    Int
+  
+  simmetoxi            simmetoxi        @relation(fields: [id_simmetoxis], references: [id_simmetoxis], onDelete: Cascade)
+  drastiriotita        drastiriotita    @relation(fields: [id_drastiriotitas], references: [id_drastiriotitas], onDelete: Cascade)
+
+  @@id([id_simmetoxis, id_drastiriotitas])
+  @@map("Simmetoxi_Drastiriotita")
+}
+
 model plironei {
   id                   Int              @id @default(autoincrement())
   id_melous            Int

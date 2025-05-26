@@ -127,13 +127,14 @@ export default function Eksormiseis() {
         hmerominia_anaxorisis: response.data.hmerominia_anaxorisis ? new Date(response.data.hmerominia_anaxorisis) : null,
         hmerominia_afiksis: response.data.hmerominia_afiksis ? new Date(response.data.hmerominia_afiksis) : null,
         participantsCount: 0, // New expedition has no participants yet
-        drastiriotites: []
+        drastiriotites: [] // Empty array initially
       };
       
       // Add to local data
       setEksormiseisData(prevData => [...prevData, newEksormisiData]);
       setAddDialogOpen(false);
     } catch (error) {
+      console.error("Σφάλμα κατά την προσθήκη εξόρμησης:", error);
       alert("Σφάλμα κατά την προσθήκη εξόρμησης. Παρακαλώ δοκιμάστε ξανά.");
     }
   };

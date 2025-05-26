@@ -543,7 +543,7 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
     // Update local state by removing the deleted drastiriotita
     setDrastiriotites(prevDrastiriotites => 
       prevDrastiriotites.filter(item => 
-        item.id_drastριτοτας !== drastiriotitaId && item.id !== drastiriotitaId
+        item.id_drastiriotitas !== drastiriotitaId && item.id !== drastiriotitaId
       )
     );
     
@@ -712,106 +712,116 @@ const handleAddParticipant = async (formData) => {
       return;
     }
 
-    const successResults = [];
     const fixedPrice = parseFloat(formData.timi); // Get the price once for all activities
-    const newParticipants = [];
     
-    for (const activityId of activityIds) {
-      const formattedData = {
-        id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
-        id_drastiriotitas: parseInt(activityId),
-        timi: fixedPrice,
-        katastasi: formData.katastasi || "Ενεργή"
-      };
+    // Send all activities in a single request instead of looping
+    const formattedData = {
+      id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
+      id_drastiriotitas_array: activityIds.map(id => parseInt(id)),
+      timi: fixedPrice,
+      katastasi: formData.katastasi || "Ενεργή"
+    };
+    
+    try {
+      const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedData);
       
-      try {
-        const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedData);
-        successResults.push(response.data);
-        
+      if (!response.data) {
+        alert("Δεν ήταν δυνατή η προσθήκη συμμετοχών.");
+        return;
+      }
+      
+      const newParticipants = [];
+      
+      // Process the response data and update the UI
+      const participantId = response.data.id_simmetoxis;
+      
+      // Get details for each activity that was added
+      for (const activityId of activityIds) {
         // Find the activity details
         const activityDetails = drastiriotites.find(d => 
           (d.id_drastiriotitas == activityId || d.id == activityId)
         );
         
-        // Add to our local new participants array with complete data
-        const newParticipant = {
-          id: response.data.id_simmetoxis,
-          id_simmetoxis: response.data.id_simmetoxis,
-          id_drastiriotitas: parseInt(activityId),
-          id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
-          memberName: memberName,
-          email: memberEmail,
-          tilefono: memberPhone,
-          timi: fixedPrice,
-          katastasi: formData.katastasi || "Ενεργή",
-          ypoloipo: fixedPrice,
-          plironei: [],
-          // Add activity data for the detail panel
-          simmetoxes: [
-            {
-              drastiriotita: activityDetails || {
-                titlos: `Δραστηριότητα #${activityId}`,
-                id_drastiriotitas: activityId
-              }
-            }
-          ],
-          // Include full melos data
-          melos: selectedMember.melos || {
-            epafes: {
-              onoma: selectedMember?.melos?.epafes?.onoma || '',
-              epitheto: selectedMember?.melos?.epafes?.epitheto || '',
-              email: memberEmail,
-              tilefono: memberPhone
-            }
-          }
-        };
-        
-        newParticipants.push(newParticipant);
-        
-        // Update the drastiriotites array to include this participant
+        // Add the activity to our local state
         if (activityDetails) {
-          const participantData = {
-            id_simmetoxis: response.data.id_simmetoxis,
-            id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
-            memberName: memberName,
-            email: memberEmail,
-            tilefono: memberPhone, // Make sure this is set directly
-            timi: fixedPrice,
-            katastasi: formData.katastasi || "Ενεργή"
-          };
-
-          // Then add a console log to debug
-          console.log("Adding participant to activity with phone:", memberPhone, participantData);
-          
+          // Update the drastiriotites array to include this participant
           setDrastiriotites(prev => 
             prev.map(d => {
               if (d.id_drastiriotitas == activityId || d.id == activityId) {
                 return {
                   ...d,
-                  simmetexontes: [...(d.simmetexontes || []), participantData]
+                  simmetexontes: [...(d.simmetexontes || []), {
+                    id_simmetoxis: participantId,
+                    id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
+                    memberName,
+                    email: memberEmail,
+                    tilefono: memberPhone,
+                    timi: fixedPrice,
+                    katastasi: formData.katastasi || "Ενεργή"
+                  }]
                 };
               }
               return d;
             })
           );
         }
-      } catch (err) {
-        console.error(`Error adding participation for activity ${activityId}:`, err);
       }
-    }
-    
-    if (successResults.length > 0) {
-      // Update the participants state with new participants
-      setParticipants(prev => [...prev, ...newParticipants]);
+      
+      // Create a new participant object with all activities
+      const newParticipant = {
+        id: participantId,
+        id_simmetoxis: participantId,
+        id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
+        memberName,
+        email: memberEmail,
+        tilefono: memberPhone,
+        timi: fixedPrice,
+        katastasi: formData.katastasi || "Ενεργή",
+        ypoloipo: fixedPrice,
+        plironei: [],
+        activities: activityIds.map(actId => {
+          const actDetails = drastiriotites.find(d => 
+            (d.id_drastiriotitas == actId || d.id == actId)
+          );
+          return {
+            id_drastiriotitas: actId,
+            titlos: actDetails?.titlos || `Δραστηριότητα #${actId}`,
+            hmerominia: actDetails?.hmerominia
+          };
+        }),
+        simmetoxes: activityIds.map(actId => {
+          const actDetails = drastiriotites.find(d => 
+            (d.id_drastiriotitas == actId || d.id == actId)
+          );
+          return {
+            drastiriotita: actDetails || {
+              titlos: `Δραστηριότητα #${actId}`,
+              id_drastiriotitas: actId
+            }
+          };
+        }),
+        melos: selectedMember.melos || {
+          epafes: {
+            onoma: selectedMember?.melos?.epafes?.onoma || '',
+            epitheto: selectedMember?.melos?.epafes?.epitheto || '',
+            email: memberEmail,
+            tilefono: memberPhone
+          }
+        }
+      };
+      
+      // Update the participants state
+      setParticipants(prev => [...prev, newParticipant]);
       
       // Remove the member from available members
       setAvailableMembers(prev => 
-        prev.filter(m => (m.id_es_melous || m.id) !== selectedMember.id_es_melous)
+        prev.filter(m => String(m.id_es_melous || m.id) !== String(selectedMember.id_es_melous || selectedMember.id))
       );
       
       setAddParticipantDialog(false);
-    } else {
-      alert("Δεν ήταν δυνατή η προσθήκη συμμετοχών.");
+    } catch (error) {
+      console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα:", error);
+      alert("Σφάλμα: " + (error.response?.data?.error || error.message));
     }
   } catch (error) {
     console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα:", error);
@@ -825,22 +835,38 @@ const handleEditParticipantClick = (participant) => {
   const participantId = participant.id_melous;
   const participantActivities = [];
   
-  // If this participant has a simmetoxes array, extract activity IDs from it
-  if (participant.simmetoxes && Array.isArray(participant.simmetoxes)) {
+  // First check the activities array provided by the backend
+  if (participant.activities && Array.isArray(participant.activities)) {
+    participant.activities.forEach(activity => {
+      participantActivities.push(activity.id_drastiriotitas || activity.id);
+    });
+  }
+  // Then check simmetoxi_drastiriotites (the direct relation from database)
+  else if (participant.simmetoxi_drastiriotites && Array.isArray(participant.simmetoxi_drastiriotites)) {
+    participant.simmetoxi_drastiriotites.forEach(sd => {
+      if (sd.id_drastiriotitas) {
+        participantActivities.push(sd.id_drastiriotitas);
+      } else if (sd.drastiriotita?.id_drastiriotitas) {
+        participantActivities.push(sd.drastiriotita.id_drastiriotitas);
+      }
+    });
+  }
+  // Fall back to previous data structures for compatibility
+  else if (participant.simmetoxes && Array.isArray(participant.simmetoxes)) {
     participant.simmetoxes.forEach(simmetoxi => {
-      if (simmetoxi.drastiriotita) {
-        const activityId = simmetoxi.drastiriotita.id_drastiriotitas || simmetoxi.drastiriotita.id;
-        if (activityId) {
-          participantActivities.push(activityId);
-        }
+      if (simmetoxi.drastiriotita?.id_drastiriotitas) {
+        participantActivities.push(simmetoxi.drastiriotita.id_drastiriotitas);
       }
     });
   }
   
-  // Also include the current activity if available
+  // Also include the direct activity if available
   if (participant.id_drastiriotitas) {
     participantActivities.push(participant.id_drastiriotitas);
   }
+  
+  // Use a Set to ensure all activity IDs are unique before setting state
+  const uniqueActivities = [...new Set(participantActivities)];
   
   // Set current participant with activities included
   setCurrentParticipant({
@@ -848,19 +874,25 @@ const handleEditParticipantClick = (participant) => {
     id_melous: participantId,
     timi: participant.timi,
     katastasi: participant.katastasi || "Ενεργή",
-    activities: [...new Set(participantActivities)] // Use Set to remove duplicates
+    // Use the uniqueActivities array instead
+    activities: uniqueActivities
   });
   
   setEditParticipantDialog(true);
 };
-  
+
   // Modified participant editing approach to fix API errors
 const handleEditParticipantSave = async (updatedParticipant) => {
   try {
+    // Ensure activities are unique numbers
+    const uniqueActivities = [...new Set(updatedParticipant.activities)].map(id => parseInt(id));
+    
     // Basic participant data update
     const formattedData = {
       timi: parseFloat(updatedParticipant.timi),
-      katastasi: updatedParticipant.katastasi
+      katastasi: updatedParticipant.katastasi,
+      // Use the cleaned array of unique IDs
+      id_drastiriotitas_array: uniqueActivities
     };
     
     // Find the original participant with all their details
@@ -876,162 +908,43 @@ const handleEditParticipantSave = async (updatedParticipant) => {
     
     // IMPORTANT: Save the payment history and member details
     const existingPayments = originalParticipant.plironei || [];
-    const memberName = originalParticipant.memberName;
-    const memberEmail = originalParticipant.email || originalParticipant.melos?.epafes?.email || "-";
-    const memberPhone = originalParticipant.tilefono || originalParticipant.melos?.epafes?.tilefono || "-";
     
-    // Update basic participant information
-    await api.put(`/eksormiseis/simmetoxi/${updatedParticipant.id_simmetoxis}`, formattedData);
+    // Calculate which activities to add and which to remove (for local state update only)
+    const currentActivities = [];
     
-    // Gather current activity IDs and selected activity IDs
-    const currentActivityIds = [];
-    
-    // From simmetoxes array
-    if (originalParticipant.simmetoxes && Array.isArray(originalParticipant.simmetoxes)) {
-      originalParticipant.simmetoxes.forEach(s => {
-        if (s.drastiriotita) {
-          const actId = s.drastiriotita.id_drastiriotitas || s.drastiriotita.id;
-          if (actId) currentActivityIds.push(String(actId));
+    // Get current activities from different possible data structures
+    if (originalParticipant.activities && Array.isArray(originalParticipant.activities)) {
+      originalParticipant.activities.forEach(activity => {
+        currentActivities.push(String(activity.id_drastiriotitas || activity.id));
+      });
+    } else if (originalParticipant.simmetoxi_drastiriotites && Array.isArray(originalParticipant.simmetoxi_drastiriotites)) {
+      originalParticipant.simmetoxi_drastiriotites.forEach(sd => {
+        if (sd.id_drastiriotitas) {
+          currentActivities.push(String(sd.id_drastiriotitas));
+        } else if (sd.drastiriotita?.id_drastiriotitas) {
+          currentActivities.push(String(sd.drastiriotita.id_drastiriotitas));
+        }
+      });
+    } else if (originalParticipant.simmetoxes && Array.isArray(originalParticipant.simmetoxes)) {
+      originalParticipant.simmetoxes.forEach(simmetoxi => {
+        if (simmetoxi.drastiriotita?.id_drastiriotitas) {
+          currentActivities.push(String(simmetoxi.drastiriotita.id_drastiriotitas));
         }
       });
     }
     
-    // From direct participation
-    if (originalParticipant.id_drastiriotitas) {
-      currentActivityIds.push(String(originalParticipant.id_drastiriotitas));
-    }
+    // Convert updated activities to strings for comparison
+    const updatedActivities = updatedParticipant.activities.map(id => String(id));
     
-    // Get selected activities from form
-    const selectedActivityIds = Array.isArray(updatedParticipant.activities) ? 
-      updatedParticipant.activities.map(id => String(id)) : [];
+    // Calculate differences for local state update
+    const activitiesToAdd = updatedActivities.filter(id => !currentActivities.includes(id));
+    const activitiesToRemove = currentActivities.filter(id => !updatedActivities.includes(id));
     
-    console.log("Current activities:", currentActivityIds);
-    console.log("Selected activities:", selectedActivityIds);
-    
-    // Find activities to add and remove
-    const activitiesToAdd = selectedActivityIds.filter(id => !currentActivityIds.includes(id));
-    const activitiesToRemove = currentActivityIds.filter(id => !selectedActivityIds.includes(id));
-    
-    console.log("Activities to add:", activitiesToAdd);
-    console.log("Activities to remove:", activitiesToRemove);
-    
-    // Track added participations
-    const addedParticipations = [];
-    
-    // MODIFIED APPROACH: Instead of querying the API for participations,
-    // use the locally stored simmetoxes array to find participation IDs
-    for (const activityId of activitiesToRemove) {
-      try {
-        // Find the participation ID from local data
-        const simmetoxiToRemove = originalParticipant.simmetoxes?.find(s => 
-          s.drastiriotita && 
-          (String(s.drastiriotita.id_drastiriotitas) === String(activityId) || 
-           String(s.drastiriotita.id) === String(activityId))
-        );
-        
-        if (simmetoxiToRemove && simmetoxiToRemove.id_simmetoxis) {
-          // Delete the participation
-          await api.delete(`/eksormiseis/simmetoxi/${simmetoxiToRemove.id_simmetoxis}`);
-          
-          // Update local state
-          setDrastiriotites(prev => prev.map(d => {
-            if (String(d.id_drastiriotitas) === String(activityId) || String(d.id) === String(activityId)) {
-              return {
-                ...d,
-                simmetexontes: (d.simmetexontes || []).filter(s => 
-                  s.id_melous !== updatedParticipant.id_melous
-                )
-              };
-            }
-            return d;
-          }));
-        } else {
-          console.log(`Could not find participation ID for activity ${activityId}`);
-        }
-      } catch (err) {
-        console.error(`Error removing participation for activity ${activityId}:`, err);
-      }
-    }
-    
-    // Add new participations
-    for (const activityId of activitiesToAdd) {
-      try {
-        const formattedAddData = {
-          id_melous: updatedParticipant.id_melous,
-          id_drastiriotitas: parseInt(activityId),
-          timi: parseFloat(updatedParticipant.timi),
-          katastasi: updatedParticipant.katastasi
-        };
-        
-        // FIX: Add the expedition ID to the URL
-        const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedAddData);
-        
-        // Find activity details
-        const activityDetails = drastiriotites.find(d => 
-          String(d.id_drastiriotitas) === String(activityId) || String(d.id) === String(activityId)
-        );
-        
-        if (activityDetails && response.data) {
-          // Add to tracking array
-          addedParticipations.push({
-            id_simmetoxis: response.data.id_simmetoxis,
-            drastiriotita: activityDetails
-          });
-          
-          // Update activity's participants list
-          setDrastiriotites(prev => prev.map(d => {
-            if (String(d.id_drastiriotitas) === String(activityId) || String(d.id) === String(activityId)) {
-              return {
-                ...d,
-                simmetexontes: [
-                  ...(d.simmetexontes || []),
-                  {
-                    id_simmetoxis: response.data.id_simmetoxis,
-                    id_melous: updatedParticipant.id_melous,
-                    memberName: memberName,
-                    email: memberEmail,
-                    tilefono: memberPhone,
-                    timi: parseFloat(updatedParticipant.timi),
-                    katastasi: updatedParticipant.katastasi
-                  }
-                ]
-              };
-            }
-            return d;
-          }));
-        }
-      } catch (err) {
-        console.error(`Error adding participant to activity ${activityId}:`, err);
-      }
-    }
-    
-    // Update participant's simmetoxes array
-    setParticipants(prevParticipants => {
-      return prevParticipants.map(p => {
-        if (p.id_simmetoxis === updatedParticipant.id_simmetoxis || p.id === updatedParticipant.id_simmetoxis) {
-          // Filter out removed activities
-          let updatedSimmetoxes = p.simmetoxes
-            ? p.simmetoxes.filter(s => {
-                if (!s.drastiriotita) return false;
-                const actId = s.drastiriotita.id_drastiriotitas || s.drastiriotita.id;
-                return !activitiesToRemove.includes(String(actId));
-              })
-            : [];
-          
-          // Add new activities
-          updatedSimmetoxes = [...updatedSimmetoxes, ...addedParticipations];
-          
-          return {
-            ...p,
-            timi: parseFloat(updatedParticipant.timi),
-            katastasi: updatedParticipant.katastasi,
-            simmetoxes: updatedSimmetoxes,
-            plironei: existingPayments // Preserve payments
-          };
-        }
-        return p;
-      });
-    });
+    // *** KEY CHANGE: Use a single API call to update all activities at once, instead of making multiple calls ***
+    await api.put(`/eksormiseis/simmetoxi/${updatedParticipant.id_simmetoxis}/update-activities`, formattedData);
+
+    // Update local state based on the response
+    updateParticipantDisplayState(updatedParticipant, activitiesToAdd, activitiesToRemove, existingPayments);
     
     setEditParticipantDialog(false);
     setCurrentParticipant(null);
@@ -1040,8 +953,101 @@ const handleEditParticipantSave = async (updatedParticipant) => {
     alert("Σφάλμα: " + error.message);
   }
 };
+
+// Helper function to update the UI state after editing a participant
+const updateParticipantDisplayState = (updatedParticipant, activitiesToAdd, activitiesToRemove, existingPayments) => {
+  // Update the activities display in the UI
+  setDrastiriotites(prev => 
+    prev.map(d => {
+      const activityId = String(d.id_drastiriotitas || d.id);
+      
+      // Remove participant from activities they were removed from
+      if (activitiesToRemove.includes(activityId)) {
+        return {
+          ...d,
+          simmetexontes: (d.simmetexontes || []).filter(s => 
+            s.id_melous !== updatedParticipant.id_melous &&
+            s.id_simmetoxis !== updatedParticipant.id_simmetoxis
+          )
+        };
+      }
+      
+      // Add participant to activities they were added to
+      if (activitiesToAdd.includes(activityId)) {
+        const existingParticipant = participants.find(p => 
+          p.id_simmetoxis === updatedParticipant.id_simmetoxis || 
+          p.id === updatedParticipant.id_simmetoxis
+        );
+        
+        return {
+          ...d,
+          simmetexontes: [
+            ...(d.simmetexontes || []),
+            {
+              id_simmetoxis: updatedParticipant.id_simmetoxis,
+              id_melous: updatedParticipant.id_melous,
+              memberName: existingParticipant?.memberName || "",
+              email: existingParticipant?.email || existingParticipant?.melos?.epafes?.email || "-",
+              tilefono: existingParticipant?.tilefono || existingParticipant?.melos?.epafes?.tilefono || "-",
+              timi: parseFloat(updatedParticipant.timi),
+              katastasi: updatedParticipant.katastasi
+            }
+          ]
+        };
+      }
+      
+      return d;
+    })
+  );
   
-   // Enhanced participant removal handler for better state synchronization
+  // Update the participants list
+  setParticipants(prevParticipants => 
+    prevParticipants.map(p => {
+      if (p.id_simmetoxis === updatedParticipant.id_simmetoxis || p.id === updatedParticipant.id_simmetoxis) {
+        // Update the activities and simmetoxes arrays
+        const updatedSimmetoxes = p.simmetoxes 
+          ? p.simmetoxes.filter(s => {
+              if (!s.drastiriotita) return false;
+              const actId = String(s.drastiriotita.id_drastiriotitas || s.drastiriotita.id);
+              return !activitiesToRemove.includes(actId);
+            })
+          : [];
+        
+        // Add new activities
+        const newSimmetoxes = [...updatedSimmetoxes];
+        activitiesToAdd.forEach(actId => {
+          const activity = drastiriotites.find(d => 
+            String(d.id_drastiriotitas || d.id) === actId
+          );
+          if (activity) {
+            newSimmetoxes.push({ drastiriotita: activity });
+          }
+        });
+        
+        return {
+          ...p,
+          timi: parseFloat(updatedParticipant.timi),
+          katastasi: updatedParticipant.katastasi,
+          simmetoxes: newSimmetoxes,
+          activities: updatedParticipant.activities.map(actId => {
+            const activity = drastiriotites.find(d => 
+              d.id_drastiriotitas == actId || d.id == actId
+            );
+            return {
+              id_drastiriotitas: actId,
+              titlos: activity?.titlos || `Δραστηριότητα #${actId}`,
+              hmerominia: activity?.hmerominia
+            };
+          }),
+          plironei: existingPayments
+        };
+      }
+      return p;
+    })
+  );
+};
+  
+  // Simplified participant removal handler for better state synchronization
 const handleRemoveParticipant = async (participant) => {
   // Check for valid participant
   if (!participant) {
@@ -1450,21 +1456,25 @@ const participantDetailPanel = {
           
           let activities = [];
           
-          // Handle various data structures with proper null checks
-          if (row.simmetoxes && Array.isArray(row.simmetoxes)) {
+          // First check the activities array provided by the backend
+          if (row.activities && Array.isArray(row.activities)) {
+            activities = [...row.activities];
+          }
+          // Then check simmetoxi_drastiriotites (the direct relation from database)
+          else if (row.simmetoxi_drastiriotites && Array.isArray(row.simmetoxi_drastiriotites)) {
+            activities = row.simmetoxi_drastiriotites.map(sd => sd.drastiriotita).filter(Boolean);
+          }
+          // Fall back to previous data structures for compatibility
+          else if (row.simmetoxes && Array.isArray(row.simmetoxes)) {
             activities = row.simmetoxes
               .map(s => s?.drastiriotita)
               .filter(Boolean);
           } else if (row.drastiriotita) {
             if (Array.isArray(row.drastiriotita)) {
-              activities = row.drastiriotita.filter(Boolean);
+              activities = [...row.drastiriotita];
             } else {
-              activities = [row.drastiriotita].filter(Boolean);
+              activities = [row.drastiriotita];
             }
-          } else if (row.katanemimeno_se && Array.isArray(row.katanemimeno_se)) {
-            activities = row.katanemimeno_se
-              .map(k => k?.drastiriotita)
-              .filter(Boolean);
           }
           
           return activities;
@@ -1715,6 +1725,7 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
             if (ids.length > 0) {
               setSelectedMember(availableMembers.find(m => 
                 (m.id_es_melous || m.id) === ids[0]
+              
               ));
             } else {
               setSelectedMember(null);
@@ -1740,6 +1751,7 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
       <Box sx={{ mb: 3, border: '1px solid #ddd', borderRadius: 1 }}>
         <DataTable
           data={drastiriotites}
+         
           columns={activityColumns}
           getRowId={(row) => row.id_drastiriotitas || row.id}
           enableRowSelection

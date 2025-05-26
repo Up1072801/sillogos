@@ -6,6 +6,8 @@ async function deleteAllData() {
   try {
     // Διαγραφή δεδομένων από child tables
     await prisma.katavalei.deleteMany();
+        await prisma.simmetoxi_drastiriotita.deleteMany({}); // ΝΕΟΣ ΠΙΝΑΚΑΣ - πρώτος στη διαγραφή
+
     await prisma.plironei.deleteMany();
     await prisma.simmetoxi.deleteMany();
     await prisma.exei.deleteMany();

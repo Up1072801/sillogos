@@ -820,55 +820,88 @@ await prisma.ekpaideuei.createMany({
 });
   // 6. Συμμετοχές
   await prisma.simmetoxi.createMany({
-    data: [
-      { id_melous: 1, id_drastiriotitas: 1, timi: 30, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-15") },
-      { id_melous: 2, id_drastiriotitas: 2, timi: 25, katastasi: "Εκκρεμής", ypoloipo: 25, hmerominia_dilosis: new Date("2023-10-16") },
-      { id_melous: 3, id_drastiriotitas: 3, timi: 40, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-17") },
-      { id_melous: 4, id_drastiriotitas: 4, timi: 35, katastasi: "Εκκρεμής", ypoloipo: 15, hmerominia_dilosis: new Date("2023-10-18") },
-      { id_melous: 5, id_drastiriotitas: 5, timi: 50, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-19") },
-      { id_melous: 6, id_drastiriotitas: 6, timi: 30, katastasi: "Εκκρεμής", ypoloipo: 10, hmerominia_dilosis: new Date("2023-10-20") },
-      { id_melous: 7, id_drastiriotitas: 7, timi: 45, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-21") },
-      { id_melous: 8, id_drastiriotitas: 8, timi: 40, katastasi: "Εκκρεμής", ypoloipo: 20, hmerominia_dilosis: new Date("2023-10-22") },
-      { id_melous: 9, id_drastiriotitas: 9, timi: 35, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-23") },
-      { id_melous: 10, id_drastiriotitas: 10, timi: 50, katastasi: "Εκκρεμής", ypoloipo: 50, hmerominia_dilosis: new Date("2023-10-24") },
-      { id_melous: 11, id_drastiriotitas: 11, timi: 20, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-25") },
-      { id_melous: 12, id_drastiriotitas: 12, timi: 30, katastasi: "Εκκρεμής", ypoloipo: 10, hmerominia_dilosis: new Date("2023-10-26") },
-      { id_melous: 13, id_drastiriotitas: 13, timi: 40, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-27") },
-      { id_melous: 14, id_drastiriotitas: 14, timi: 35, katastasi: "Εκκρεμής", ypoloipo: 15, hmerominia_dilosis: new Date("2023-10-28") },
-      { id_melous: 15, id_drastiriotitas: 15, timi: 45, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-29") },
-      { id_melous: 16, id_drastiriotitas: 16, timi: 25, katastasi: "Εκκρεμής", ypoloipo: 5, hmerominia_dilosis: new Date("2023-10-30") },
-      { id_melous: 17, id_drastiriotitas: 17, timi: 30, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-11-01") },
-      { id_melous: 18, id_drastiriotitas: 18, timi: 50, katastasi: "Εκκρεμής", ypoloipo: 50, hmerominia_dilosis: new Date("2023-11-02") },
-      { id_melous: 19, id_drastiriotitas: 19, timi: 20, katastasi: "Ολοκληρωμένη", ypoloipo: 0, hmerominia_dilosis: new Date("2023-11-03") },
-      { id_melous: 20, id_drastiriotitas: 20, timi: 25, katastasi: "Εκκρεμής", ypoloipo: 10, hmerominia_dilosis: new Date("2023-11-04") }
-    ]
-  });
+  data: [
+    { id_melous: 1, id_eksormisis: 1, timi: 150, katastasi: "Ενεργή", ypoloipo: 50, hmerominia_dilosis: new Date("2023-10-15") },
+    { id_melous: 2, id_eksormisis: 1, timi: 150, katastasi: "Ενεργή", ypoloipo: 150, hmerominia_dilosis: new Date("2023-10-16") },
+    { id_melous: 3, id_eksormisis: 2, timi: 200, katastasi: "Ενεργή", ypoloipo: 200, hmerominia_dilosis: new Date("2025-11-01") },
+    { id_melous: 4, id_eksormisis: 2, timi: 200, katastasi: "Ενεργή", ypoloipo: 100, hmerominia_dilosis: new Date("2025-11-02") },
+    { id_melous: 5, id_eksormisis: 3, timi: 250, katastasi: "Ενεργή", ypoloipo: 250, hmerominia_dilosis: new Date("2025-04-01") },
+    { id_melous: 6, id_eksormisis: 1, timi: 150, katastasi: "Ενεργή", ypoloipo: 50, hmerominia_dilosis: new Date("2023-10-20") },
+    { id_melous: 7, id_eksormisis: 1, timi: 150, katastasi: "Ενεργή", ypoloipo: 0, hmerominia_dilosis: new Date("2023-10-21") },
+    { id_melous: 8, id_eksormisis: 2, timi: 200, katastasi: "Ενεργή", ypoloipo: 80, hmerominia_dilosis: new Date("2025-11-03") },
+    { id_melous: 9, id_eksormisis: 3, timi: 250, katastasi: "Ενεργή", ypoloipo: 0, hmerominia_dilosis: new Date("2025-04-02") },
+    { id_melous: 10, id_eksormisis: 1, timi: 150, katastasi: "Ενεργή", ypoloipo: 150, hmerominia_dilosis: new Date("2023-10-24") }
+  ]
+});
+
+await prisma.simmetoxi_drastiriotita.createMany({
+  data: [
+    // Συμμετοχή 1 (μέλος 1 στην εξόρμηση 1) - συμμετέχει σε 2 δραστηριότητες
+    { id_simmetoxis: 1, id_drastiriotitas: 1 },
+    { id_simmetoxis: 1, id_drastiriotitas: 2 },
+    
+    // Συμμετοχή 2 (μέλος 2 στην εξόρμηση 1) - συμμετέχει σε 1 δραστηριότητα
+    { id_simmetoxis: 2, id_drastiriotitas: 3 },
+    
+    // Συμμετοχή 3 (μέλος 3 στην εξόρμηση 2) - συμμετέχει σε 3 δραστηριότητες
+    { id_simmetoxis: 3, id_drastiriotitas: 11 },
+    { id_simmetoxis: 3, id_drastiriotitas: 12 },
+    { id_simmetoxis: 3, id_drastiriotitas: 13 },
+    
+    // Συμμετοχή 4 (μέλος 4 στην εξόρμηση 2) - συμμετέχει σε 2 δραστηριότητες
+    { id_simmetoxis: 4, id_drastiriotitas: 14 },
+    { id_simmetoxis: 4, id_drastiriotitas: 15 },
+    
+    // Συμμετοχή 5 (μέλος 5 στην εξόρμηση 3) - συμμετέχει σε 4 δραστηριότητες
+    { id_simmetoxis: 5, id_drastiriotitas: 21 },
+    { id_simmetoxis: 5, id_drastiriotitas: 22 },
+    { id_simmetoxis: 5, id_drastiriotitas: 23 },
+    { id_simmetoxis: 5, id_drastiriotitas: 24 },
+    
+    // Συμμετοχή 6 (μέλος 6 στην εξόρμηση 1) - συμμετέχει σε 3 δραστηριότητες
+    { id_simmetoxis: 6, id_drastiriotitas: 4 },
+    { id_simmetoxis: 6, id_drastiriotitas: 5 },
+    { id_simmetoxis: 6, id_drastiriotitas: 6 },
+    
+    // Συμμετοχή 7 (μέλος 7 στην εξόρμηση 1) - συμμετέχει σε όλες τις δραστηριότητες
+    { id_simmetoxis: 7, id_drastiriotitas: 1 },
+    { id_simmetoxis: 7, id_drastiriotitas: 2 },
+    { id_simmetoxis: 7, id_drastiriotitas: 3 },
+    { id_simmetoxis: 7, id_drastiriotitas: 4 },
+    { id_simmetoxis: 7, id_drastiriotitas: 5 },
+    { id_simmetoxis: 7, id_drastiriotitas: 6 },
+    { id_simmetoxis: 7, id_drastiriotitas: 7 },
+    { id_simmetoxis: 7, id_drastiriotitas: 8 },
+    { id_simmetoxis: 7, id_drastiriotitas: 9 },
+    { id_simmetoxis: 7, id_drastiriotitas: 10 },
+    
+    // Συμμετοχή 8 (μέλος 8 στην εξόρμηση 2) - συμμετέχει σε 1 δραστηριότητα
+    { id_simmetoxis: 8, id_drastiriotitas: 16 },
+    
+    // Συμμετοχή 9 (μέλος 9 στην εξόρμηση 3) - συμμετέχει σε 2 δραστηριότητες
+    { id_simmetoxis: 9, id_drastiriotitas: 25 },
+    { id_simmetoxis: 9, id_drastiriotitas: 26 },
+    
+    // Συμμετοχή 10 (μέλος 10 στην εξόρμηση 1) - συμμετέχει σε 1 δραστηριότητα
+    { id_simmetoxis: 10, id_drastiriotitas: 7 }
+  ]
+});
 
   // 7. Πληρωμές
-  await prisma.plironei.createMany({
-    data: [
-      { id_melous: 1, id_simmetoxis: 1, hmerominia_pliromis: new Date("2023-10-30"), poso_pliromis: 30 },
-      { id_melous: 2, id_simmetoxis: 2, hmerominia_pliromis: new Date("2023-10-31"), poso_pliromis: 0 },
-      { id_melous: 3, id_simmetoxis: 3, hmerominia_pliromis: new Date("2023-11-01"), poso_pliromis: 40 },
-      { id_melous: 4, id_simmetoxis: 4, hmerominia_pliromis: new Date("2023-11-02"), poso_pliromis: 20 },
-      { id_melous: 5, id_simmetoxis: 5, hmerominia_pliromis: new Date("2023-11-03"), poso_pliromis: 50 },
-      { id_melous: 6, id_simmetoxis: 6, hmerominia_pliromis: new Date("2023-11-04"), poso_pliromis: 20 },
-      { id_melous: 7, id_simmetoxis: 7, hmerominia_pliromis: new Date("2023-11-05"), poso_pliromis: 45 },
-      { id_melous: 8, id_simmetoxis: 8, hmerominia_pliromis: new Date("2023-11-06"), poso_pliromis: 20 },
-      { id_melous: 9, id_simmetoxis: 9, hmerominia_pliromis: new Date("2023-11-07"), poso_pliromis: 35 },
-      { id_melous: 10, id_simmetoxis: 10, hmerominia_pliromis: new Date("2023-11-08"), poso_pliromis: 0 },
-      { id_melous: 11, id_simmetoxis: 11, hmerominia_pliromis: new Date("2023-11-09"), poso_pliromis: 20 },
-      { id_melous: 12, id_simmetoxis: 12, hmerominia_pliromis: new Date("2023-11-10"), poso_pliromis: 20 },
-      { id_melous: 13, id_simmetoxis: 13, hmerominia_pliromis: new Date("2023-11-11"), poso_pliromis: 40 },
-      { id_melous: 14, id_simmetoxis: 14, hmerominia_pliromis: new Date("2023-11-12"), poso_pliromis: 20 },
-      { id_melous: 15, id_simmetoxis: 15, hmerominia_pliromis: new Date("2023-11-13"), poso_pliromis: 45 },
-      { id_melous: 16, id_simmetoxis: 16, hmerominia_pliromis: new Date("2023-11-14"), poso_pliromis: 20 },
-      { id_melous: 17, id_simmetoxis: 17, hmerominia_pliromis: new Date("2023-11-15"), poso_pliromis: 30 },
-      { id_melous: 18, id_simmetoxis: 18, hmerominia_pliromis: new Date("2023-11-16"), poso_pliromis: 0 },
-      { id_melous: 19, id_simmetoxis: 19, hmerominia_pliromis: new Date("2023-11-17"), poso_pliromis: 20 },
-      { id_melous: 20, id_simmetoxis: 20, hmerominia_pliromis: new Date("2023-11-18"), poso_pliromis: 15 }
-    ]
-  });
+await prisma.plironei.createMany({
+  data: [
+    { id_melous: 1, id_simmetoxis: 1, hmerominia_pliromis: new Date("2023-10-30"), poso_pliromis: 100 },
+    { id_melous: 2, id_simmetoxis: 2, hmerominia_pliromis: new Date("2023-10-31"), poso_pliromis: 0 },
+    { id_melous: 3, id_simmetoxis: 3, hmerominia_pliromis: new Date("2025-11-15"), poso_pliromis: 0 },
+    { id_melous: 4, id_simmetoxis: 4, hmerominia_pliromis: new Date("2025-11-16"), poso_pliromis: 100 },
+    { id_melous: 5, id_simmetoxis: 5, hmerominia_pliromis: new Date("2025-04-15"), poso_pliromis: 0 },
+    { id_melous: 6, id_simmetoxis: 6, hmerominia_pliromis: new Date("2023-11-01"), poso_pliromis: 100 },
+    { id_melous: 7, id_simmetoxis: 7, hmerominia_pliromis: new Date("2023-11-02"), poso_pliromis: 150 },
+    { id_melous: 8, id_simmetoxis: 8, hmerominia_pliromis: new Date("2025-11-17"), poso_pliromis: 120 },
+    { id_melous: 9, id_simmetoxis: 9, hmerominia_pliromis: new Date("2025-04-16"), poso_pliromis: 250 },
+    { id_melous: 10, id_simmetoxis: 10, hmerominia_pliromis: new Date("2023-11-03"), poso_pliromis: 0 }
+  ]
+});
 
   // 8. Σχέσεις Συνδρομών
   await prisma.exei.createMany({
