@@ -101,6 +101,8 @@ export default function EksormisiDetails() {
   const [internalMembers, setInternalMembers] = useState([]);
   const [responsiblePersonDialog, setResponsiblePersonDialog] = useState(false);
   // Add these states
+  // Add with your other state declarations
+const [ypefthynoi, setYpefthynoi] = useState([]);
   const [memberSelectionDialogOpen, setMemberSelectionDialogOpen] = useState(false);
   const [activitySelectionDialogOpen, setActivitySelectionDialogOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState(null);
@@ -121,7 +123,23 @@ export default function EksormisiDetails() {
   useEffect(() => {
     fetchData();
     fetchInternalMembers(); // Add this line
+    fetchResponsiblePersons();
   }, [id, refreshTrigger]);
+
+  // Add this function after fetchInternalMembers
+const fetchResponsiblePersons = async () => {
+  try {
+    const response = await api.get(`/eksormiseis/${id}/ypefthynoi`);
+    if (Array.isArray(response.data)) {
+      setYpefthynoi(response.data);
+    } else {
+      setYpefthynoi([]);
+    }
+  } catch (error) {
+    console.error("Σφάλμα κατά τη φόρτωση υπευθύνων:", error);
+    setYpefthynoi([]);
+  }
+};
 
   // Main data fetching function
   const fetchData = async () => {
@@ -311,26 +329,18 @@ const fetchInternalMembers = async () => {
   }
 };
 
-// Add this function alongside your other handler functions
-const handleRemoveResponsiblePerson = async () => {
+// Update the existing handleRemoveResponsiblePerson function
+const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
   try {
-    if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον υπεύθυνο από την εξόρμηση;")) {
+    if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον υπεύθυνο;")) {
       return;
     }
-
-    // Make API call to remove the responsible person
-    await api.put(`/eksormiseis/${id}/ypefthynos`, {
-      id_ypefthynou: null // Setting to null removes the responsible person
-    });
-
-    // Update local state
-    setEksormisi(prev => ({
-      ...prev,
-      ypefthynos: null
-    }));
+    
+    await api.delete(`/eksormiseis/${id}/ypefthynoi/${id_ypefthynou}`);
+    fetchResponsiblePersons(); // Refresh the list after deletion
   } catch (error) {
-    console.error("Σφάλμα κατά την αφαίρεση υπεύθυνου:", error);
-    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
+    console.error("Σφάλμα κατά την αφαίρεση υπευθύνου:", error);
+    alert("Σφάλμα: " + error.message);
   }
 };
 
@@ -1761,7 +1771,7 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
       <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
         Επιλογή Δραστηριοτήτων
       </Typography>
-      <Box sx={{ mb: 3, border: '1px solid #ddd', borderRadius: 1 }}>
+      <Box sx={{ mb:  3, border: '1px solid #ddd', borderRadius: 1 }}>
         <DataTable
           data={drastiriotites}
           columns={activityColumns}
@@ -2138,61 +2148,49 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
-                            <Typography variant="h6" color="primary">Υπεύθυνος Εξόρμησης</Typography>
+                            <Typography variant="h6" color="primary">Υπεύθυνοι Εξόρμησης</Typography>
                           </Box>
-                          {eksormisi.ypefthynos ? (
-                            <Button 
-                              variant="outlined" 
-                              color="primary"
-                              startIcon={<EditIcon />} 
-                              onClick={() => setResponsiblePersonDialog(true)}
-                              size="small"
-                            >
-                              Αλλαγή
-                            </Button>
-                          ) : (
-                            <Button 
-                              variant="contained" 
-                              color="primary"
-                              startIcon={<AddIcon />} 
-                              onClick={() => setResponsiblePersonDialog(true)}
-                              size="small"
-                            >
-                              Ορισμός
-                            </Button>
-                          )}
+                          <Button 
+                            variant="contained" 
+                            color="primary"
+                            startIcon={<AddIcon />} 
+                            onClick={() => setResponsiblePersonDialog(true)}
+                            size="small"
+                          >
+                            {ypefthynoi.length > 0 ? "Διαχείριση" : "Ορισμός"}
+                          </Button>
                         </Box>
                         <Divider sx={{ mb: 2 }} />
                         
-                        {eksormisi.ypefthynos ? (
-                          <Grid container spacing={2}>
-                            <Grid item xs={12}>
-                              <Typography variant="subtitle2" color="text.secondary">Ονοματεπώνυμο</Typography>
-                              <Typography variant="body1">{eksormisi.ypefthynos.fullName || '-'}</Typography>
-                            </Grid>
-                            <Grid item xs={12}>
-                              <Typography variant="subtitle2" color="text.secondary">Email</Typography>
-                              <Typography variant="body1">{eksormisi.ypefthynos.email || '-'}</Typography>
-                            </Grid>
-                            <Grid item xs={12}>
-                              <Typography variant="subtitle2" color="text.secondary">Τηλέφωνο</Typography>
-                              <Typography variant="body1">{eksormisi.ypefthynos.tilefono || '-'}</Typography>
-                            </Grid>
-                            <Grid item xs={12} sx={{ mt: 1 }}>
-                              <Button 
-                                variant="outlined" 
-                                color="error"
-                                size="small"
-                                startIcon={<DeleteIcon />}
-                                onClick={handleRemoveResponsiblePerson}
-                              >
-                                Αφαίρεση
-                              </Button>
-                            </Grid>
-                          </Grid>
+                        {ypefthynoi.length > 0 ? (
+                          ypefthynoi.map(ypefthynos => (
+                            <Box key={ypefthynos.id_es_melous} sx={{ mb: 3 }}>
+                              <Grid container spacing={2}>
+                                <Grid item xs={9}>
+                                  <Typography variant="subtitle2" color="text.secondary">Ονοματεπώνυμο</Typography>
+                                  <Typography variant="body1">{ypefthynos.fullName || '-'}</Typography>
+                                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Email</Typography>
+                                  <Typography variant="body1">{ypefthynos.email || '-'}</Typography>
+                                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Τηλέφωνο</Typography>
+                                  <Typography variant="body1">{ypefthynos.tilefono || '-'}</Typography>
+                                </Grid>
+                                <Grid item xs={3} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                  <IconButton 
+                                    color="error"
+                                    onClick={() => handleRemoveResponsiblePerson(ypefthynos.id_es_melous)}
+                                    size="small"
+                                    sx={{ alignSelf: 'flex-start' }}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Grid>
+                              </Grid>
+                              {ypefthynoi.length > 1 && <Divider sx={{ my: 2 }} />}
+                            </Box>
+                          ))
                         ) : (
                           <Typography variant="body2" color="text.secondary" align="center">
-                            Δεν έχει οριστεί υπεύθυνος για την εξόρμηση
+                            Δεν έχουν οριστεί υπεύθυνοι για την εξόρμηση
                           </Typography>
                         )}
                       </Box>
@@ -2467,34 +2465,42 @@ const updateParticipantActivityLists = (deletedActivityId) => {
   <DialogContent>
     <Box sx={{ mb: 2 }}>
       <Typography variant="body2" color="text.secondary">
-        Επιλέξτε ένα εσωτερικό μέλος ως υπεύθυνο για την εξόρμηση
+        Επιλέξτε εσωτερικά μέλη ως υπεύθυνους για την εξόρμηση
       </Typography>
     </Box>
     
-    {/* Members Table */}
-    <DataTable
+    <SelectionDialog
+      open={true}
+      onClose={() => {}}
       data={internalMembers}
-      columns={[
-        { accessorKey: "fullName", header: "Ονοματεπώνυμο" },
-        { accessorKey: "email", header: "Email" },
-        { accessorKey: "tilefono", header: "Τηλέφωνο" }
-      ]}
-      getRowId={(row) => row.id_es_melous || row.id}
-      initialState={{ 
-        sorting: [{ id: "fullName", desc: false }]
-      }}
-      enableRowSelection
-      singleRowSelection
-      onRowSelectionModelChange={(newSelectionModel) => {
-        if (newSelectionModel.length === 1) {
-          const selectedId = newSelectionModel[0];
-          const selectedMember = internalMembers.find(m => 
-            (m.id_es_melous || m.id) === selectedId);
-          handleSetResponsiblePerson(selectedMember);
+      selectedIds={ypefthynoi.map(y => y.id_es_melous)} // Use the array of responsible person IDs
+      onConfirm={(selectedIds) => {
+        if (selectedIds.length > 0) {
+          // Send all selected IDs to the backend
+          api.post(`/eksormiseis/${id}/ypefthynoi`, {
+            id_ypefthynon: selectedIds
+          }).then(() => {
+            fetchResponsiblePersons();
+            setResponsiblePersonDialog(false);
+          }).catch(error => {
+            console.error("Σφάλμα κατά τον ορισμό υπευθύνων:", error);
+            alert("Σφάλμα: " + error.message);
+          });
+        } else {
+          // If no responsible persons are selected, handle accordingly
+          handleRemoveResponsiblePerson();
+          setResponsiblePersonDialog(false);
         }
       }}
-      density="compact"
-      enableColumnFilter={true}
+      title="Επιλογή Υπεύθυνων Εξόρμησης"
+      columns={[
+        { field: "fullName", header: "Ονοματεπώνυμο" },
+        { field: "email", header: "Email" },
+        { field: "tilefono", header: "Τηλέφωνο" }
+      ]}
+      idField="id_es_melous"
+      searchFields={["fullName", "email"]}
+      noDataMessage="Δεν υπάρχουν διαθέσιμα μέλη"
     />
   </DialogContent>
 </Dialog>

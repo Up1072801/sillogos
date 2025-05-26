@@ -87,16 +87,6 @@ router.get("/:id", async (req, res) => {
           include: {
             vathmos_diskolias: true
           }
-        },
-        // Add this include for ypefthynos data
-        ypefthynos: {
-          include: {
-            melos: {
-              include: {
-                epafes: true
-              }
-            }
-          }
         }
       },
     });
@@ -105,18 +95,43 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ error: "Η εξόρμηση δεν βρέθηκε" });
     }
 
+    // Get responsible person separately if needed
+    let ypefthynos = null;
+    if (eksormisi.id_ypefthynou) {
+      const responsiblePerson = await prisma.esoteriko_melos.findUnique({
+        where: { id_es_melous: eksormisi.id_ypefthynou },
+        include: {
+          melos: {
+            include: {
+              epafes: true
+            }
+          }
+        }
+      });
+
+      if (responsiblePerson) {
+        ypefthynos = {
+          id_es_melous: responsiblePerson.id_es_melous,
+          fullName: `${responsiblePerson.melos?.epafes?.epitheto || ''} ${responsiblePerson.melos?.epafes?.onoma || ''}`.trim(),
+          email: responsiblePerson.melos?.epafes?.email || '',
+          tilefono: responsiblePerson.melos?.epafes?.tilefono ? responsiblePerson.melos.epafes.tilefono.toString() : ''
+        };
+      }
+    }
+
+    // Use optional chaining to avoid null reference errors
     const serializedEksormisi = {
       id: eksormisi.id_eksormisis,
       id_eksormisis: eksormisi.id_eksormisis,
-      titlos: eksormisi.titlos,
-      proorismos: eksormisi.proorismos,
-      timi: eksormisi.timi,
+      titlos: eksormisi.titlos || "",
+      proorismos: eksormisi.proorismos || "",
+      timi: eksormisi.timi || 0,
       hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis,
       hmerominia_afiksis: eksormisi.hmerominia_afiksis,
-      drastiriotites: eksormisi.drastiriotita.map((drastiriotita) => ({
+      drastiriotites: (eksormisi.drastiriotita || []).map((drastiriotita) => ({
         id: drastiriotita.id_drastiriotitas,
         id_drastiriotitas: drastiriotita.id_drastiriotitas,
-        titlos: drastiriotita.titlos,
+        titlos: drastiriotita.titlos || "",
         ores_poreias: drastiriotita.ores_poreias,
         diafora_ipsous: drastiriotita.diafora_ipsous,
         megisto_ipsometro: drastiriotita.megisto_ipsometro,
@@ -129,18 +144,13 @@ router.get("/:id", async (req, res) => {
             }
           : null
       })),
-      ypefthynos: eksormisi.ypefthynos ? {
-        id_es_melous: eksormisi.ypefthynos.id_es_melous,
-        fullName: `${eksormisi.ypefthynos.melos?.epafes?.epitheto || ''} ${eksormisi.ypefthynos.melos?.epafes?.onoma || ''}`.trim(),
-        email: eksormisi.ypefthynos.melos?.epafes?.email,
-        tilefono: eksormisi.ypefthynos.melos?.epafes?.tilefono?.toString()
-      } : null
+      ypefthynos: ypefthynos
     };
 
     res.json(serializedEksormisi);
   } catch (error) {
     console.error("Σφάλμα κατά την ανάκτηση της εξόρμησης:", error);
-    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση της εξόρμησης" });
+    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση της εξόρμησης", details: error.message });
   }
 });
 
@@ -984,6 +994,119 @@ router.delete("/:id/ypefthynos", async (req, res) => {
     await prisma.eksormisi.update({
       where: { id_eksormisis: id },
       data: { id_ypefthynou: null }
+    });
+    
+    res.json({ message: "Ο υπεύθυνος αφαιρέθηκε επιτυχώς" });
+  } catch (error) {
+    console.error("Error removing responsible person:", error);
+    res.status(500).json({ 
+      error: "Error removing responsible person", 
+      details: error.message 
+    });
+  }
+});
+
+// Add these new endpoints for managing multiple responsible persons
+
+// GET: Get all responsible persons for an expedition
+router.get("/:id/ypefthynoi", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid expedition ID" });
+    }
+    
+    // Find the expedition's responsible persons
+    const responsiblePersons = await prisma.ypefthynoi_eksormisis.findMany({
+      where: { id_eksormisis: id },
+      include: {
+        ypefthynos: {
+          include: {
+            melos: {
+              include: {
+                epafes: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    const formattedResponsiblePersons = responsiblePersons.map(rp => ({
+      id_es_melous: rp.id_ypefthynou,
+      fullName: `${rp.ypefthynos?.melos?.epafes?.epitheto || ''} ${rp.ypefthynos?.melos?.epafes?.onoma || ''}`.trim(),
+      email: rp.ypefthynos?.melos?.epafes?.email || '',
+      tilefono: rp.ypefthynos?.melos?.epafes?.tilefono ? rp.ypefthynos.melos.epafes.tilefono.toString() : ''
+    }));
+    
+    res.json(formattedResponsiblePersons);
+  } catch (error) {
+    console.error("Error retrieving responsible persons:", error);
+    res.status(500).json({ 
+      error: "Error retrieving responsible persons", 
+      details: error.message 
+    });
+  }
+});
+
+// POST: Add responsible persons to an expedition (multiple)
+router.post("/:id/ypefthynoi", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { id_ypefthynon } = req.body; // Array of IDs
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid expedition ID" });
+    }
+    
+    if (!Array.isArray(id_ypefthynon) || id_ypefthynon.length === 0) {
+      return res.status(400).json({ error: "Invalid responsible person IDs" });
+    }
+
+    // First remove all existing responsible persons for this expedition
+    await prisma.ypefthynoi_eksormisis.deleteMany({
+      where: {
+        id_eksormisis: id
+      }
+    });
+    
+    // Create new entries in ypefthynoi_eksormisis
+    await Promise.all(id_ypefthynon.map(async (id_ypefthynou) => {
+      await prisma.ypefthynoi_eksormisis.create({
+        data: {
+          id_eksormisis: id,
+          id_ypefthynou: parseInt(id_ypefthynou)
+        }
+      });
+    }));
+    
+    res.json({ message: "Οι υπεύθυνοι προστέθηκαν επιτυχώς" });
+  } catch (error) {
+    console.error("Error adding responsible persons:", error);
+    res.status(500).json({ 
+      error: "Error adding responsible persons", 
+      details: error.message 
+    });
+  }
+});
+
+// DELETE: Remove a specific responsible person from an expedition
+router.delete("/:id/ypefthynoi/:id_ypefthynou", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const id_ypefthynou = parseInt(req.params.id_ypefthynou);
+    
+    if (isNaN(id) || isNaN(id_ypefthynou)) {
+      return res.status(400).json({ error: "Invalid IDs" });
+    }
+    
+    await prisma.ypefthynoi_eksormisis.delete({
+      where: {
+        id_eksormisis_id_ypefthynou: {
+          id_eksormisis: id,
+          id_ypefthynou: id_ypefthynou
+        }
+      }
     });
     
     res.json({ message: "Ο υπεύθυνος αφαιρέθηκε επιτυχώς" });

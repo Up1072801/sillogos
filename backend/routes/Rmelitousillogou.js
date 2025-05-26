@@ -758,4 +758,44 @@ router.get("/all", async (_req, res) => {
   }
 });
 
+// GET: Retrieve all internal members for selection
+router.get("/internal", async (req, res) => {
+  try {
+    const internalMembers = await prisma.esoteriko_melos.findMany({
+      include: {
+        melos: {
+          include: {
+            epafes: true,
+            vathmos_diskolias: true
+          }
+        },
+        sindromitis: true,
+        athlitis: true
+      }
+    });
+
+    const formattedMembers = internalMembers.map(member => {
+      const fullName = `${member.melos?.epafes?.epitheto || ''} ${member.melos?.epafes?.onoma || ''}`.trim();
+      
+      return {
+        id: member.id_es_melous,
+        id_es_melous: member.id_es_melous,
+        fullName: fullName,
+        email: member.melos?.epafes?.email || '',
+        tilefono: member.melos?.epafes?.tilefono ? member.melos.epafes.tilefono.toString() : '',
+        epipedo: member.melos?.vathmos_diskolias?.epipedo,
+        sindromitis: member.sindromitis 
+          ? { katastasi_sindromis: member.sindromitis.katastasi_sindromis }
+          : null,
+        athlitis: member.athlitis ? true : false
+      };
+    });
+
+    res.json(formattedMembers);
+  } catch (error) {
+    console.error("Σφάλμα κατά την ανάκτηση εσωτερικών μελών:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση εσωτερικών μελών" });
+  }
+});
+
 module.exports = router;

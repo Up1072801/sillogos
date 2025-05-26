@@ -51,14 +51,33 @@ export default function DrastiriotitaDetails() {
   const [currentParticipant, setCurrentParticipant] = useState(null);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [paymentParticipant, setPaymentParticipant] = useState(null);
-  
+// Add with your other state declarations
+const [ypefthynoi, setYpefthynoi] = useState([]);
   // Refresh data function
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
   // Fetch data on component mount or when refresh is triggered
-  useEffect(() => {
-    fetchData();
-  }, [id, refreshTrigger]);
+// Update your existing useEffect that calls fetchData
+useEffect(() => {
+  fetchData();
+  fetchInternalMembers();
+  fetchResponsiblePersons(); // Add this line
+}, [id, refreshTrigger]);
+
+// Add this function after fetchInternalMembers
+const fetchResponsiblePersons = async () => {
+  try {
+    const response = await api.get(`/eksormiseis/${id}/ypefthynoi`);
+    if (Array.isArray(response.data)) {
+      setYpefthynoi(response.data);
+    } else {
+      setYpefthynoi([]);
+    }
+  } catch (error) {
+    console.error("Σφάλμα κατά τη φόρτωση υπευθύνων:", error);
+    setYpefthynoi([]);
+  }
+};
 
   // Fetch all needed data
   const fetchData = async () => {
