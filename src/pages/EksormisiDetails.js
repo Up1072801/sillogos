@@ -12,7 +12,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import el from 'date-fns/locale/el';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
-
+import PersonIcon from '@mui/icons-material/Person';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PaymentIcon from '@mui/icons-material/Payment';
@@ -97,7 +97,9 @@ export default function EksormisiDetails() {
   const [currentParticipant, setCurrentParticipant] = useState(null);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [paymentParticipant, setPaymentParticipant] = useState(null);
-
+  // Add after the other state variable declarations
+  const [internalMembers, setInternalMembers] = useState([]);
+  const [responsiblePersonDialog, setResponsiblePersonDialog] = useState(false);
   // Add these states
   const [memberSelectionDialogOpen, setMemberSelectionDialogOpen] = useState(false);
   const [activitySelectionDialogOpen, setActivitySelectionDialogOpen] = useState(false);
@@ -118,6 +120,7 @@ export default function EksormisiDetails() {
   // Fetch data on component mount and when refresh is triggered
   useEffect(() => {
     fetchData();
+    fetchInternalMembers(); // Add this line
   }, [id, refreshTrigger]);
 
   // Main data fetching function
@@ -289,6 +292,47 @@ export default function EksormisiDetails() {
       setLoading(false);
     }
   };
+
+  // Add this function after fetchData or other fetch functions
+const fetchInternalMembers = async () => {
+  try {
+    const response = await api.get("/melitousillogou/internal");
+    if (Array.isArray(response.data)) {
+      setInternalMembers(response.data.map(member => ({
+        id: member.id_es_melous,
+        id_es_melous: member.id_es_melous,
+        fullName: `${member.melos?.epafes?.epitheto || ''} ${member.melos?.epafes?.onoma || ''}`.trim(),
+        email: member.melos?.epafes?.email || '-',
+        tilefono: member.melos?.epafes?.tilefono || '-'
+      })));
+    }
+  } catch (error) {
+    console.error("Σφάλμα κατά τη φόρτωση εσωτερικών μελών:", error);
+  }
+};
+
+// Add this function alongside your other handler functions
+const handleRemoveResponsiblePerson = async () => {
+  try {
+    if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον υπεύθυνο από την εξόρμηση;")) {
+      return;
+    }
+
+    // Make API call to remove the responsible person
+    await api.put(`/eksormiseis/${id}/ypefthynos`, {
+      id_ypefthynou: null // Setting to null removes the responsible person
+    });
+
+    // Update local state
+    setEksormisi(prev => ({
+      ...prev,
+      ypefthynos: null
+    }));
+  } catch (error) {
+    console.error("Σφάλμα κατά την αφαίρεση υπεύθυνου:", error);
+    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
+  }
+};
 
   // ========== EKSORMISI MANAGEMENT HANDLERS ==========
   
@@ -710,7 +754,7 @@ const handleAddParticipant = async (formData) => {
     const memberEmail = selectedMember?.melos?.epafes?.email || '-';
     const memberPhone = selectedMember?.melos?.epafes?.tilefono || '-';
 
-    // Convert the id_drastiriotitas from tableSelect to an array if it's not already
+    // Convert the id_drastitiotitas from tableSelect to an array if it's not already
     const activityIds = Array.isArray(formData.id_drastiriotitas) 
       ? formData.id_drastiriotitas 
       : [formData.id_drastiriotitas];
@@ -1704,7 +1748,7 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
             rowSelection: selectedMember ? {
               [(selectedMember.id_es_melous || selectedMember.id)]: true
             } : {},
-            sorting: [{ id: "fullName", desc: false }] // Default sort by name
+            sorting: [{ id: "fullName", desc: false }]
           }}
           enablePagination={true}
           density="compact"
@@ -1720,7 +1764,6 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
       <Box sx={{ mb: 3, border: '1px solid #ddd', borderRadius: 1 }}>
         <DataTable
           data={drastiriotites}
-         
           columns={activityColumns}
           getRowId={(row) => row.id_drastiriotitas || row.id}
           enableRowSelection
@@ -2008,7 +2051,7 @@ const updateParticipantActivityLists = (deletedActivityId) => {
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
       <Box sx={{ p: 3 }}>
         <Box sx={{ my: 4 }}>
-          {/* Header */}
+          {/* Header/Title with back button */}
           <Box sx={{ mb: 4, display: 'flex', alignItems: 'center' }}>
             <IconButton onClick={() => navigate('/eksormiseis')} sx={{ mr: 2 }}>
               <ArrowBackIcon />
@@ -2025,148 +2068,235 @@ const updateParticipantActivityLists = (deletedActivityId) => {
             </Button>
           </Box>
 
-          {/* Eksormisi Details Card */}
-          <Paper sx={{ p: 3, mb: 4 }}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+          {/* Two-column layout for main content */}
+          <Grid container spacing={3}>
+            {/* Left column - Main details */}
+            <Grid item xs={12} md={8}>
+              <Paper sx={{ p: 3, mb: 4 }}>
                 <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <EventIcon sx={{ mr: 1, color: 'primary.main' }} />
-                    <Typography variant="h6" color="primary">Στοιχεία Εξόρμησης</Typography>
-                  </Box>
-                  <Divider sx={{ mb: 2 }} />
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">Τίτλος</Typography>
-                      <Typography variant="body1">{eksormisi.titlos || '-'}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">Προορισμός</Typography>
-                      <Typography variant="body1">{eksormisi.proorismos || '-'}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">Ημερομηνία Αναχώρησης</Typography>
-                      <Typography variant="body1">
-                        {eksormisi.hmerominia_anaxorisis ? formatDateGR(eksormisi.hmerominia_anaxorisis) : '-'}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">Ημερομηνία Άφιξης</Typography>
-                      <Typography variant="body1">
-                        {eksormisi.hmerominia_afiksis ? formatDateGR(eksormisi.hmerominia_afiksis) : '-'}
-                      </Typography>
-                    </Grid>
+                  {/* First section - Στοιχεία Εξόρμησης */}
+                  <Grid container spacing={3}>
+                    {/* Left column - Details and Information */}
+                    <Grid item xs={12} md={7}>
+                      <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <EventIcon sx={{ mr: 1, color: 'primary.main' }} />
+                          <Typography variant="h6" color="primary">Στοιχεία Εξόρμησης</Typography>
+                        </Box>
+                        <Divider sx={{ mb: 2 }} />
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="subtitle2" color="text.secondary">Τίτλος</Typography>
+                            <Typography variant="body1">{eksormisi.titlos || '-'}</Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="subtitle2" color="text.secondary">Προορισμός</Typography>
+                            <Typography variant="body1">{eksormisi.proorismos || '-'}</Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="subtitle2" color="text.secondary">Ημερομηνία Αναχώρησης</Typography>
+                            <Typography variant="body1">
+                              {eksormisi.hmerominia_anaxorisis ? formatDateGR(eksormisi.hmerominia_anaxorisis) : '-'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="subtitle2" color="text.secondary">Ημερομηνία Άφιξης</Typography>
+                            <Typography variant="body1">
+                              {eksormisi.hmerominia_afiksis ? formatDateGR(eksormisi.hmerominia_afiksis) : '-'}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Box>
 
-                    {/* Close the grid container for the base details */}
+                      {/* Πληροφορίες Εξόρμησης */}
+                      <Box sx={{ mt: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <LocationOnIcon sx={{ mr: 1, color: 'primary.main' }} />
+                          <Typography variant="h6" color="primary">Πληροφορίες Εξόρμησης</Typography>
+                        </Box>
+                        <Divider sx={{ mb: 2 }} />
+                        
+                        <Typography variant="body1" paragraph>
+                          Η εξόρμηση περιλαμβάνει {drastiriotites.length} δραστηριότητες και έχει συνολικά {participants.length} συμμετέχοντες.
+                        </Typography>
+                        
+                        <Box sx={{ my: 2 }}>
+                          <Typography variant="subtitle2" color="text.secondary">Ημέρες Διάρκειας</Typography>
+                          <Typography variant="body1">
+                            {eksormisi.hmerominia_anaxorisis && eksormisi.hmerominia_afiksis ? 
+                              Math.ceil((new Date(eksormisi.hmerominia_afiksis) - new Date(eksormisi.hmerominia_anaxorisis)) / (1000 * 60 * 60 * 24)) + 1 
+                              : '-'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Right column - Responsible Person */}
+                    <Grid item xs={12} md={5}>
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+                            <Typography variant="h6" color="primary">Υπεύθυνος Εξόρμησης</Typography>
+                          </Box>
+                          {eksormisi.ypefthynos ? (
+                            <Button 
+                              variant="outlined" 
+                              color="primary"
+                              startIcon={<EditIcon />} 
+                              onClick={() => setResponsiblePersonDialog(true)}
+                              size="small"
+                            >
+                              Αλλαγή
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="contained" 
+                              color="primary"
+                              startIcon={<AddIcon />} 
+                              onClick={() => setResponsiblePersonDialog(true)}
+                              size="small"
+                            >
+                              Ορισμός
+                            </Button>
+                          )}
+                        </Box>
+                        <Divider sx={{ mb: 2 }} />
+                        
+                        {eksormisi.ypefthynos ? (
+                          <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                              <Typography variant="subtitle2" color="text.secondary">Ονοματεπώνυμο</Typography>
+                              <Typography variant="body1">{eksormisi.ypefthynos.fullName || '-'}</Typography>
+                            </Grid>
+                            <Grid item xs={12}>
+                              <Typography variant="subtitle2" color="text.secondary">Email</Typography>
+                              <Typography variant="body1">{eksormisi.ypefthynos.email || '-'}</Typography>
+                            </Grid>
+                            <Grid item xs={12}>
+                              <Typography variant="subtitle2" color="text.secondary">Τηλέφωνο</Typography>
+                              <Typography variant="body1">{eksormisi.ypefthynos.tilefono || '-'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sx={{ mt: 1 }}>
+                              <Button 
+                                variant="outlined" 
+                                color="error"
+                                size="small"
+                                startIcon={<DeleteIcon />}
+                                onClick={handleRemoveResponsiblePerson}
+                              >
+                                Αφαίρεση
+                              </Button>
+                            </Grid>
+                          </Grid>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" align="center">
+                            Δεν έχει οριστεί υπεύθυνος για την εξόρμηση
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
                   </Grid>
-
-                  {/* Then start the info section */}
-                  <Box sx={{ mt: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <LocationOnIcon sx={{ mr: 1, color: 'primary.main' }} />
-                      <Typography variant="h6" color="primary">Πληροφορίες Εξόρμησης</Typography>
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-                    
-                    <Typography variant="body1" paragraph>
-                      Η εξόρμηση περιλαμβάνει {drastiriotites.length} δραστηριότητες και έχει συνολικά {participants.length} συμμετέχοντες.
-                    </Typography>
-                    
-                    <Box sx={{ my: 2 }}>
-                      <Typography variant="subtitle2" color="text.secondary">Ημέρες Διάρκειας</Typography>
-                      <Typography variant="body1">
-                        {eksormisi.hmerominia_anaxorisis && eksormisi.hmerominia_afiksis ? 
-                          Math.ceil((new Date(eksormisi.hmerominia_afiksis) - new Date(eksormisi.hmerominia_anaxorisis)) / (1000 * 60 * 60 * 24)) + 1 
-                          : '-'}
-                      </Typography>
-                    </Box>
-                  </Box>
                 </Box>
-              </Grid>
+              </Paper>
+              
+              {/* Activities section below */}
+              <Paper sx={{ p: 3, mb: 4, boxShadow: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">
+                    <HikingIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+                    Δραστηριότητες ({drastiriotites.length})
+                  </Typography>
+                  <Button 
+                    variant="contained" 
+                    color="primary"
+                    startIcon={<AddIcon />} 
+                    onClick={() => setAddDrastiriotitaDialog(true)}
+                  >
+                    Προσθήκη δραστηριότητας
+                  </Button>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+                
+                <DataTable 
+                  data={drastiriotites}
+                  columns={drastiriotitesColumns}
+                  getRowId={(row) => row.id_drastiriotitas || row.id}
+                  initialState={{ 
+                    columnVisibility: { id_drastiriotitas: false },
+                    sorting: [{ id: "hmerominia", desc: false }] // Default sort by date
+                  }}
+                  handleRowClick={(row) => navigate(`/drastiriotita/${row.id_drastiriotitas || row.id}`)}
+                  handleEditClick={handleEditDrastiriotitaClick}
+                  handleDelete={(row) => handleDeleteDrastiriotita(row.original || row)}
+                  enableRowActions={true}
+                  tableName="drastiriotites"
+                  density="compact"
+                  enableAddNew={false}
+                  enableExpand={true}
+                  detailPanelConfig={drastiriotitaDetailPanel}
+                />
+              </Paper>
+              
+              {/* Participants section below */}
+              <Paper sx={{ p: 3, boxShadow: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">
+                    Συμμετέχοντες & Πληρωμές ({participants.length})
+                  </Typography>
+                  <Button 
+                    variant="contained" 
+                    color="primary"
+                    startIcon={<AddIcon />} 
+                    onClick={handleAddParticipantClick}
+                  >
+                    Προσθήκη συμμετέχοντα
+                  </Button>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+                
+                {participants && participants.length > 0 ? (
+                  <DataTable
+                    data={participants}
+                    columns={participantsColumns}
+                    detailPanelConfig={participantDetailPanel}
+                    getRowId={(row) => row.id_simmetoxis || row.id}
+                    initialState={{ 
+                      columnVisibility: { id_simmetoxis: false },
+                      sorting: [{ id: "memberName", desc: false }] // Default sort by name
+                    }}
+                    enableExpand={true}
+                    enableRowActions={true}
+                    handleEditClick={handleEditParticipantClick}
+                    handleDelete={(participant) => handleRemoveParticipant(participant.original || participant)}
+                    enableAddNew={false}
+                    tableName="simmetexontes"
+                    density="compact"
+                    state={{ showSkeletons: loading }}
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ my: 4 }}>
+                    Δεν υπάρχουν συμμετέχοντες
+                  </Typography>
+                )}
+              </Paper>
             </Grid>
-          </Paper>
-          
-          {/* Drastiriotites Table */}
-          <Paper sx={{ p: 3, mb: 4, boxShadow: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                <HikingIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-                Δραστηριότητες ({drastiriotites.length})
-              </Typography>
-              <Button 
-                variant="contained" 
-                color="primary"
-                startIcon={<AddIcon />} 
-                onClick={() => setAddDrastiriotitaDialog(true)}
-              >
-                Προσθήκη δραστηριότητας
-              </Button>
-            </Box>
-            <Divider sx={{ mb: 2 }} />
             
-            <DataTable 
-              data={drastiriotites}
-              columns={drastiriotitesColumns}
-              getRowId={(row) => row.id_drastiriotitas || row.id}
-              initialState={{ 
-                columnVisibility: { id_drastiriotitas: false },
-                sorting: [{ id: "hmerominia", desc: false }] // Default sort by date
-              }}
-              handleRowClick={(row) => navigate(`/drastiriotita/${row.id_drastiriotitas || row.id}`)}
-              handleEditClick={handleEditDrastiriotitaClick}
-              handleDelete={(row) => handleDeleteDrastiriotita(row.original || row)}
-              enableRowActions={true}
-              tableName="drastiriotites"
-              density="compact"
-              enableAddNew={false}
-              enableExpand={true}
-              detailPanelConfig={drastiriotitaDetailPanel}
-            />
-          </Paper>
+            {/* Right column - removed the responsible person section from here */}
+            <Grid item xs={12} md={4}>
+              {/* Any additional content for the right side if needed */}
+            </Grid>
+          </Grid>
           
-          {/* Participants Table */}
-          <Paper sx={{ p: 3, boxShadow: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Συμμετέχοντες & Πληρωμές ({participants.length})
-              </Typography>
-              <Button 
-                variant="contained" 
-                color="primary"
-                startIcon={<AddIcon />} 
-                onClick={handleAddParticipantClick}
-              >
-                Προσθήκη συμμετέχοντα
-              </Button>
-            </Box>
-            <Divider sx={{ mb: 2 }} />
-            
-            {participants && participants.length > 0 ? (
-              <DataTable
-                data={participants}
-                columns={participantsColumns}
-                detailPanelConfig={participantDetailPanel}
-                getRowId={(row) => row.id_simmetoxis || row.id}
-                initialState={{ 
-                  columnVisibility: { id_simmetoxis: false },
-                  sorting: [{ id: "memberName", desc: false }] // Default sort by name
-                }}
-                enableExpand={true}
-                enableRowActions={true}
-                handleEditClick={handleEditParticipantClick}
-                handleDelete={(participant) => handleRemoveParticipant(participant.original || participant)}
-                enableAddNew={false}
-                tableName="simmetexontes"
-                density="compact"
-                state={{ showSkeletons: loading }}
-              />
-            ) : (
-              <Typography variant="body2" color="text.secondary" align="center" sx={{ my: 4 }}>
-                Δεν υπάρχουν συμμετέχοντες
-              </Typography>
-            )}
-          </Paper>
+          {/* Activities and Participants sections for mobile layout (will be hidden on desktop) */}
+          <Box sx={{ display: { md: 'none' } }}>
+            {/* Add your activities and participants sections here */}
+            {/* ... */}
+          </Box>
+          
+          {/* Rest of the content (dialogs, etc.) */}
+          {/* ... */}
         </Box>
         
         {/* Dialogs */}
@@ -2324,7 +2454,51 @@ const updateParticipantActivityLists = (deletedActivityId) => {
     }}
   />
 )}
-        
+        {/* Responsible Person Selection Dialog */}
+<Dialog
+  open={responsiblePersonDialog}
+  onClose={() => setResponsiblePersonDialog(false)}
+  maxWidth="md"
+  fullWidth
+>
+  <DialogTitle>
+    {eksormisi.ypefthynos ? "Αλλαγή Υπεύθυνου Εξόρμησης" : "Ορισμός Υπεύθυνου Εξόρμησης"}
+  </DialogTitle>
+  <DialogContent>
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="body2" color="text.secondary">
+        Επιλέξτε ένα εσωτερικό μέλος ως υπεύθυνο για την εξόρμηση
+      </Typography>
+    </Box>
+    
+    {/* Members Table */}
+    <DataTable
+      data={internalMembers}
+      columns={[
+        { accessorKey: "fullName", header: "Ονοματεπώνυμο" },
+        { accessorKey: "email", header: "Email" },
+        { accessorKey: "tilefono", header: "Τηλέφωνο" }
+      ]}
+      getRowId={(row) => row.id_es_melous || row.id}
+      initialState={{ 
+        sorting: [{ id: "fullName", desc: false }]
+      }}
+      enableRowSelection
+      singleRowSelection
+      onRowSelectionModelChange={(newSelectionModel) => {
+        if (newSelectionModel.length === 1) {
+          const selectedId = newSelectionModel[0];
+          const selectedMember = internalMembers.find(m => 
+            (m.id_es_melous || m.id) === selectedId);
+          handleSetResponsiblePerson(selectedMember);
+        }
+      }}
+      density="compact"
+      enableColumnFilter={true}
+    />
+  </DialogContent>
+</Dialog>
+
         {paymentParticipant && (
           <AddDialog
             open={paymentDialog}
