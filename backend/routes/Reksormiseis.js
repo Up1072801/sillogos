@@ -369,6 +369,9 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Λείπουν υποχρεωτικά πεδία" });
     }
 
+    // Reset the sequence to the max existing ID
+    await prisma.$executeRaw`SELECT setval('"Eksormisi_id_eksormisis_seq"', coalesce((SELECT MAX(id_eksormisis) FROM "Eksormisi"), 0))`;
+
     const newEksormisi = await prisma.eksormisi.create({
       data: {
         titlos,

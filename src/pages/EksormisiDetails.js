@@ -1490,20 +1490,13 @@ const drastiriotitesColumns = [
     accessorKey: "titlos", 
     header: "Τίτλος",
     Cell: ({ row }) => {
-      const id = row.original.id_drastiriotitas || row.original.id;
       const title = row.original.titlos || "Χωρίς Τίτλο";
       
       return (
         <Box 
           sx={{ 
-            cursor: "pointer", 
-            color: "primary.main", 
-            fontWeight: "medium",
-            "&:hover": { textDecoration: "underline" } 
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/drastiriotita/${id}`);
+            color: "text.primary", 
+            fontWeight: "medium"
           }}
         >
           {title}
@@ -1665,27 +1658,20 @@ const participantDetailPanel = {
         { 
           accessorKey: "titlos", 
           header: "Τίτλος",
-          Cell: ({ row }) => {
-            if (!row?.original) return "-";
-            
-            const id = row.original.id_drastiriotitas || row.original.id;
-            return (
-              <Box 
-                sx={{ 
-                  cursor: "pointer", 
-                  color: "primary.main", 
-                  fontWeight: "medium",
-                  "&:hover": { textDecoration: "underline" } 
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/drastiriotita/${id}`);
-                }}
-              >
-                {row.original.titlos || "Άγνωστο"}
-              </Box>
-            );
-          }
+ Cell: ({ row }) => {
+  if (!row?.original) return "-";
+  
+  return (
+    <Box 
+      sx={{ 
+        color: "text.primary", 
+        fontWeight: "medium"
+      }}
+    >
+      {row.original.titlos || "Άγνωστο"}
+    </Box>
+  );
+}
         },
         { 
           accessorKey: "hmerominia", 
@@ -1906,7 +1892,6 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
               
                                                        
                                          
-                           
               ));
             } else {
               setSelectedMember(null);
@@ -2408,7 +2393,6 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                     columnVisibility: { id_drastiriotitas: false },
                     sorting: [{ id: "hmerominia", desc: false }] // Default sort by date
                   }}
-                  handleRowClick={(row) => navigate(`/drastiriotita/${row.id_drastiriotitas || row.id}`)}
                   handleEditClick={handleEditDrastiriotitaClick}
                   handleDelete={(row) => handleDeleteDrastiriotita(row.original || row)}
                   enableRowActions={true}

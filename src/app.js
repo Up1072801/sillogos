@@ -13,7 +13,6 @@ import MeloiAllwn from "./pages/meliallwnsillogwn";
 import Login from "./pages/Login";
 import SchoolDetails from "./pages/SchoolDetails";
 import EksormisiDetails from "./pages/EksormisiDetails";
-import DrastiriotitaDetails from "./pages/DrastiriotitaDetails";
 import AdminPage from "./pages/admin"; // Εισαγωγή του νέου component
 
 function App() {
@@ -87,12 +86,7 @@ function App() {
               path="/eksormiseis/:eksormisiId"
               element={<Layout user={user} onLogout={handleLogout}><EksormisiDetails /></Layout>}
             />
-            <Route
-              path="/eksormiseis/:eksormisiId/:drastiriotitaId"
-              element={<Layout user={user} onLogout={handleLogout}><DrastiriotitaDetails /></Layout>}
-            />
             <Route path="/eksormisi/:id" element={<Layout user={user} onLogout={handleLogout}><EksormisiDetails /></Layout>} />
-            <Route path="/drastiriotita/:id" element={<Layout user={user} onLogout={handleLogout}><DrastiriotitaDetails /></Layout>} />
 
             {/* Σελίδα διαχειριστή, διαθέσιμη μόνο για τον admin */}
             {user && user.role === "admin" && (
