@@ -29,12 +29,17 @@ router.get("/", async (_req, res) => {
             // Συμπερίληψη των δραστηριοτήτων του μέλους
             simmetoxi: {
               include: {
-                drastiriotita: {
+                simmetoxi_drastiriotites: {
                   include: {
-                    vathmos_diskolias: true,
-                    eksormisi: true
+                    drastiriotita: {
+                      include: {
+                        vathmos_diskolias: true,
+                        eksormisi: true
+                      }
+                    }
                   }
-                }
+                },
+                eksormisi: true
               }
             },
             // Συμπερίληψη των σχολών του μέλους
@@ -64,10 +69,14 @@ router.get("/", async (_req, res) => {
       melos: {
         simmetoxi: member.melos?.simmetoxi?.map(s => ({
           ...s,
-          drastiriotita: s.drastiriotita ? {
-            ...s.drastiriotita,
-            hmerominia: formatDateGR(s.drastiriotita?.hmerominia),
-          } : null,
+          // Access drastiriotita through simmetoxi_drastiriotites
+          simmetoxi_drastiriotites: (s.simmetoxi_drastiriotites || []).map(rel => ({
+            ...rel,
+            drastiriotita: rel.drastiriotita ? {
+              ...rel.drastiriotita,
+              hmerominia: formatDateGR(rel.drastiriotita?.hmerominia),
+            } : null
+          })),
           hmerominia_dilosis: formatDateGR(s.hmerominia_dilosis)
         })) || [],
         parakolouthisi: member.melos?.parakolouthisi?.map(p => ({
@@ -101,12 +110,17 @@ router.get("/:id", async (req, res) => {
             vathmos_diskolias: true,
             simmetoxi: {
               include: {
-                drastiriotita: {
+                simmetoxi_drastiriotites: {
                   include: {
-                    vathmos_diskolias: true,
-                    eksormisi: true
+                    drastiriotita: {
+                      include: {
+                        vathmos_diskolias: true,
+                        eksormisi: true
+                      }
+                    }
                   }
-                }
+                },
+                eksormisi: true
               }
             },
             parakolouthisi: {
@@ -135,10 +149,14 @@ router.get("/:id", async (req, res) => {
       melos: {
         simmetoxi: member.melos?.simmetoxi?.map(s => ({
           ...s,
-          drastiriotita: s.drastiriotita ? {
-            ...s.drastiriotita,
-            hmerominia: formatDateGR(s.drastiriotita?.hmerominia),
-          } : null,
+          // Access drastiriotita through simmetoxi_drastiriotites
+          simmetoxi_drastiriotites: (s.simmetoxi_drastiriotites || []).map(rel => ({
+            ...rel,
+            drastiriotita: rel.drastiriotita ? {
+              ...rel.drastiriotita,
+              hmerominia: formatDateGR(rel.drastiriotita?.hmerominia),
+            } : null
+          })),
           hmerominia_dilosis: formatDateGR(s.hmerominia_dilosis)
         })) || [],
         parakolouthisi: member.melos?.parakolouthisi?.map(p => ({
@@ -335,10 +353,14 @@ router.put("/:id", async (req, res) => {
       melos: {
         simmetoxi: updatedMember.melos?.simmetoxi?.map(s => ({
           ...s,
-          drastiriotita: s.drastiriotita ? {
-            ...s.drastiriotita,
-            hmerominia: formatDateGR(s.drastiriotita?.hmerominia),
-          } : null,
+          // Access drastiriotita through simmetoxi_drastiriotites
+          simmetoxi_drastiriotites: (s.simmetoxi_drastiriotites || []).map(rel => ({
+            ...rel,
+            drastiriotita: rel.drastiriotita ? {
+              ...rel.drastiriotita,
+              hmerominia: formatDateGR(rel.drastiriotita?.hmerominia),
+            } : null
+          })),
           hmerominia_dilosis: formatDateGR(s.hmerominia_dilosis)
         })) || [],
         parakolouthisi: updatedMember.melos?.parakolouthisi?.map(p => ({

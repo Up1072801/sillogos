@@ -45,11 +45,11 @@ const detailPanelConfig = {
       accessor: "melos.simmetoxi",
       columns: [
         {
-          accessor: "drastiriotita.eksormisi.titlos",
+          accessor: "simmetoxi_drastiriotites[0].drastiriotita.eksormisi.titlos",
           header: "Τίτλος Εξόρμησης",
           Cell: ({ row }) => {
-            const eksormisiId = row.original.drastiriotita?.eksormisi?.id_eksormisis;
-            const titlos = row.original.drastiriotita?.eksormisi?.titlos || "-";
+            const eksormisiId = row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.eksormisi?.id_eksormisis;
+            const titlos = row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.eksormisi?.titlos || "-";
             return eksormisiId ? (
               <a
                 href={`/eksormisi/${eksormisiId}`}
@@ -61,12 +61,24 @@ const detailPanelConfig = {
             ) : titlos;
           }
         },
-        { accessor: "drastiriotita.titlos", header: "Τίτλος Δραστηριότητας" },
-        { accessor: "drastiriotita.vathmos_diskolias.epipedo", header: "ΒΔ" },
+        { 
+          accessor: "simmetoxi_drastiriotites[0].drastiriotita.titlos", 
+          header: "Τίτλος Δραστηριότητας",
+          Cell: ({ row }) => row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.titlos || "-" 
+        },
+        { 
+          accessor: "simmetoxi_drastiriotites[0].drastiriotita.vathmos_diskolias.epipedo", 
+          header: "ΒΔ",
+          Cell: ({ row }) => row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.vathmos_diskolias?.epipedo || "-" 
+        },
         {
-          accessor: "drastiriotita.hmerominia",
+          accessor: "simmetoxi_drastiriotites[0].drastiriotita.hmerominia",
           header: "Ημερομηνία",
-          format: (value) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
+          format: (value) => value ? new Date(value).toLocaleDateString("el-GR") : "-",
+          Cell: ({ row }) => {
+            const date = row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.hmerominia;
+            return date ? new Date(date).toLocaleDateString("el-GR") : "-";
+          }
         }
       ],
       getData: (row) => row.melos?.simmetoxi || [],

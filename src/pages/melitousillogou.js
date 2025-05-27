@@ -133,11 +133,14 @@ const detailPanelConfig = {
       accessor: "melos.simmetoxi",
       columns: [
         {
-          accessor: "drastiriotita.eksormisi.titlos",
+          accessor: "simmetoxi_drastiriotites[0].drastiriotita.eksormisi.titlos",
           header: "Τίτλος Εξόρμησης",
           Cell: ({ row }) => {
-            const eksormisiId = row.original.drastiriotita?.eksormisi?.id_eksormisis;
-            const titlos = row.original.drastiriotita?.eksormisi?.titlos || "-";
+            // Find the first drastiriotita relationship
+            const rel = row.original.simmetoxi_drastiriotites?.[0];
+            const eksormisiId = rel?.drastiriotita?.eksormisi?.id_eksormisis;
+            const titlos = rel?.drastiriotita?.eksormisi?.titlos || "-";
+            
             return eksormisiId ? (
               <a
                 href={`/eksormisi/${eksormisiId}`}
@@ -149,12 +152,20 @@ const detailPanelConfig = {
             ) : titlos;
           }
         },
-        { accessor: "drastiriotita.titlos", header: "Τίτλος Δραστηριότητας" },
-        { accessor: "drastiriotita.vathmos_diskolias.epipedo", header: "ΒΔ" },
+        { 
+          accessor: "simmetoxi_drastiriotites[0].drastiriotita.titlos", 
+          header: "Τίτλος Δραστηριότητας",
+          Cell: ({ row }) => row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.titlos || "-"
+        },
+        { 
+          accessor: "simmetoxi_drastiriotites[0].drastiriotita.vathmos_diskolias.epipedo", 
+          header: "ΒΔ",
+          Cell: ({ row }) => row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.vathmos_diskolias?.epipedo || "-"
+        },
         {
-          accessor: "drastiriotita.hmerominia",
+          accessor: "simmetoxi_drastiriotites[0].drastiriotita.hmerominia",
           header: "Ημερομηνία",
-          format: (value) => formatDate(value)
+          Cell: ({ row }) => formatDate(row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.hmerominia) || "-"
         }
       ],
       getData: (row) => row.melos?.simmetoxi || [],
@@ -198,14 +209,14 @@ const detailPanelConfig = {
     // Προσθήκη νέου πίνακα για τις εξορμήσεις όπου το μέλος είναι υπεύθυνος
     {
       title: "Υπεύθυνος Δραστηριοτήτων",
-      accessor: "ypefthynos_eksormisis",
+      accessor: "ypefthinos_se",
       columns: [
         {
-          accessor: "titlos",
+          accessor: "eksormisi.titlos",
           header: "Τίτλος Εξόρμησης",
           Cell: ({ row }) => {
-            const eksormisiId = row.original.id_eksormisis;
-            const titlos = row.original.titlos || "-";
+            const eksormisiId = row.original.eksormisi?.id_eksormisis;
+            const titlos = row.original.eksormisi?.titlos || "-";
             return eksormisiId ? (
               <a
                 href={`/eksormisi/${eksormisiId}`}
@@ -218,21 +229,21 @@ const detailPanelConfig = {
           }
         },
         { 
-          accessor: "proorismos", 
+          accessor: "eksormisi.proorismos", 
           header: "Προορισμός" 
         },
         {
-          accessor: "hmerominia_anaxorisis",
+          accessor: "eksormisi.hmerominia_anaxorisis",
           header: "Ημερομηνία Αναχώρησης",
-          Cell: ({ row }) => formatDate(row.original.hmerominia_anaxorisis)
+          Cell: ({ row }) => formatDate(row.original.eksormisi?.hmerominia_anaxorisis)
         },
         {
-          accessor: "hmerominia_afiksis",
+          accessor: "eksormisi.hmerominia_afiksis",
           header: "Ημερομηνία Άφιξης",
-          Cell: ({ row }) => formatDate(row.original.hmerominia_afiksis)
+          Cell: ({ row }) => formatDate(row.original.eksormisi?.hmerominia_afiksis)
         }
       ],
-      getData: (row) => row.ypefthynos_eksormisis || [],
+      getData: (row) => row.ypefthinos_se || [],
       noRowHover: true,
       noRowClick: true
     }
@@ -721,7 +732,7 @@ export default function Meloi() {
       // Μετατροπή ημερομηνιών σε ISO format
       const formattedBirthDate = toISODate(updatedRow.hmerominia_gennhshs);
       
-      // Προετοιμασία για τα πεδία συνδρομής (μόνο για μη αθλητές)
+      // Προετοιμασία για τα πεδία συνδρομής (μόνο για μη αθλητες)
       const formattedStartDate = !isAthlete ? toISODate(updatedRow.hmerominia_enarksis) : undefined;
       const formattedPaymentDate = !isAthlete ? toISODate(updatedRow.hmerominia_pliromis) : undefined;
       const subscriptionStatus = !isAthlete ? updatedRow.katastasi_sindromis : undefined;

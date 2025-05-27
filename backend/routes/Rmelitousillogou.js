@@ -95,25 +95,32 @@ router.get("/", async (_req, res) => {
             vathmos_diskolias: true,
             parakolouthisi: {
               include: {
-                sxoli: true,
-              },
+                sxoli: true
+              }
             },
             simmetoxi: {
               include: {
-                drastiriotita: {
+                // Replace the direct drastiriotita inclusion with the junction table
+                simmetoxi_drastiriotites: {
                   include: {
-                    vathmos_diskolias: true,
-                    eksormisi: true,
-                  },
+                    drastiriotita: {
+                      include: {
+                        vathmos_diskolias: true,
+                        eksormisi: true
+                      }
+                    }
+                  }
                 },
-              },
-            },
-          },
+                eksormisi: true,
+                plironei: true
+              }
+            }
+          }
         },
-        // Προσθήκη της σχέσης YpefthynosEksormisis
-        ypefthynos_eksormisis: {
+        // Update this to match the new schema relation name
+        ypefthinos_se: {
           include: {
-            drastiriotita: true
+            eksormisi: true
           }
         },
         athlitis: true,
@@ -124,17 +131,17 @@ router.get("/", async (_req, res) => {
               include: {
                 sindromi: {
                   include: {
-                    eidos_sindromis: true,
-                  },
-                },
-              },
-            },
-          },
-        },
+                    eidos_sindromis: true
+                  }
+                }
+              }
+            }
+          }
+        }
       },
       orderBy: {
-        id_es_melous: "asc",
-      },
+        id_es_melous: "asc"
+      }
     });
 
     const formattedData = members.map((member) => {
@@ -145,14 +152,16 @@ router.get("/", async (_req, res) => {
       if (member.melos?.simmetoxi) {
         member.melos.simmetoxi = member.melos.simmetoxi.map(sim => ({
           ...sim,
-          drastiriotita: sim.drastiriotita
-            ? {
-                ...sim.drastiriotita,
-                hmerominia: sim.drastiriotita.hmerominia
-                  ? new Date(sim.drastiriotita.hmerominia).toLocaleDateString("el-GR")
-                  : null
-              }
-            : null
+          // Access drastiriotita through simmetoxi_drastiriotites
+          simmetoxi_drastiriotites: (sim.simmetoxi_drastiriotites || []).map(rel => ({
+            ...rel,
+            drastiriotita: rel.drastiriotita ? {
+              ...rel.drastiriotita,
+              hmerominia: rel.drastiriotita.hmerominia
+                ? new Date(rel.drastiriotita.hmerominia).toLocaleDateString("el-GR")
+                : null
+            } : null
+          }))
         }));
       }
 
