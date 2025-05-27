@@ -1006,8 +1006,6 @@ router.delete("/:id/ypefthynos", async (req, res) => {
   }
 });
 
-// Add these new endpoints for managing multiple responsible persons
-
 // GET: Get all responsible persons for an expedition
 router.get("/:id/ypefthynoi", async (req, res) => {
   try {
@@ -1036,7 +1034,12 @@ router.get("/:id/ypefthynoi", async (req, res) => {
       id_es_melous: rp.id_ypefthynou,
       fullName: `${rp.ypefthynos?.melos?.epafes?.epitheto || ''} ${rp.ypefthynos?.melos?.epafes?.onoma || ''}`.trim(),
       email: rp.ypefthynos?.melos?.epafes?.email || '',
-      tilefono: rp.ypefthynos?.melos?.epafes?.tilefono ? rp.ypefthynos.melos.epafes.tilefono.toString() : ''
+      tilefono: rp.ypefthynos?.melos?.epafes?.tilefono ? rp.ypefthynos.melos.epafes.tilefono.toString() : '',
+      // Add the original ypefthynos object so frontend can access the original structure
+      ypefthynos: rp.ypefthynos,
+      // Also add direct access to commonly used fields
+      epitheto: rp.ypefthynos?.melos?.epafes?.epitheto || '',
+      onoma: rp.ypefthynos?.melos?.epafes?.onoma || ''
     }));
     
     res.json(formattedResponsiblePersons);
