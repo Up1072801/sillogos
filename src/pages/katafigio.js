@@ -108,6 +108,8 @@ export default function Katafigio() {
   const [isFiltering, setIsFiltering] = useState(false); // για να δείχνουμε αν το φίλτρο είναι ενεργό
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // Τρέχων μήνας (1-12)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Τρέχον έτος
+  // Προσθέστε νέο state για το επιλεγμένο καταφύγιο
+  const [selectedShelter, setSelectedShelter] = useState(""); // "all" σημαίνει όλα τα καταφύγια
   const [availableYears] = useState(() => 
     Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i)
   );
@@ -149,6 +151,26 @@ export default function Katafigio() {
     }
     fetchData();
   }, []);
+
+  // Set initial shelter when data loads
+  useEffect(() => {
+    if (shelters.length > 0 && !selectedShelter) {
+      setSelectedShelter(shelters[0].id_katafigiou.toString());
+    }
+  }, [shelters]);
+
+  // Make filteredBookings depend on selectedShelter
+  useEffect(() => {
+    if (selectedShelter && bookings.length > 0) {
+      const filtered = bookings.filter(booking => 
+        String(booking.id_katafigiou) === selectedShelter
+      );
+      setFilteredBookings(filtered);
+      setIsFiltering(true);
+    } else if (bookings.length > 0) {
+      setFilteredBookings(bookings);
+    }
+  }, [bookings, selectedShelter]);
 
   // Διαμόρφωση του πίνακα λεπτομερειών για τις κρατήσεις
   const bookingDetailPanelConfig = {
@@ -632,12 +654,22 @@ const handleDeletePayment = async (payment) => {
   }
 };
 
-  // Προσθέστε αυτήν τη συνάρτηση για να ενημερώνετε τον πίνακα με βάση το επιλεγμένο διάστημα
+ // Ενημερώστε τη συνάρτηση handleCalendarDateChange για να λαμβάνει υπόψη το επιλεγμένο καταφύγιο
 const handleCalendarDateChange = (startDate, endDate) => {
-  // Αν δεν έχουμε ημερομηνίες, επιστρέφουμε όλες τις κρατήσεις
+  // Αρχικοποίηση του φιλτραρίσματος με όλες τις κρατήσεις
+  let filtered = [...bookings];
+  
+  // Φιλτράρισμα με βάση το καταφύγιο, αν έχει επιλεγεί συγκεκριμένο
+  if (selectedShelter !== "all") {
+    filtered = filtered.filter(booking => 
+      String(booking.id_katafigiou) === selectedShelter
+    );
+  }
+  
+  // Αν δεν έχουμε ημερομηνίες, επιστρέφουμε μόνο το φίλτρο καταφυγίου
   if (!startDate || !endDate) {
-    setFilteredBookings(bookings);
-    setIsFiltering(false);
+    setFilteredBookings(filtered);
+    setIsFiltering(selectedShelter !== "all");
     return;
   }
   
@@ -648,7 +680,7 @@ const handleCalendarDateChange = (startDate, endDate) => {
   end.setHours(23, 59, 59, 999);
   
   // Φιλτράρισμα κρατήσεων βασισμένο στο αν επικαλύπτονται με το επιλεγμένο διάστημα
-  const filtered = bookings.filter(booking => {
+  filtered = filtered.filter(booking => {
     if (!booking.arrival || !booking.departure) return false;
     
     const arrivalDate = new Date(booking.arrival);
@@ -667,11 +699,38 @@ const handleCalendarDateChange = (startDate, endDate) => {
   setIsFiltering(true);
 };
 
-// Συνάρτηση για καθαρισμό του φίλτρου
-const clearDateFilter = () => {
-  setFilteredBookings(bookings);
+// Προσθέστε τη συνάρτηση χειρισμού αλλαγής καταφυγίου
+const handleShelterChange = (shelterId) => {
+  setSelectedShelter(shelterId);
+  
+  // Καθαρισμός του φίλτρου ημερομηνίας κατά την αλλαγή καταφυγίου
   setDateFilter(null);
-  setIsFiltering(false);
+  
+  // Φιλτράρισμα κρατήσεων για το επιλεγμένο καταφύγιο
+  if (bookings.length > 0) {
+    const filtered = bookings.filter(booking => 
+      String(booking.id_katafigiou) === shelterId
+    );
+    setFilteredBookings(filtered);
+    setIsFiltering(true);
+  }
+};
+
+// Συνάρτηση για καθαρισμό του φίλτρου
+// Συνάρτηση για καθαρισμό του φίλτρου ημερομηνιών
+const clearDateFilter = () => {
+  // Διατήρηση του φίλτρου καταφυγίου αν υπάρχει
+  if (selectedShelter !== "all") {
+    const filtered = bookings.filter(booking => 
+      String(booking.id_katafigiou) === selectedShelter
+    );
+    setFilteredBookings(filtered);
+    setIsFiltering(true);
+  } else {
+    setFilteredBookings(bookings);
+    setIsFiltering(false);
+  }
+  setDateFilter(null);
 };
 
 // Προσθέστε αυτήν τη συνάρτηση μετά το clearDateFilter αλλά πριν το useEffect
@@ -743,9 +802,9 @@ const handleEditBookingClick = (booking) => {
 };
 
 // Αντικαταστήστε τη συνάρτηση calculateBookingCost με αυτή:
-
 const calculateBookingCost = (formValues, resourceData) => {
   try {
+    // For debugging
     console.log("Υπολογισμός κόστους με:", formValues);
     console.log("Διαθέσιμα resourceData:", Object.keys(resourceData));
 
@@ -771,18 +830,37 @@ const calculateBookingCost = (formValues, resourceData) => {
       return null;
     }
     
+    // Μετατροπή του id_katafigiou σε string για ασφαλή σύγκριση
+    const shelterId = String(values.id_katafigiou);
+    
     // Εύρεση του επιλεγμένου καταφυγίου
     const sheltersList = resourceData?.sheltersList || [];
+    console.log("Λίστα καταφυγίων:", sheltersList.map(s => ({
+      id: s.id_katafigiou, 
+      name: s.onoma,
+      memberPrice: s.timi_melous,
+      nonMemberPrice: s.timi_mi_melous,
+      extMemberPrice: s.timi_eksoxwrou_melos,
+      extNonMemberPrice: s.timi_eksoxwroy_mimelos
+    })));
+    
     const selectedShelter = sheltersList.find(s => 
-      s.id_katafigiou.toString() === values.id_katafigiou.toString()
+      String(s.id_katafigiou) === shelterId
     );
     
     if (!selectedShelter) {
-      console.log("Δεν βρέθηκε το καταφύγιο με ID:", values.id_katafigiou);
+      console.log("Δεν βρέθηκε το καταφύγιο με ID:", shelterId);
       return null;
     }
     
-    console.log("Επιλεγμένο καταφύγιο:", selectedShelter);
+    console.log("Επιλεγμένο καταφύγιο:", {
+      id: selectedShelter.id_katafigiou, 
+      name: selectedShelter.onoma,
+      memberPrice: selectedShelter.timi_melous,
+      nonMemberPrice: selectedShelter.timi_mi_melous,
+      extMemberPrice: selectedShelter.timi_eksoxwrou_melos,
+      extNonMemberPrice: selectedShelter.timi_eksoxwroy_mimelos
+    });
     
     const arrival = new Date(values.hmerominia_afiksis);
     const departure = new Date(values.hmerominia_epistrofis);
@@ -792,7 +870,9 @@ const calculateBookingCost = (formValues, resourceData) => {
       return null;
     }
     
-    const days = Math.max(1, differenceInDays(departure, arrival) + 1);
+    // Διόρθωση: Υπολογίζουμε τις διανυκτερεύσεις χωρίς να προσθέτουμε +1
+    // Για παράδειγμα: 28/5 έως 29/5 = 1 διανυκτέρευση
+    const nights = Math.max(1, differenceInDays(departure, arrival));
     const members = parseInt(values.arithmos_melwn) || 0;
     const nonMembers = parseInt(values.arithmos_mi_melwn) || 0;
     
@@ -800,19 +880,27 @@ const calculateBookingCost = (formValues, resourceData) => {
     let memberPrice, nonMemberPrice;
     
     if (values.eksoterikos_xoros === "Ναι") {
-      // Τιμές για εξωτερικό χώρο
-      memberPrice = members * (selectedShelter.timi_eksoxwrou_melos || 0) * days;
-      nonMemberPrice = nonMembers * (selectedShelter.timi_eksoxwroy_mimelos || 0) * days;
+      // Τιμές για εξωτερικό χώρο - βεβαιωνόμαστε ότι χρησιμοποιούμε τα σωστά πεδία
+      memberPrice = members * (parseInt(selectedShelter.timi_eksoxwrou_melos) || 0) * nights;
+      nonMemberPrice = nonMembers * (parseInt(selectedShelter.timi_eksoxwroy_mimelos) || 0) * nights;
+      console.log("Τιμές εξωτερικού χώρου:", {
+        memberRate: selectedShelter.timi_eksoxwrou_melos,
+        nonMemberRate: selectedShelter.timi_eksoxwroy_mimelos
+      });
     } else {
       // Τιμές για εσωτερικό χώρο (καταφύγιο)
-      memberPrice = members * (selectedShelter.timi_melous || 0) * days;
-      nonMemberPrice = nonMembers * (selectedShelter.timi_mi_melous || 0) * days;
+      memberPrice = members * (parseInt(selectedShelter.timi_melous) || 0) * nights;
+      nonMemberPrice = nonMembers * (parseInt(selectedShelter.timi_mi_melous) || 0) * nights;
+      console.log("Τιμές εσωτερικού χώρου:", {
+        memberRate: selectedShelter.timi_melous,
+        nonMemberRate: selectedShelter.timi_mi_melous
+      });
     }
     
     const totalPrice = memberPrice + nonMemberPrice;
     
     console.log("Επιτυχής υπολογισμός κόστους:", { 
-      days, 
+      nights, 
       members, 
       nonMembers,
       isExternalSpace: values.eksoterikos_xoros === "Ναι",
@@ -822,7 +910,7 @@ const calculateBookingCost = (formValues, resourceData) => {
     });
     
     return {
-      days,
+      days: nights, // Κρατάμε το όνομα "days" για συμβατότητα, αλλά είναι διανυκτερεύσεις
       memberPrice,
       nonMemberPrice,
       totalPrice
@@ -837,15 +925,42 @@ const calculateBookingCost = (formValues, resourceData) => {
 return (
   <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
     <Box sx={styles.container}>
+      {/* Add prominent shelter selector at the top */}
+      <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Typography variant="h5" sx={{ ...styles.header, mb: 3 }}>
+          Επιλογή Καταφυγίου
+        </Typography>
+        
+        <select 
+          value={selectedShelter}
+          onChange={(e) => handleShelterChange(e.target.value)}
+          style={{ 
+            padding: '8px 16px', 
+            borderRadius: '6px', 
+            border: '2px solid #2196f3', 
+            minWidth: '300px',
+            fontSize: '1.1rem',
+            textAlign: 'center',
+            marginBottom: '20px'
+          }}
+        >
+          {shelters.map((shelter) => (
+            <option key={shelter.id_katafigiou} value={shelter.id_katafigiou.toString()}>
+              {shelter.onoma}
+            </option>
+          ))}
+        </select>
+      </Box>
+      
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" sx={styles.header}>
           Διαχείριση Κρατήσεων Καταφυγίου 
           <span style={{color: '#666', fontSize: '0.9rem'}}>
-            ({filteredBookings.length}/{bookings.length})
+            ({filteredBookings.length}/{bookings.filter(b => String(b.id_katafigiou) === selectedShelter).length})
           </span>
         </Typography>
         
-        {/* Νέο φίλτρο ημερομηνίας */}
+        {/* Date filter options - remove shelter selection from here */}
         <Box sx={{ display: 'flex', alignItems: 'center', mt: 2, mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
             <Typography variant="body2" sx={{ mr: 1 }}>Μήνας:</Typography>
@@ -937,9 +1052,10 @@ return (
       <Paper sx={styles.calendarContainer}>
         <CustomCalendar 
           ref={calendarRef}
-          bookings={bookings} 
+          bookings={selectedShelter === "all" ? bookings : bookings.filter(b => String(b.id_katafigiou) === selectedShelter)} 
           shelters={shelters} 
-          onDateRangeChange={handleCalendarDateChange} // Προσθήκη του callback
+          onDateRangeChange={handleCalendarDateChange}
+          selectedShelterId={selectedShelter !== "all" ? selectedShelter : null}
         />
       </Paper>
       
@@ -950,6 +1066,7 @@ return (
         handleAddSave={handleAddBooking}
         title="Προσθήκη Νέας Κράτησης"
         fields={bookingFormFields}
+        defaultValues={selectedShelter !== "all" ? { id_katafigiou: selectedShelter } : undefined}
         resourceData={{
           contactsList: contacts, // Το κλειδί "contactsList" πρέπει να αντιστοιχεί στο dataKey του πεδίου
           sheltersList: shelters,
