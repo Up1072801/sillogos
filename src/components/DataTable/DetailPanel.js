@@ -137,7 +137,7 @@ const DetailPanel = ({
                       startIcon={<Add />}
                       onClick={() => {
                         if (typeof tableConfig.onAddNew === 'function') {
-                          tableConfig.onAddNew(row.id || row.original.id, row.original);
+                          tableConfig.onAddNew(row.id || row.original.id || row.original);
                         }
                       }}
                     >

@@ -120,8 +120,8 @@ try {
   const participantsResponse = await api.get(`/sxoles/${id}/parakolouthisi`);
   const existingParticipants = participantsResponse.data || [];
   
-  // Φέρνουμε όλα τα μέλη
-  const membersResponse = await api.get("/melitousillogou");
+  // Φέρνουμε όλα τα μέλη (εσωτερικά και εξωτερικά) - ΑΛΛΑΓΗ ΕΔΩ
+  const membersResponse = await api.get("/melitousillogou/all");
   console.log("Όλα τα μέλη:", membersResponse.data);
   
   // Δημιουργία Set με τα IDs των μελών που είναι ήδη συμμετέχοντες (String μορφή)
@@ -175,9 +175,29 @@ try {
       console.error("Σφάλμα φόρτωσης μελών:", err);
     }
     
+    // Fetch available teachers - ΠΡΟΣΘΗΚΗ ΑΥΤΟΥ ΤΟΥ ΚΩΔΙΚΑ
+    try {
+      // Αλλάζουμε το endpoint από /ekpaideutisapi σε /ekpaideutis
+      const teachersResponse = await api.get("/ekpaideutis"); // Διορθωμένο endpoint
+      console.log("Όλοι οι εκπαιδευτές:", teachersResponse.data);
+      
+      // Φιλτράρουμε για να πάρουμε μόνο τους εκπαιδευτές που ΔΕΝ διδάσκουν ήδη στη σχολή
+      const currentTeacherIds = response.data.ekpaideutes ? 
+        response.data.ekpaideutes.map(t => t.id_ekpaideuti || t.id) : [];
+      
+      const availableTeachersList = teachersResponse.data.filter(teacher => 
+        !currentTeacherIds.includes(teacher.id_ekpaideuti || teacher.id)
+      );
+      
+      console.log("Διαθέσιμοι εκπαιδευτές:", availableTeachersList.length);
+      setAvailableTeachers(availableTeachersList);
+    } catch (err) {
+      console.error("Σφάλμα φόρτωσης εκπαιδευτών:", err);
+    }
+    
     setLoading(false);
   } catch (error) {
-    console.error("Σφάλμα κατά τη φόρτωση των δεδομένων:", error);
+    console.error("Σφάλμα κατά τη φόρτωσης των δεδομένων:", error);
     setError("Δεν ήταν δυνατή η φόρτωση των δεδομένων της σχολής");
     setLoading(false);
   }
@@ -454,6 +474,8 @@ const handleDeleteTeacher = async (teacherId) => {
   // ========== PARTICIPANT MANAGEMENT HANDLERS ==========
   
   // Ενημερωμένο participantFormFields για καλύτερη εμφάνιση
+// ...existing code...
+  // Ενημερωμένο participantFormFields για καλύτερη εμφάνιση
 const participantFormFields = [
   { 
     accessorKey: "id_melous", 
@@ -464,10 +486,7 @@ const participantFormFields = [
     pageSize: 10,
     columns: [
       { field: "fullName", header: "Ονοματεπώνυμο" },
-      { field: "email", header: "Email" },
-      { field: "tilefono", header: "Τηλέφωνο" },
-      { field: "status", header: "Κατάσταση Συνδρομής" },
-      { field: "memberType", header: "Τύπος Μέλους" } // Προσθήκη στήλης για τύπο μέλους
+      { field: "status", header: "Κατάσταση" },
     ],
     searchFields: ["fullName", "email", "tilefono"],
     initialSort: [{ id: "fullName", desc: false }], // Ταξινόμηση κατά επώνυμο
@@ -487,7 +506,6 @@ const participantFormFields = [
     type: "select",
     options: [
       { value: "Ενεργή", label: "Ενεργή" },
-      { value: "Εκκρεμής", label: "Εκκρεμής" },
       { value: "Ακυρωμένη", label: "Ακυρωμένη" }
     ],
     defaultValue: "Ενεργή"
@@ -642,7 +660,7 @@ const handleEditParticipant = async (updatedParticipant) => {
     
     // Κλήση στο API - διορθωμένο URL
     const response = await api.put(
-      `/sxoles/${id}/parakolouthisi/${updatedParticipant.id_parakolouthisis}`,
+      `/sxoles/${id}/parakolouthisis/${updatedParticipant.id_parakolouthisis}`,
       participantData
     );
     
@@ -709,25 +727,37 @@ const handleRemoveParticipant = async (participantOrId) => {
 
   // ========== PAYMENT MANAGEMENT HANDLERS ==========
   
-  // Handle opening payment dialog
+  // Handle opening payment dialog - ΔΙΟΡΘΩΜΕΝΗ ΕΚΔΟΣΗ (όπως στο EksormisiDetails.js)
 const handleOpenPaymentDialog = (participantOrId) => {
+  console.log("handleOpenPaymentDialog called with:", participantOrId);
+  
   // Αν είναι ID και όχι αντικείμενο, βρίσκουμε τον συμμετέχοντα
   let participant;
+  let participantId;
   
   if (typeof participantOrId === 'object' && participantOrId !== null) {
     participant = participantOrId;
+    participantId = participantOrId.id_parakolouthisis || participantOrId.id;
   } else {
-    // Αναζήτηση με το ID
+    // Αναζήτηση με βάση το ID
+    participantId = participantOrId;
     participant = participants.find(p => 
-      String(p.id_parakolouthisis) === String(participantOrId)
+      p.id_parakolouthisis == participantId || p.id == participantId
     );
   }
   
   if (!participant) {
-    console.error("Participant not found:", participantOrId);
-    alert("Δεν βρέθηκε συμμετέχων για προσθήκη πληρωμής");
+    console.error("Could not find participant:", participantOrId);
+    alert("Σφάλμα: Δεν βρέθηκε ο συμμετέχων.");
     return;
   }
+  
+  // Διασφάλιση ότι έχουμε το σωστό id_parakolouthisis
+  if (!participant.id_parakolouthisis && participantId) {
+    participant = { ...participant, id_parakolouthisis: participantId };
+  }
+  
+  console.log("Found participant:", participant);
   
   // Υπολογισμός συνολικού κόστους και πληρωμών
   const totalCost = participant.timi || 0;
@@ -740,9 +770,13 @@ const handleOpenPaymentDialog = (participantOrId) => {
     ...participant,
     totalCost,
     totalPaid,
-    ypoloipo
+    ypoloipo,
+    memberName: participant.memberName || 
+      `${participant.melos?.epafes?.epitheto || ''} ${participant.melos?.epafes?.onoma || ''}`.trim() || 
+      "Άγνωστο όνομα"
   };
   
+  console.log("Opening payment dialog for participant:", paymentInfo);
   setPaymentParticipant(paymentInfo);
   setPaymentDialog(true);
 }
@@ -750,80 +784,90 @@ const handleOpenPaymentDialog = (participantOrId) => {
   // Handle adding payment with local state update
 const handleAddPayment = async (payment) => {
   try {
-    if (!paymentParticipant || !paymentParticipant.id_parakolouthisis) {
-      alert("Σφάλμα: Δεν υπάρχουν πλήρη δεδομένα συμμετέχοντα");
+    if (!paymentParticipant) {
+      alert("Σφάλμα: Δεν βρέθηκε συμμετέχων για καταχώρηση πληρωμής.");
       return;
     }
+
+    // Προσπάθεια εντοπισμού του ID με διάφορους τρόπους
+    const participantId = paymentParticipant.id_parakolouthisis || paymentParticipant.id;
     
-    const paymentAmount = parseFloat(payment.poso);
-    if (isNaN(paymentAmount) || paymentAmount <= 0) {
-      alert("Παρακαλώ εισάγετε ένα έγκυρο ποσό πληρωμής");
+    if (!participantId) {
+      alert("Σφάλμα: Δεν βρέθηκε έγκυρο ID συμμετέχοντα για καταχώρηση πληρωμής.");
       return;
     }
+
+    console.log("Adding payment for participant:", participantId);
     
-    // Προετοιμασία των δεδομένων για το API
-    const paymentData = {
-      poso: paymentAmount,
-      hmerominia_katavolhs: payment.hmerominia_katavolhs || new Date().toISOString()
+    const memberId = paymentParticipant.id_melous;
+    
+    // Προετοιμασία δεδομένων πληρωμής
+    const formattedPayment = {
+      id_melous: memberId,
+      id_parakolouthisis: participantId,
+      poso: parseInt(payment.poso),
+      hmerominia_katavolhs: payment.hmerominia_katavolhs || new Date().toISOString().split('T')[0]
     };
+
+    console.log("Sending payment data:", formattedPayment);
+
+    // Αποστολή στο API
+    const response = await api.post(`/sxoles/${id}/parakolouthisi/${participantId}/payment`, formattedPayment);
     
-    console.log("Sending payment data:", paymentData, "for participant:", paymentParticipant.id_parakolouthisis);
-    
-    // Κλήση του API με το σωστό endpoint
-    const response = await api.post(
-      `/sxoles/${id}/parakolouthisi/${paymentParticipant.id_parakolouthisis}/payment`,
-      paymentData
-    );
-    
-    console.log("Payment API response:", response.data);
-    
-    // Δημιουργία του νέου αντικειμένου πληρωμής για το τοπικό state
-    const newPayment = {
-      id: response.data.id,
-      id_katavalei: response.data.id,
-      poso: paymentAmount,
-      hmerominia_katavolhs: paymentData.hmerominia_katavolhs
-    };
-    
-    // Ενημέρωση του τοπικού state
+    console.log("Payment response:", response.data);
+
+    // Ενημέρωση τοπικών δεδομένων
     setParticipants(prevParticipants => 
-      prevParticipants.map(participant => {
-        if (participant.id_parakolouthisis === paymentParticipant.id_parakolouthisis) {
-          const updatedPayments = [...(participant.katavalei || []), newPayment];
-          const totalPaid = updatedPayments.reduce((sum, p) => sum + (p.poso || 0), 0);
-          const newBalance = Math.max(0, (participant.timi || 0) - totalPaid);
+      prevParticipants.map(p => {
+        if (p.id_parakolouthisis === participantId) {
+          const newPayment = {
+            id: response.data.id || response.data.id_katavalei,
+            id_katavalei: response.data.id || response.data.id_katavalei,
+            poso: formattedPayment.poso,
+            hmerominia_katavolhs: formattedPayment.hmerominia_katavolhs
+          };
+          
+          const updatedPayments = [...(p.katavalei || []), newPayment];
+          const totalPaid = updatedPayments.reduce((sum, pay) => sum + (pay.poso || 0), 0);
+          const ypoloipo = Math.max(0, (p.timi || 0) - totalPaid);
           
           return {
-            ...participant,
+            ...p,
             katavalei: updatedPayments,
-            ypoloipo: newBalance
+            ypoloipo: ypoloipo
           };
         }
-        return participant;
+        return p;
       })
     );
-    
+
+    // Κλείσιμο του dialog
     setPaymentDialog(false);
     setPaymentParticipant(null);
+    
+    console.log("Payment added successfully");
+    
   } catch (error) {
-    console.error("Σφάλμα κατά την καταχώρηση πληρωμής:", error);
-    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
+    console.error("Σφάλμα κατά την προσθήκη πληρωμής:", error);
+    alert(`Σφάλμα: ${error.message}`);
   }
 };
 
   // Handle removing payment
 const handleRemovePayment = async (paymentId, participantId) => {
   try {
-    // Βεβαιωθείτε ότι έχουμε αριθμητικά IDs
-    const numericPaymentId = Number(paymentId);
-    const numericParticipantId = Number(participantId);
+    console.log("Removing payment:", { paymentId, participantId });
     
-    if (isNaN(numericPaymentId) || numericPaymentId <= 0) {
-      throw new Error(`Μη έγκυρο ID πληρωμής (${paymentId})`);
+    if (!paymentId || !participantId) {
+      throw new Error("Μη έγκυρα IDs για πληρωμή ή συμμετέχοντα");
     }
     
-    if (isNaN(numericParticipantId) || numericParticipantId <= 0) {
-      throw new Error(`Μη έγκυρο ID συμμετέχοντα (${participantId})`);
+    // Βεβαίωση ότι έχουμε αριθμητικά IDs
+    const numericPaymentId = parseInt(paymentId);
+    const numericParticipantId = parseInt(participantId);
+    
+    if (isNaN(numericPaymentId) || isNaN(numericParticipantId)) {
+      throw new Error("Μη έγκυρα IDs για πληρωμή ή συμμετέχοντα");
     }
     
     console.log(`Αποστολή αιτήματος διαγραφής πληρωμής: /sxoles/${id}/parakolouthisi/${numericParticipantId}/payment/${numericPaymentId}`);
@@ -831,12 +875,24 @@ const handleRemovePayment = async (paymentId, participantId) => {
     // Κλήση του API για διαγραφή
     await api.delete(`/sxoles/${id}/parakolouthisi/${numericParticipantId}/payment/${numericPaymentId}`);
     
-    // Αντί για refreshData();
+    // Ενημέρωση τοπικών δεδομένων
     setParticipants(prevParticipants => 
-      prevParticipants.map(p => 
-        p.id_parakolouthisis === participantId ? 
-          {...p, katavalei: [...p.katavalei.filter(pay => pay.id !== paymentId)]} : p
-      )
+      prevParticipants.map(p => {
+        if (p.id_parakolouthisis === participantId || p.id === participantId) {
+          const updatedPayments = p.katavalei.filter(pay => 
+            pay.id !== paymentId && pay.id_katavalei !== paymentId
+          );
+          const totalPaid = updatedPayments.reduce((sum, pay) => sum + (pay.poso || 0), 0);
+          const ypoloipo = Math.max(0, (p.timi || 0) - totalPaid);
+          
+          return {
+            ...p,
+            katavalei: updatedPayments,
+            ypoloipo: ypoloipo
+          };
+        }
+        return p;
+      })
     );
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση πληρωμής:", error);
@@ -923,7 +979,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
     }
   ];
 
-  // Detail panel configuration for participants - αφαιρέθηκαν τα πεδία τιμή και τύπος μέλους
+  // Detail panel configuration for participants - ΔΙΟΡΘΩΜΕΝΟ
   const participantDetailPanel = {
     mainDetails: [
       { 
@@ -961,26 +1017,21 @@ const handleRemovePayment = async (paymentId, participantId) => {
       {
         title: "Ιστορικό Πληρωμών",
         getData: (row) => {
-          console.log("Getting payments for row:", row);
+          console.log("Getting payments for participant:", row);
           return (row.katavalei || []).map(payment => ({
             id: payment.id || payment.id_katavalei,
             id_katavalei: payment.id || payment.id_katavalei,
             poso: payment.poso,
             hmerominia_katavolhs: payment.hmerominia_katavolhs,
-            participantId: row.id_parakolouthisis // Add participant ID to each payment
+            participantId: row.id_parakolouthisis
           }));
         },
         onDelete: (payment, participant) => {
-          if (!payment || !participant) {
-            console.error("Missing payment or participant data:", { payment, participant });
-            return;
-          }
-          
           if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτήν την πληρωμή;")) {
             return;
           }
           
-          const paymentId = payment.id || payment.id_katavolei;
+          const paymentId = payment.id || payment.id_katavalei;
           const participantId = participant.id_parakolouthisis;
           
           if (!paymentId || !participantId) {
@@ -989,95 +1040,6 @@ const handleRemovePayment = async (paymentId, participantId) => {
           }
           
           handleRemovePayment(paymentId, participantId);
-        },
-        onAddNew: (rowOrId, meta) => {
-          console.log("onAddNew called with:", { rowOrId, meta });
-          
-          // First check if we're getting a full object with id_parakolouthisis
-          if (rowOrId && typeof rowOrId === 'object' && rowOrId.id_parakolouthisis) {
-            console.log("Using rowOrId object directly");
-            handleOpenPaymentDialog(rowOrId);
-            return;
-          }
-          
-          // Second, if we have parent participant data in meta parameter
-          if (meta && typeof meta === 'object') {
-            // Check if meta has the participant object
-            if (meta.id_parakolouthisis) {
-              console.log("Using meta object with id_parakolouthisis");
-              handleOpenPaymentDialog(meta);
-              return;
-            }
-            
-            // Check if meta has participant ID in parentId
-            if (meta.parentId || meta.participantId) {
-              const participantId = meta.parentId || meta.participantId;
-              console.log("Found parentId/participantId in meta:", participantId);
-              const participant = participants.find(p => 
-                String(p.id_parakolouthisis) === String(participantId)
-              );
-              if (participant) {
-                console.log("Found participant using meta parentId/participantId");
-                handleOpenPaymentDialog(participant);
-                return;
-              }
-            }
-          }
-          
-          // Third, check if rowOrId is a participant ID
-          if (rowOrId) {
-            console.log("Checking if rowOrId is participant ID:", rowOrId);
-            
-            // Try direct match
-            const participant = participants.find(p => 
-              String(p.id_parakolouthisis) === String(rowOrId)
-            );
-            
-            if (participant) {
-              console.log("Found participant by ID match");
-              handleOpenPaymentDialog(participant);
-              return;
-            }
-            
-            // Try with parent row
-            if (typeof rowOrId === 'object' && rowOrId.parentRow) {
-              const parentId = rowOrId.parentRow.id;
-              console.log("Found parentRow with ID:", parentId);
-              const parentParticipant = participants.find(p => 
-                String(p.id_parakolouthisis) === String(parentId)
-              );
-              if (parentParticipant) {
-                console.log("Found participant via parentRow");
-                handleOpenPaymentDialog(parentParticipant);
-                return;
-              }
-            }
-          }
-          
-          // Finally, try current selected participant
-          if (currentParticipantId) {
-            console.log("Using currentParticipantId:", currentParticipantId);
-            const participant = participants.find(p => 
-              String(p.id_parakolouthisis) === String(currentParticipantId)
-            );
-            if (participant) {
-              console.log("Found participant via currentParticipantId");
-              handleOpenPaymentDialog(participant);
-              return;
-            }
-          }
-          
-          // If we get here, automatically open the payment dialog with the first participant
-          // instead of showing an error
-          if (participants && participants.length > 0) {
-            console.log("Falling back to first participant in list");
-            handleOpenPaymentDialog(participants[0]);
-            return;
-          }
-          
-          // Only show error if no participants exist at all
-          console.error("No participants found in the system");
-          alert("Δεν υπάρχουν συμμετέχοντες. Προσθέστε πρώτα έναν συμμετέχοντα.");
         },
         columns: [
           { 
@@ -1226,7 +1188,7 @@ const calculateBalance = (participant) => {
               
               {/* Teachers - Right Column */}
               <Grid item xs={12} md={6}>
-                <Box>
+                <Box sx={{ mb: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
@@ -1234,7 +1196,7 @@ const calculateBalance = (participant) => {
                     </Box>
                     <Button 
                       variant="contained" 
-                      startIcon={<AddIcon />} 
+                      startIcon={<AddIcon />}
                       onClick={handleAddTeacher}
                       size="small"
                     >
@@ -1365,18 +1327,13 @@ const calculateBalance = (participant) => {
             handleEditClick={handleEditParticipantClick}
             handleDelete={handleRemoveParticipant}
             deleteConfig={{
-              getPayload: (row) => {
-                console.log("Delete config getting payload for participant:", row);
-                return row.id_parakolouthisis;
-              }
+              getPayload: (row) => row.original || row
             }}
             onRowExpand={(row) => {
               console.log("Row expanded:", row);
-              const participantId = row.id_parakolouthisis || row.id;
-              console.log("Setting currentParticipantId to:", participantId);
-              setCurrentParticipantId(participantId);
+              // Απλώς log για debugging - δεν χρειαζόμαστε πλέον DOM manipulation
             }}
-            enableAddNew={false}
+     
             tableName="parakolouthiseis"
             density="compact"
           />
@@ -1408,19 +1365,37 @@ const calculateBalance = (participant) => {
         title="Προσθήκη Συμμετεχόντων"
         fields={participantFormFields}
         resourceData={{
-          membersList: availableMembers.map(member => ({
-            id: member.id_melous || member.id_es_melous || member.id_ekso_melous || member.id,
-            fullName: `${member.melos?.epafes?.epitheto || member.epitheto || ""} ${member.melos?.epafes?.onoma || member.onoma || ""}`.trim(),
-            email: member.melos?.epafes?.email || member.email || "",
-            tilefono: member.melos?.epafes?.tilefono || member.tilefono || "",
-            // Προσθήκη πληροφορίας για τον τύπο μέλους
-            memberType: member.melos?.eksoteriko_melos ? "Εξωτερικό" : 
-                        member.melos?.esoteriko_melos ? "Εσωτερικό" : 
-                        member.tipo_melous || "Άγνωστο",
-            status: member.melos?.esoteriko_melos?.sindromitis?.katastasi_sindromis || 
-                    (member.esoteriko_melos?.sindromitis?.katastasi_sindromis) || 
-                    (member.athlitis ? "Αθλητής" : "-")
-          }))
+          membersList: availableMembers.map(member => {
+            // Προσδιορισμός τύπου μέλους και κατάστασης
+            let memberType = "Άγνωστο";
+            let status = "-";
+            
+            if (member.tipo_melous === "eksoteriko" || member.melos?.tipo_melous === "eksoteriko") {
+              memberType = "Εξωτερικό Μέλος";
+              status = "Εξωτερικό Μέλος";
+            } else if (member.tipo_melous === "esoteriko" || member.melos?.tipo_melous === "esoteriko") {
+              // Εσωτερικό μέλος - ελέγχουμε αν είναι αθλητής ή συνδρομητής
+              if (member.athlitis) {
+                memberType = "Εσωτερικό Μέλος - Αθλητής";
+                status = "Αθλητής";
+              } else if (member.sindromitis) {
+                memberType = "Εσωτερικό Μέλος - Συνδρομητής";
+                status = member.sindromitis.katastasi_sindromης || "Ενεργή";
+              } else {
+                memberType = "Εσωτερικό Μέλος";
+                status = "Εσωτερικό Μέλος";
+              }
+            }
+            
+            return {
+              id: member.id_melous || member.id_es_melous || member.id_ekso_melous || member.id,
+              fullName: `${member.melos?.epafes?.epitheto || ""} ${member.melos?.epafes?.onoma || ""}`.trim() || "Άγνωστο όνομα",
+              email: member.melos?.epafes?.email || "",
+              tilefono: member.melos?.epafes?.tilefono || "",
+              memberType: memberType,
+              status: status
+            };
+          })
         }}
         initialValues={{ id_melous: [] }}
       />

@@ -134,11 +134,12 @@ router.get("/:id", async (req, res) => {
         ypoloipo: p.ypoloipo || 0,
         hmerominia_dilosis: p.hmerominia_dilosis || null,
         hmerominia_akirosis: p.hmerominia_akrirosis || null,
-        pliromes: p.katavalei.map(k => ({
+        // ΔΙΟΡΘΩΣΗ: Αλλαγή από 'pliromes' σε 'katavalei' για συνέπεια με το frontend
+        katavalei: p.katavalei.map(k => ({
           id: k.id,
-          id_katavalei: k.id,     // Also include this for compatibility
+          id_katavalei: k.id,
           poso: k.poso || 0,
-          hmerominia: k.hmerominia_katavolhs || null
+          hmerominia_katavolhs: k.hmerominia_katavolhs || null  // Διόρθωση του ονόματος πεδίου
         }))
       })),
       ekpaideutes: sxoli.ekpaideuei.map((entry) => ({
@@ -414,7 +415,7 @@ router.delete("/:id/parakolouthisi/:paraId/payment/:paymentId", async (req, res)
     if (isNaN(id_parakolouthisis) || isNaN(id_payment)) {
       return res.status(400).json({ error: "Μη έγκυρα IDs" });
     }
-
+    
     // Έλεγχος αν η πληρωμή υπάρχει
     const payment = await prisma.katavalei.findFirst({
       where: { 
