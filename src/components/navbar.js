@@ -16,9 +16,11 @@ import {
   ListItemText,
   Collapse,
   Button,
-  IconButton
+  IconButton,
+  Menu,
+  MenuItem
 } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   ExpandLess,
   ExpandMore,
@@ -29,7 +31,9 @@ import {
   School as SchoolIcon,
   Person as MemberIcon,
   Logout as LogoutIcon,
-  Menu as MenuIcon
+  Menu as MenuIcon,
+  LockReset as LockResetIcon,
+  AccountCircle
 } from "@mui/icons-material";
 import { useCallback } from "react";
 
@@ -93,8 +97,10 @@ const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })(
 
 export default function Navbar({ user, onLogout }) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [membersOpen, setMembersOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
+  const [anchorEl, setAnchorEl] = useState(null);
   
   // Συνδυάζουμε media query με zoom level για καλύτερο έλεγχο
   const zoomLevel = useZoomLevel();
@@ -118,6 +124,20 @@ export default function Navbar({ user, onLogout }) {
     if (shouldCollapseDrawer) {
       setDrawerOpen(false);
     }
+  };
+  
+  // Διαχείριση μενού χρήστη
+  const handleUserMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleUserMenuClose();
+    onLogout();
   };
 
   const drawerContent = (
@@ -194,7 +214,7 @@ export default function Navbar({ user, onLogout }) {
           </ListItemButton>
         </ListItem>
 
-        {user.role === "admin" && (
+        {user?.role === "admin" && (
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to="/admin" role="menuitem" onClick={handleDrawerClose}>
               <ListItemIcon>
@@ -247,24 +267,44 @@ export default function Navbar({ user, onLogout }) {
             Ορειβατικός Σύλλογος
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              marginRight: 2,
-              display: { xs: 'none', sm: 'block' } // Κρύβουμε σε πολύ μικρές οθόνες
+          
+          {/* User menu */}
+          <IconButton
+            color="inherit"
+            aria-label="account of current user"
+            aria-controls="menu-appbar"
+            aria-haspopup="true"
+            onClick={handleUserMenuOpen}
+            sx={{ mr: 1 }}
+          >
+            <AccountCircle />
+          </IconButton>
+          <Menu
+            id="menu-appbar"
+            anchorEl={anchorEl}
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
             }}
+            keepMounted
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            open={Boolean(anchorEl)}
+            onClose={handleUserMenuClose}
           >
-            Συνδεδεμένος ως: {user.username}
-          </Typography>
-          <Button 
-            color="inherit" 
-            startIcon={<LogoutIcon />} 
-            onClick={onLogout}
-            size={shouldCollapseDrawer ? "small" : "medium"} // Προσαρμογή μεγέθους
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            {!isSmallScreen && "Αποσύνδεση"}
-          </Button>
+            <Typography sx={{ px: 2, py: 1, fontWeight: 'bold' }}>
+              {user?.username || 'Χρήστης'}
+            </Typography>
+            <Divider />
+            <MenuItem onClick={handleLogout}>
+              <ListItemIcon>
+                <LogoutIcon fontSize="small" />
+              </ListItemIcon>
+              Αποσύνδεση
+            </MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
 

@@ -7,6 +7,16 @@ datasource db {
   provider = "postgresql"
    url      = env("DATABASE_URL")
 }
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String   @default("user") // "admin" or "user"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model epafes {
   id_epafis          Int                  @id @default(autoincrement())
   onoma              String?

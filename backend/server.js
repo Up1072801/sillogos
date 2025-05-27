@@ -13,6 +13,7 @@ const eksormiseisRoutes = require("./routes/Reksormiseis");
 const vathmoiDiskoliasRouter = require('./routes/vathmoi-diskolias');
 const eidiSindromisRouter = require('./routes/eidi-sindromis');
 const adminRouter = require('./routes/radmin');
+const { router: authRoutes, authenticateToken } = require('./routes/auth');
 
 const app = express();
 
@@ -38,6 +39,8 @@ app.get("/health", (_req, res) => {
 });
 
 // Διαδρομές τόσο με όσο και χωρίς το /api/ prefix
+app.use('/api/auth', authRoutes); 
+app.use("/api",authRoutes);
 app.use("/Repafes", epafesRoutes);
 app.use("/api/Repafes", epafesRoutes);
 app.use("/melitousillogou", melitousillogouRoutes);

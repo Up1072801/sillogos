@@ -20,8 +20,45 @@ const api = axios.create({
 
 // Προσθήκη interceptor για εύκολη αποσφαλμάτωση
 api.interceptors.request.use(config => {
-  console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
+  const token = localStorage.getItem('token');
+  
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+    
+    // Εμφάνιση μόνο των πρώτων χαρακτήρων του token για λόγους ασφάλειας
+    const tokenPreview = token.substring(0, 10) + '...';
+    console.log(`API Request: ${config.method?.toUpperCase() || 'GET'} ${config.url} (with token: ${tokenPreview})`);
+  } else {
+    console.log(`API Request: ${config.method?.toUpperCase() || 'GET'} ${config.url} (NO token)`);
+  }
+  
   return config;
+}, error => {
+  console.error('Request interceptor error:', error);
+  return Promise.reject(error);
 });
+
+// Interceptor για απάντηση σε σφάλματα αυθεντικοποίησης
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Έλεγχος για unauthorized (401) ή forbidden (403)
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      // Αν δεν είμαστε στη σελίδα login, ανακατευθύνουμε τον χρήστη εκεί
+      if (window.location.pathname !== '/login') {
+        console.log('Διαπιστώθηκε μη έγκυρη συνεδρία. Ανακατεύθυνση στο login...');
+        
+        // Καθαρισμός των αποθηκευμένων τιμών
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Ανακατεύθυνση στο login
+        window.location.href = '/login';
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 export default api;

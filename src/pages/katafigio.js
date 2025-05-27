@@ -751,13 +751,22 @@ const applyDateFilter = () => {
 // Προσθέστε αυτό το useEffect για να ενημέρωνετε το filteredBookings όταν αλλάζουν τα bookings
 useEffect(() => {
   if (isFiltering && dateFilter) {
-    // Αν υπάρχει ενεργό φίλτρο, εφαρμόζουμε ξανά το φίλτρο στα νέα δεδομένα
+    // Αν υπάρχει ενεργό φίλτρο ημερομηνίας, εφαρμόζουμε ξανά το φίλτρο
     handleCalendarDateChange(dateFilter.start, dateFilter.end);
+  } else if (selectedShelter) {
+    // Διατήρηση του φίλτρου καταφυγίου, ακόμα και χωρίς φίλτρο ημερομηνίας
+    const filtered = bookings.filter(booking => 
+      String(booking.id_katafigiou) === selectedShelter
+    );
+    setFilteredBookings(filtered);
+    // Το isFiltering παραμένει true, αφού φιλτράρουμε ανά καταφύγιο
+    setIsFiltering(true);
   } else {
-    // Διαφορετικά εμφανίζουμε όλες τις κρατήσεις
+    // Μόνο αν δεν υπάρχει ούτε επιλεγμένο καταφύγιο, δείχνουμε όλες τις κρατήσεις
     setFilteredBookings(bookings);
+    setIsFiltering(false);
   }
-}, [bookings]);
+}, [bookings, dateFilter, selectedShelter]);
 
   // Προσαρμογή του χειριστή για το άνοιγμα του dialog επεξεργασίας κράτησης
 

@@ -44,7 +44,6 @@ function Home({ user }) {
                 Προβολή Επαφών
               </p>
             </Link>
-            <p>Δημιουργία Επαφών</p>
           </div>
         </div>
 
