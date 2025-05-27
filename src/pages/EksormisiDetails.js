@@ -129,18 +129,29 @@ const [ypefthynoi, setYpefthynoi] = useState([]);
 const fetchResponsiblePersons = async () => {
   try {
     const response = await api.get(`/eksormiseis/${id}/ypefthynoi`);
+    
+    // ΠΡΟΣΘΗΚΗ DEBUG - Δείτε τι δεδομένα έρχονται πραγματικά
+    console.log("Raw responsible persons data from API:", JSON.stringify(response.data, null, 2));
+    
     if (Array.isArray(response.data)) {
-      // Ensure proper mapping of names from the response
       const formattedPersons = response.data.map(person => {
-        // ΔΙΟΡΘΩΣΗ: Χρησιμοποιούμε την ίδια λογική με το fetchInternalMembers
+        // DEBUG: Δείτε τη δομή κάθε person
+        console.log("Processing person:", JSON.stringify(person, null, 2));
+        
+        // ΔΙΟΡΘΩΣΗ: Χρησιμοποιούμε τη σωστή διαδρομή που έρχεται από το backend
         const lastName = person.ypefthynos?.melos?.epafes?.epitheto || 
-                         person.epitheto || '';
+                         person.epitheto || // fallback από το formatted response
+                         '';
         const firstName = person.ypefthynos?.melos?.epafes?.onoma || 
-                          person.onoma || '';
+                          person.onoma || // fallback από το formatted response
+                          '';
+        
+        console.log("Extracted names:", { firstName, lastName });
         
         return {
           ...person,
-          fullName: `${lastName} ${firstName}`.trim() || "Άγνωστο όνομα",
+          // ΔΙΟΡΘΩΣΗ: Σωστή σειρά - πρώτα όνομα, μετά επώνυμο
+          fullName: `${firstName} ${lastName}`.trim() || "Άγνωστο όνομα",
           // Make sure we have these fields for display
           email: person.ypefthynos?.melos?.epafes?.email || 
                  person.email || 
@@ -332,45 +343,6 @@ const fetchResponsiblePersons = async () => {
     }
   };
 
-const fetchInternalMembers = async () => {
-  try {
-    const response = await api.get("/melitousillogou/internal");
-    console.log("Internal members data:", response.data);
-    
-    if (Array.isArray(response.data)) {
-      const formattedMembers = response.data.map(member => {
-        // Make sure we access the name properties consistently
-        const lastName = member.melos?.epafes?.epitheto || 
-                         member.epafes?.epitheto || 
-                         member.epitheto || '';
-        const firstName = member.melos?.epafes?.onoma || 
-                          member.epafes?.onoma || 
-                          member.onoma || '';
-        
-        return {
-          ...member,
-          // Add these properties directly to the member object
-          epitheto: lastName,
-          onoma: firstName,
-          fullName: `${lastName} ${firstName}`.trim() || "Άγνωστο όνομα",
-          email: member.melos?.epafes?.email || 
-                 member.epafes?.email || 
-                 member.email || '',
-          tilefono: member.melos?.epafes?.tilefono || 
-                    member.epafes?.tilefono || 
-                    member.tilefono || ''
-        };
-      });
-      
-      setInternalMembers(formattedMembers);
-    } else {
-      setInternalMembers([]);
-    }
-  } catch (error) {
-    console.error("Σφάλμα κατά τη φόρτωση εσωτερικών μελών:", error);
-  }
-};
-
 // Update the existing handleRemoveResponsiblePerson function
 const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
   try {
@@ -383,6 +355,78 @@ const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση υπευθύνου:", error);
     alert("Σφάλμα: " + error.message);
+  }
+};
+
+// Πρόσθεσε την παρακάτω συνάρτηση μετά από το handleRemoveResponsiblePerson
+const handleAddResponsiblePersons = async (selectedIds) => {
+  try {
+    if (!selectedIds || selectedIds.length === 0) {
+      return;
+    }
+    
+    console.log("Προσθήκη υπευθύνων:", selectedIds);
+    
+    // Κάνε το API call για να προσθέσεις τους υπευθύνους
+    await api.post(`/eksormiseis/${id}/ypefthynoi`, {
+      id_ypefthynon: selectedIds
+    });
+    
+    // Ανανέωσε τη λίστα με τους υπευθύνους
+    await fetchResponsiblePersons();
+    
+    // Κλείσε το dialog
+    setResponsiblePersonDialog(false);
+  } catch (error) {
+    console.error("Σφάλμα κατά την προσθήκη υπευθύνων:", error);
+    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
+  }
+};
+
+// Αντικατάστησε την υπάρχουσα fetchInternalMembers με αυτή την ενημερωμένη έκδοση
+// Πλήρης αντικατάσταση της συνάρτησης fetchInternalMembers
+const fetchInternalMembers = async () => {
+  try {
+    // Fetch all internal members
+    const response = await api.get("/melitousillogou/internal");
+    console.log("Internal member data:", response.data);
+    
+    if (Array.isArray(response.data)) {
+      // Process each member to ensure names are correctly populated
+      const processedMembers = response.data.map(member => {
+        // Try to extract name parts from all possible locations
+        const onoma = member.onoma || 
+                    member.firstName || 
+                    member.melos?.epafes?.onoma || 
+                    member.epafes?.onoma || '';
+                    
+        const epitheto = member.epitheto || 
+                       member.lastName || 
+                       member.melos?.epafes?.epitheto || 
+                       member.epafes?.epitheto || '';
+        
+        // Construct a proper fullName that overrides any "Άγνωστο όνομα" values
+        const properFullName = `${epitheto} ${onoma}`.trim();
+        
+        // Return a member with a guaranteed name if possible
+        return {
+          ...member,
+          onoma,
+          epitheto,
+          firstName: onoma,
+          lastName: epitheto,
+          fullName: properFullName || (member.fullName !== "Άγνωστο όνομα" ? member.fullName : "")
+        };
+      });
+      
+      setInternalMembers(processedMembers);
+    } else {
+      console.error("Expected array but received:", response.data);
+      setInternalMembers([]);
+    }
+  } catch (error) {
+    console.error("Error loading internal members:", error);
+    setInternalMembers([]);
   }
 };
 
@@ -806,7 +850,7 @@ const handleAddParticipant = async (formData) => {
     const memberEmail = selectedMember?.melos?.epafes?.email || '-';
     const memberPhone = selectedMember?.melos?.epafes?.tilefono || '-';
 
-    // Convert the id_drastitiotitas from tableSelect to an array if it's not already
+    // Convert the id_drastiriotitas from tableSelect to an array if it's not already
     const activityIds = Array.isArray(formData.id_drastiriotitas) 
       ? formData.id_drastiriotitas 
       : [formData.id_drastiriotitas];
@@ -966,7 +1010,7 @@ const handleEditParticipantClick = (participant) => {
     
     if (participant.simmetoxes && Array.isArray(participant.simmetoxes)) {
       participant.simmetoxes.forEach(simmetoxi => {
-        if (simmetoxi.drastiriotita?.id_drastiriotitas) {
+        if (simmetoxi.drastiriotita?.id_drastiriτοitas) {
           const actId = String(simmetoxi.drastiriotita.id_drastiriotitas);
           if (!participantActivities.includes(actId)) {
             participantActivities.push(actId);
@@ -2229,7 +2273,17 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                               <TableBody>
                                 {ypefthynoi.map((ypefthynos) => (
                                   <TableRow key={ypefthynos.id_es_melous}>
-                                    <TableCell>{ypefthynos.fullName || '-'}</TableCell>
+                                    <TableCell>
+                                      {
+                                        ypefthynos.fullName && ypefthynos.fullName !== "Άγνωστο όνομα"
+                                          ? ypefthynos.fullName
+                                          : (
+                                            (ypefthynos.epitheto || ypefthynos.melos?.epafes?.epitheto || '') +
+                                            ' ' +
+                                            (ypefthynos.onoma || ypefthynos.melos?.epafes?.onoma || '')
+                                          ).trim() || '-'
+                                      }
+                                    </TableCell>
                                     <TableCell>{ypefthynos.email || '-'}</TableCell>
                                     <TableCell>{ypefthynos.tilefono || '-'}</TableCell>
                                     <TableCell align="right">
@@ -2507,7 +2561,7 @@ const updateParticipantActivityLists = (deletedActivityId) => {
   fullWidth
 >
   <DialogTitle>
-    Προσθήκη Υπεύθυνου Εξόρμησης
+    Επιλογή Υπεύθυνου Εξόρμησης
   </DialogTitle>
   <DialogContent>
     <Box sx={{ mb: 2 }}>
@@ -2515,69 +2569,71 @@ const updateParticipantActivityLists = (deletedActivityId) => {
         Επιλέξτε εσωτερικά μέλη ως υπεύθυνους για την εξόρμηση
       </Typography>
     </Box>
-    <SelectionDialog
-      open={true}
-      onClose={() => setResponsiblePersonDialog(false)}
-      data={internalMembers
-        .filter(member => !ypefthynoi.some(y => y.id_es_melous === member.id_es_melous))
-        .map(member => {
-          // Create a properly formatted display name from all possible sources
-          const lastName = member.melos?.epafes?.epitheto || 
-                          member.epafes?.epitheto || 
-                          member.epitheto || '';
-          const firstName = member.melos?.epafes?.onoma || 
-                           member.epafes?.onoma || 
-                           member.onoma || '';
-          
-          return {
-            ...member,
-            // Explicitly create a name property for display
-            name: `${lastName} ${firstName}`.trim() || "Άγνωστο όνομα",
-            // Also ensure these fields are available
-            email: member.melos?.epafes?.email || member.epafes?.email || member.email || '',
-            tilefono: member.melos?.epafes?.tilefono || member.epafes?.tilefono || member.tilefono || ''
-          };
-        })
-      }
-      selectedIds={[]} 
-      onConfirm={(selectedIds) => {
-        if (selectedIds && selectedIds.length > 0) {
-          // First get current responsible persons
-          api.get(`/eksormiseis/${id}/ypefthynoi`)
-            .then(response => {
-              // Extract IDs of existing responsible persons
-              const existingIds = response.data.map(person => person.id_es_melous);
-              
-              // Create a new array with both existing and newly selected IDs (without duplicates)
-              const combinedIds = [...new Set([...existingIds, ...selectedIds])];
-              
-              // Send the combined list to the API
-              return api.post(`/eksormiseis/${id}/ypefthynoi`, {
-                id_ypefthynon: combinedIds
-              });
-            })
-            .then(() => {
-              fetchResponsiblePersons();
-              setResponsiblePersonDialog(false);
-            })
-            .catch(error => {
-              console.error("Σφάλμα κατά την προσθήκη υπεύθυνων:", error);
-              alert("Σφάλμα: " + error.message);
-            });
-        } else {
-          setResponsiblePersonDialog(false);
-        }
-      }}
-      title="Επιλογή Υπεύθυνων Εξόρμησης"
-      columns={[
-        { field: "name", header: "Ονοματεπώνυμο" },
-        { field: "email", header: "Email" },
-        { field: "tilefono", header: "Τηλέφωνο" }
-      ]}
-      idField="id_es_melous"
-      searchFields={["name", "email"]}
-      noDataMessage="Δεν υπάρχουν διαθέσιμα μέλη"
-    />
+<SelectionDialog
+  open={true}
+  onClose={() => setResponsiblePersonDialog(false)}
+  title="Επιλογή Υπεύθυνων Εξόρμησης"
+  data={internalMembers.map(member => {
+    // Debug the actual structure of each member to see what's available
+    console.log("Member structure:", member);
+    
+    // Check if fullName already exists correctly
+    if (member.fullName && member.fullName !== "Άγνωστο όνομα") {
+      return {
+        id: member.id_es_melous || member.id,
+        fullName: member.fullName,
+        email: member.email || member.melos?.epafes?.email || '',
+        tilefono: member.tilefono || member.melos?.epafes?.tilefono || ''
+      };
+    }
+    
+    // Try all possible paths for name components
+    const onomateponymo = 
+      // Direct properties
+      member.onomateponymo ||
+      // Concatenated name if available directly
+      (member.epitheto && member.onoma ? `${member.epitheto} ${member.onoma}` : null) ||
+      // Last, first structure
+      (member.lastName && member.firstName ? `${member.lastName} ${member.firstName}` : null) ||
+      // Nested in melos.epafes
+      (member.melos?.epafes?.epitheto && member.melos?.epafes?.onoma 
+        ? `${member.melos.epafes.epitheto} ${member.melos.epafes.onoma}` 
+        : null) ||
+      // Nested in epafes
+      (member.epafes?.epitheto && member.epafes?.onoma 
+        ? `${member.epafes.epitheto} ${member.epafes.onoma}` 
+        : null);
+    
+    // If we found a valid name, use it
+    if (onomateponymo) {
+      return {
+        id: member.id_es_melous || member.id,
+        fullName: onomateponymo,
+        email: member.email || member.melos?.epafes?.email || member.epafes?.email || '',
+        tilefono: member.tilefono || member.melos?.epafes?.tilefono || member.epafes?.tilefono || ''
+      };
+    }
+    
+    // Ultimate fallback similar to your original code
+    const onoma = member.onoma || member.firstName || member.melos?.epafes?.onoma || member.epafes?.onoma || '';
+    const epitheto = member.epitheto || member.lastName || member.melos?.epafes?.epitheto || member.epafes?.epitheto || '';
+    const calculatedFullName = `${epitheto} ${onoma}`.trim();
+    
+    return {
+      id: member.id_es_melous || member.id,
+      fullName: calculatedFullName || "Δεν βρέθηκε όνομα",
+      email: member.email || member.melos?.epafes?.email || member.epafes?.email || '',
+      tilefono: member.tilefono || member.melos?.epafes?.tilefono || member.epafes?.tilefono || ''
+    };
+  })}
+  columns={[
+    { field: "fullName", header: "Ονοματεπώνυμο" },
+    { field: "email", header: "Email" },
+    { field: "tilefono", header: "Τηλέφωνο" }
+  ]}
+  selectedIds={ypefthynoi.map(y => y.id_es_melous)}
+  onConfirm={handleAddResponsiblePersons}
+/>
   </DialogContent>
 </Dialog>
         {paymentParticipant && (

@@ -1030,17 +1030,26 @@ router.get("/:id/ypefthynoi", async (req, res) => {
       }
     });
     
-    const formattedResponsiblePersons = responsiblePersons.map(rp => ({
-      id_es_melous: rp.id_ypefthynou,
-      fullName: `${rp.ypefthynos?.melos?.epafes?.epitheto || ''} ${rp.ypefthynos?.melos?.epafes?.onoma || ''}`.trim(),
-      email: rp.ypefthynos?.melos?.epafes?.email || '',
-      tilefono: rp.ypefthynos?.melos?.epafes?.tilefono ? rp.ypefthynos.melos.epafes.tilefono.toString() : '',
-      // Add the original ypefthynos object so frontend can access the original structure
-      ypefthynos: rp.ypefthynos,
-      // Also add direct access to commonly used fields
-      epitheto: rp.ypefthynos?.melos?.epafes?.epitheto || '',
-      onoma: rp.ypefthynos?.melos?.epafes?.onoma || ''
-    }));
+ const formattedResponsiblePersons = responsiblePersons.map(rp => {
+  // Extract name parts first for more reliable access
+  const onoma = rp.ypefthynos?.melos?.epafes?.onoma || '';
+  const epitheto = rp.ypefthynos?.melos?.epafes?.epitheto || '';
+  
+  // Calculate fullName only after extracting the parts
+  const fullName = `${epitheto} ${onoma}`.trim();
+  
+  return {
+    id_es_melous: rp.id_ypefthynou,
+    onoma,
+    epitheto,
+    firstName: onoma,
+    lastName: epitheto,
+    fullName: fullName || "Άγνωστο όνομα",  // Only use fallback if truly empty
+    email: rp.ypefthynos?.melos?.epafes?.email || '',
+    tilefono: rp.ypefthynos?.melos?.epafes?.tilefono ? rp.ypefthynos.melos.epafes.tilefono.toString() : '',
+    ypefthynos: rp.ypefthynos
+  };
+});
     
     res.json(formattedResponsiblePersons);
   } catch (error) {
