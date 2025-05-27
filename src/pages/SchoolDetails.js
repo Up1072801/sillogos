@@ -177,8 +177,8 @@ try {
     
     // Fetch available teachers - ΠΡΟΣΘΗΚΗ ΑΥΤΟΥ ΤΟΥ ΚΩΔΙΚΑ
     try {
-      // Αλλάζουμε το endpoint από /ekpaideutisapi σε /ekpaideutis
-      const teachersResponse = await api.get("/ekpaideutis"); // Διορθωμένο endpoint
+      // Αλλάζουμε το endpoint από /ekpaideutis σε /Repafes/ekpaideutes-me-sxoles
+      const teachersResponse = await api.get("/Repafes/ekpaideutes-me-sxoles"); // ΣΩΣΤΟ endpoint όπως στο sxoles.js
       console.log("Όλοι οι εκπαιδευτές:", teachersResponse.data);
       
       // Φιλτράρουμε για να πάρουμε μόνο τους εκπαιδευτές που ΔΕΝ διδάσκουν ήδη στη σχολή
@@ -338,6 +338,7 @@ const handleSaveTeacher = async (selection) => {
     console.log("Προσθήκη εκπαιδευτών:", selectedTeachers);
     
     const teachersToAdd = [];
+    const failedTeachers = [];
     
     // Process each teacher selection in a loop
     for (const teacherId of selectedTeachers) {
@@ -349,6 +350,7 @@ const handleSaveTeacher = async (selection) => {
         
         if (!teacherDetails) {
           console.error(`Teacher with ID ${teacherId} not found in available teachers`);
+          failedTeachers.push(teacherId);
           continue;
         }
         
@@ -376,9 +378,11 @@ const handleSaveTeacher = async (selection) => {
         teachersToAdd.push(completeTeacher);
       } catch (error) {
         console.error(`Error adding teacher with ID ${teacherId}:`, error);
+        failedTeachers.push(teacherId);
       }
     }
     
+    // Ενημέρωση UI και ειδοποίηση χρήστη
     if (teachersToAdd.length > 0) {
       // Update school state first with new teachers
       setSchool(prevSchool => ({
@@ -394,10 +398,19 @@ const handleSaveTeacher = async (selection) => {
         prevTeachers.filter(teacher => {
           const teacherId = teacher.id_ekpaideuti || teacher.id;
           return !teachersToAdd.some(added => 
-            (added.id_ekpaideuti === teacherId) || (added.id === teacherId)
+            String(added.id_ekpaideuti) === String(teacherId) || String(added.id) === String(teacherId)
           );
         })
       );
+      
+      // Ενημέρωση χρήστη
+      if (failedTeachers.length > 0) {
+        alert(`Προστέθηκαν ${teachersToAdd.length} εκπαιδευτές, αλλά ${failedTeachers.length} απέτυχαν.`);
+      } else {
+        alert(`Προστέθηκαν επιτυχώς ${teachersToAdd.length} εκπαιδευτές.`);
+      }
+    } else {
+      alert("Δεν ήταν δυνατή η προσθήκη των εκπαιδευτών. Παρακαλώ δοκιμάστε ξανά.");
     }
     
     setAddTeacherDialog(false);
@@ -445,12 +458,13 @@ const handleDeleteTeacher = async (teacherId) => {
     await api.delete(`/sxoles/${id}/ekpaideutis/${teacherId}`);
     
     // Update local state - FIRST remove from school's teachers
-    setSchool(prevSchool => ({
-      ...prevSchool,
-      ekpaideutes: prevSchool.ekpaideutes.filter(t => 
-        String(t.id_ekpaideuti) !== teacherIdStr && String(t.id) === teacherIdStr
-      )
-    }));
+setSchool(prevSchool => ({
+  ...prevSchool,
+  ekpaideutes: prevSchool.ekpaideutes.filter(t => {
+    // Κρατάμε αυτούς που ΚΑΝΕΝΑ από τα IDs τους δεν ταιριάζει με αυτό που αφαιρούμε
+    return String(t.id_ekpaideuti) !== teacherIdStr && String(t.id) !== teacherIdStr;
+  })
+}));
     
     // THEN add to available teachers if not already there
     setAvailableTeachers(prevTeachers => {

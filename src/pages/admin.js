@@ -8,7 +8,6 @@ import {
 import api from '../utils/api';
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import SportsIcon from "@mui/icons-material/Sports";
 import TerrainIcon from "@mui/icons-material/Terrain";
@@ -136,25 +135,18 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteSport = async (id) => {
-    if (!window.confirm("Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτό το άθλημα;")) {
-      return;
-    }
-    try {
-      await api.delete(`/athlites/sport/${id}`);
-      await fetchSports();
-      showNotification("Το άθλημα διαγράφηκε επιτυχώς");
-    } catch (error) {
-      console.error("Σφάλμα κατά τη διαγραφή αθλήματος:", error);
-      showNotification("Σφάλμα κατά τη διαγραφή αθλήματος", "error");
-    }
-  };
-
   // Υλοποίηση λειτουργιών CRUD για βαθμούς δυσκολίας
   const handleAddDifficulty = async () => {
     try {
+      // Make sure epipedo is a valid number
+      const epipedoValue = parseInt(difficultyDialog.data.epipedo);
+      if (isNaN(epipedoValue)) {
+        showNotification("Το επίπεδο πρέπει να είναι έγκυρος αριθμός", "error");
+        return;
+      }
+      
       await api.post("/vathmoi-diskolias", { 
-        epipedo: difficultyDialog.data.epipedo
+        epipedo: epipedoValue
       });
       await fetchDifficultyLevels();
       setDifficultyDialog({...difficultyDialog, open: false});
@@ -179,26 +171,12 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteDifficulty = async (id) => {
-    if (!window.confirm("Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτόν τον βαθμό δυσκολίας;")) {
-      return;
-    }
-    try {
-      await api.delete(`/vathmoi-diskolias/${id}`);
-      await fetchDifficultyLevels();
-      showNotification("Ο βαθμός δυσκολίας διαγράφηκε επιτυχώς");
-    } catch (error) {
-      console.error("Σφάλμα κατά τη διαγραφή βαθμού δυσκολίας:", error);
-      showNotification("Σφάλμα κατά τη διαγραφή βαθμού δυσκολίας", "error");
-    }
-  };
-
   // Υλοποίηση λειτουργιών CRUD για είδη συνδρομής
   const handleAddSubscription = async () => {
     try {
       const data = {
-        titlos: subscriptionDialog.data.titlos,
-        timi: subscriptionDialog.data.kostos
+        typos: subscriptionDialog.data.titlos, // Changed from titlos to typos
+        kostos: parseInt(subscriptionDialog.data.kostos) || 0  // Ensure it's a number
       };
       await api.post("/eidi-sindromis", data);
       await fetchSubscriptionTypes();
@@ -212,9 +190,15 @@ export default function AdminPage() {
 
   const handleUpdateSubscription = async () => {
     try {
+      // Make sure we have a valid ID
+      if (!subscriptionDialog.data.id_eidous) {
+        showNotification("Δεν βρέθηκε έγκυρο ID είδους συνδρομής", "error");
+        return;
+      }
+      
       const data = {
-        titlos: subscriptionDialog.data.titlos,
-        timi: subscriptionDialog.data.kostos
+        typos: subscriptionDialog.data.titlos, // Changed from titlos to typos
+        kostos: parseInt(subscriptionDialog.data.kostos) || 0
       };
       await api.put(`/eidi-sindromis/${subscriptionDialog.data.id_eidous}`, data);
       await fetchSubscriptionTypes();
@@ -226,24 +210,25 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteSubscription = async (id) => {
-    if (!window.confirm("Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτό το είδος συνδρομής;")) {
-      return;
-    }
-    try {
-      await api.delete(`/eidi-sindromis/${id}`);
-      await fetchSubscriptionTypes();
-      showNotification("Το είδος συνδρομής διαγράφηκε επιτυχώς");
-    } catch (error) {
-      console.error("Σφάλμα κατά τη διαγραφή είδους συνδρομής:", error);
-      showNotification("Σφάλμα κατά τη διαγραφή είδους συνδρομής", "error");
-    }
-  };
-
   // Υλοποίηση λειτουργιών CRUD για καταφύγια
   const handleAddRefuge = async () => {
     try {
-      await api.post("/katafigio/katafygia", refugeDialog.data);
+      // Validate required fields
+      if (!refugeDialog.data.onoma) {
+        showNotification("Το όνομα καταφυγίου είναι υποχρεωτικό", "error");
+        return;
+      }
+      
+      const formattedData = {
+        onoma: refugeDialog.data.onoma,
+        xoritikotita: parseInt(refugeDialog.data.xoritikotita) || 0,
+        timi_melous: parseInt(refugeDialog.data.timi_melous) || 0,
+        timi_mi_melous: parseInt(refugeDialog.data.timi_mi_melous) || 0,
+        timi_eksoxwrou_melos: parseInt(refugeDialog.data.timi_eksoxwrou_melos) || 0,
+        timi_eksoxwroy_mimelos: parseInt(refugeDialog.data.timi_eksoxwroy_mimelos) || 0
+      };
+      
+      await api.post("/katafigio/katafygia", formattedData);
       await fetchRefugePrices();
       setRefugeDialog({...refugeDialog, open: false});
       showNotification("Το καταφύγιο προστέθηκε επιτυχώς");
@@ -264,20 +249,6 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Σφάλμα κατά την ενημέρωση καταφυγίου:", error);
       showNotification("Σφάλμα κατά την ενημέρωση καταφυγίου", "error");
-    }
-  };
-
-  const handleDeleteRefuge = async (id) => {
-    if (!window.confirm("Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτό το καταφύγιο;")) {
-      return;
-    }
-    try {
-      await api.delete(`/katafigio/katafygia/${id}`);
-      await fetchRefugePrices();
-      showNotification("Το καταφύγιο διαγράφηκε επιτυχώς");
-    } catch (error) {
-      console.error("Σφάλμα κατά τη διαγραφή καταφυγίου:", error);
-      showNotification("Σφάλμα κατά τη διαγραφή καταφυγίου", "error");
     }
   };
 
@@ -333,12 +304,7 @@ export default function AdminPage() {
                             >
                               <EditIcon />
                             </IconButton>
-                            <IconButton 
-                              color="error"
-                              onClick={() => handleDeleteSport(sport.id_athlimatos)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
+                            {/* Αφαιρούμε το κουμπί διαγραφής */}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -405,7 +371,7 @@ export default function AdminPage() {
                               color="error"
                               onClick={() => handleDeleteDifficulty(level.id_vathmou_diskolias)}
                             >
-                              <DeleteIcon />
+
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -460,34 +426,38 @@ export default function AdminPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {subscriptionTypes.map((subscription) => (
-                        <TableRow key={subscription.id_eidous}>
-                          <TableCell>{subscription.titlos}</TableCell>
-                          <TableCell>{subscription.timi}€</TableCell>
-                          <TableCell align="right">
-                            <IconButton 
-                              color="primary" 
-                              onClick={() => setSubscriptionDialog({ 
-                                open: true, 
-                                data: {
-                                  id_eidous: subscription.id_eidous,
-                                  titlos: subscription.titlos,
-                                  kostos: subscription.timi
-                                }, 
-                                isEdit: true 
-                              })}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton 
-                              color="error"
-                              onClick={() => handleDeleteSubscription(subscription.id_eidous)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {subscriptionTypes.map((subscription) => {
+                        // Make sure we have a valid ID by checking all possible field names
+                        const subscriptionId = subscription.id_eidous_sindromis || subscription.id_eidous || subscription.id;
+                        
+                        return (
+                          <TableRow key={subscriptionId}>
+                            <TableCell>{subscription.typos || subscription.titlos}</TableCell>
+                            <TableCell>{subscription.kostos || subscription.timi}€</TableCell>
+                            <TableCell align="right">
+                              <IconButton 
+                                color="primary" 
+                                onClick={() => setSubscriptionDialog({ 
+                                  open: true, 
+                                  data: {
+                                    id_eidous: subscriptionId,
+                                    titlos: subscription.typos || subscription.titlos,
+                                    kostos: subscription.kostos || subscription.timi
+                                  }, 
+                                  isEdit: true 
+                                })}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                              <IconButton 
+                                color="error"
+                                onClick={() => handleDeleteSubscription(subscriptionId)}
+                              >
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {subscriptionTypes.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={3} align="center">
@@ -538,8 +508,10 @@ export default function AdminPage() {
                       <TableRow>
                         <TableCell>Όνομα</TableCell>
                         <TableCell>Χωρητικότητα</TableCell>
-                        <TableCell>Τιμή Μέλους</TableCell>
-                        <TableCell>Τιμή Μη Μέλους</TableCell>
+                        <TableCell>Τιμή Μέλους (Εσωτ.)</TableCell>
+                        <TableCell>Τιμή Μη Μέλους (Εσωτ.)</TableCell>
+                        <TableCell>Τιμή Μέλους (Εξωτ.)</TableCell>
+                        <TableCell>Τιμή Μη Μέλους (Εξωτ.)</TableCell>
                         <TableCell align="right">Ενέργειες</TableCell>
                       </TableRow>
                     </TableHead>
@@ -550,6 +522,8 @@ export default function AdminPage() {
                           <TableCell>{refuge.xoritikotita}</TableCell>
                           <TableCell>{refuge.timi_melous}€</TableCell>
                           <TableCell>{refuge.timi_mi_melous}€</TableCell>
+                          <TableCell>{refuge.timi_eksoxwrou_melos || 0}€</TableCell>
+                          <TableCell>{refuge.timi_eksoxwroy_mimelos || 0}€</TableCell>
                           <TableCell align="right">
                             <IconButton 
                               color="primary" 
@@ -561,7 +535,6 @@ export default function AdminPage() {
                               color="error"
                               onClick={() => handleDeleteRefuge(refuge.id_katafigiou)}
                             >
-                              <DeleteIcon />
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -685,9 +658,10 @@ export default function AdminPage() {
               value={refugeDialog.data?.xoritikotita || 0}
               onChange={(e) => setRefugeDialog({...refugeDialog, data: {...refugeDialog.data, xoritikotita: parseInt(e.target.value)}})}
             />
+            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Τιμές Εσωτερικού Χώρου</Typography>
             <TextField
               margin="dense"
-              label="Τιμή Μέλους"
+              label="Τιμή Μέλους (Εσωτερικός χώρος)"
               type="number"
               fullWidth
               value={refugeDialog.data?.timi_melous || 0}
@@ -695,11 +669,28 @@ export default function AdminPage() {
             />
             <TextField
               margin="dense"
-              label="Τιμή Μη Μέλους"
+              label="Τιμή Μη Μέλους (Εσωτερικός χώρος)"
               type="number"
               fullWidth
               value={refugeDialog.data?.timi_mi_melous || 0}
               onChange={(e) => setRefugeDialog({...refugeDialog, data: {...refugeDialog.data, timi_mi_melous: parseInt(e.target.value)}})}
+            />
+            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Τιμές Εξωτερικού Χώρου</Typography>
+            <TextField
+              margin="dense"
+              label="Τιμή Μέλους (Εξωτερικός χώρος)"
+              type="number"
+              fullWidth
+              value={refugeDialog.data?.timi_eksoxwrou_melos || 0}
+              onChange={(e) => setRefugeDialog({...refugeDialog, data: {...refugeDialog.data, timi_eksoxwrou_melos: parseInt(e.target.value)}})}
+            />
+            <TextField
+              margin="dense"
+              label="Τιμή Μη Μέλους (Εξωτερικός χώρος)"
+              type="number"
+              fullWidth
+              value={refugeDialog.data?.timi_eksoxwroy_mimelos || 0}
+              onChange={(e) => setRefugeDialog({...refugeDialog, data: {...refugeDialog.data, timi_eksoxwroy_mimelos: parseInt(e.target.value)}})}
             />
           </DialogContent>
           <DialogActions>
