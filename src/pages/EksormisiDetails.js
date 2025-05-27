@@ -102,6 +102,9 @@ export default function EksormisiDetails() {
   const [responsiblePersonDialog, setResponsiblePersonDialog] = useState(false);
   // Add these states
   // Add with your other state declarations
+  const [deletingResponsibleId, setDeletingResponsibleId] = useState(null);
+const [processingIds, setProcessingIds] = useState(new Set());
+
 const [ypefthynoi, setYpefthynoi] = useState([]);
   const [memberSelectionDialogOpen, setMemberSelectionDialogOpen] = useState(false);
   const [activitySelectionDialogOpen, setActivitySelectionDialogOpen] = useState(false);
@@ -343,22 +346,67 @@ const fetchResponsiblePersons = async () => {
     }
   };
 
-// Update the existing handleRemoveResponsiblePerson function
+// Update the handleRemoveResponsiblePerson function
 const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
   try {
+    // Check if we're already processing this ID or any ID
+    if (processingIds.has(id_ypefthynou) || deletingResponsibleId !== null) {
+      console.log("Already processing deletion, ignoring request");
+      return;
+    }
+
     if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον υπεύθυνο;")) {
       return;
     }
     
-    await api.delete(`/eksormiseis/${id}/ypefthynoi/${id_ypefthynou}`);
-    fetchResponsiblePersons(); // Refresh the list after deletion
+    // Add this ID to the processing set AND set the deleting state
+    setProcessingIds(prev => new Set(prev).add(id_ypefthynou));
+    setDeletingResponsibleId(id_ypefthynou);
+    
+    // Log current responsible person count
+    console.log(`Before deletion: ${ypefthynoi.length} responsible persons`);
+    
+    try {
+      // Try to delete from the API
+      await api.delete(`/eksormiseis/${id}/ypefthynoi/${id_ypefthynou}`);
+      console.log(`Successfully deleted responsible person with ID ${id_ypefthynou} from API`);
+    } catch (error) {
+      // If the error is P2025 (record not found), we can consider it a success
+      // as the record is already gone from the database
+      if (error.response?.data?.details?.includes('P2025')) {
+        console.log("Record not found in database, considering delete successful");
+      } else {
+        // For other errors, throw to be caught by the outer catch
+        throw error;
+      }
+    }
+    
+    // Always update the UI state regardless of API response
+    // This ensures the UI is consistent even if the backend has issues
+    setYpefthynoi(prevYpefthynoi => 
+      prevYpefthynoi.filter(y => 
+        y.id_ypefthynou !== id_ypefthynou && 
+        y.id_es_melous !== id_ypefthynou && 
+        y.id !== id_ypefthynou
+      )
+    );
+    
+    // Log updated responsible person count 
+    console.log(`After deletion: Removed person with ID ${id_ypefthynou}`);
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση υπευθύνου:", error);
     alert("Σφάλμα: " + error.message);
+  } finally {
+    // Clear both tracking mechanisms
+    setDeletingResponsibleId(null);
+    setProcessingIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(id_ypefthynou);
+      return newSet;
+    });
   }
 };
-
-// Πρόσθεσε την παρακάτω συνάρτηση μετά από το handleRemoveResponsiblePerson
+// Ενημερωμένη έκδοση της handleAddResponsiblePersons που διατηρεί τους υπάρχοντες υπεύθυνους
 const handleAddResponsiblePersons = async (selectedIds) => {
   try {
     if (!selectedIds || selectedIds.length === 0) {
@@ -372,8 +420,29 @@ const handleAddResponsiblePersons = async (selectedIds) => {
       id_ypefthynon: selectedIds
     });
     
-    // Ανανέωσε τη λίστα με τους υπευθύνους
-    await fetchResponsiblePersons();
+    // Βρες τα πλήρη αντικείμενα των νέων υπευθύνων από τα internalMembers
+    const newResponsiblePersons = selectedIds.map(newId => {
+      const member = internalMembers.find(m => 
+        (m.id_es_melous === newId || m.id === newId)
+      );
+      
+      if (member) {
+        // Δημιουργία αντικειμένου με την ίδια δομή που έχουν τα ypefthynoi
+        return {
+          id_es_melous: member.id_es_melous || member.id,
+          id_ypefthynou: member.id_es_melous || member.id,
+          fullName: member.fullName || `${member.epitheto || ''} ${member.onoma || ''}`.trim(),
+          onoma: member.onoma || member.firstName || member.melos?.epafes?.onoma || '',
+          epitheto: member.epitheto || member.lastName || member.melos?.epafes?.epitheto || '',
+          email: member.email || member.melos?.epafes?.email || '',
+          tilefono: member.tilefono || member.melos?.epafes?.tilefono || ''
+        };
+      }
+      return null;
+    }).filter(Boolean); // Αφαίρεσε τυχόν null values
+    
+    // Προσθήκη των νέων υπευθύνων στο τοπικό state
+    setYpefthynoi(prevYpefthynoi => [...prevYpefthynoi, ...newResponsiblePersons]);
     
     // Κλείσε το dialog
     setResponsiblePersonDialog(false);
@@ -2291,8 +2360,10 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                                         size="small" 
                                         color="error" 
                                         onClick={() => handleRemoveResponsiblePerson(ypefthynos.id_es_melous)}
+                                        disabled={deletingResponsibleId === ypefthynos.id_es_melous}
                                       >
-                                        <DeleteIcon fontSize="small" />
+                                        {deletingResponsibleId === ypefthynos.id_es_melous ? 
+                                          <CircularProgress size={18} /> : <DeleteIcon fontSize="small" />}
                                       </IconButton>
                                     </TableCell>
                                   </TableRow>
@@ -2563,78 +2634,71 @@ const updateParticipantActivityLists = (deletedActivityId) => {
   <DialogTitle>
     Επιλογή Υπεύθυνου Εξόρμησης
   </DialogTitle>
-  <DialogContent>
-    <Box sx={{ mb: 2 }}>
-      <Typography variant="body2" color="text.secondary">
-        Επιλέξτε εσωτερικά μέλη ως υπεύθυνους για την εξόρμηση
-      </Typography>
-    </Box>
-<SelectionDialog
+  // Inside the Dialog component
+<DialogContent>
+  <Box sx={{ mb: 2 }}>
+    <Typography variant="body2" color="text.secondary">
+      Επιλέξτε εσωτερικά μέλη ως υπεύθυνους για την εξόρμηση
+    </Typography>
+  </Box>
+ <SelectionDialog
   open={true}
   onClose={() => setResponsiblePersonDialog(false)}
   title="Επιλογή Υπεύθυνων Εξόρμησης"
-  data={internalMembers.map(member => {
-    // Debug the actual structure of each member to see what's available
-    console.log("Member structure:", member);
-    
-    // Check if fullName already exists correctly
-    if (member.fullName && member.fullName !== "Άγνωστο όνομα") {
+  data={internalMembers
+    // Filter out members who are already responsible
+    .filter(member => {
+      const memberId = member.id_es_melous || member.id;
+      // Check if this member is already in the ypefthynoi list
+      return !ypefthynoi.some(y => 
+        y.id_ypefthynou === memberId || 
+        y.id_es_melous === memberId || 
+        y.id === memberId
+      );
+    })
+    .map(member => {
+      // Extract name parts with fallbacks
+      const onoma = member.onoma || 
+                   member.firstName || 
+                   member.melos?.epafes?.onoma || 
+                   member.epafes?.onoma || '';
+                   
+      const epitheto = member.epitheto || 
+                      member.lastName || 
+                      member.melos?.epafes?.epitheto || 
+                      member.epafes?.epitheto || '';
+      
+      // Create fullName with proper order
+      const fullName = `${epitheto} ${onoma}`.trim() || member.fullName || "Άγνωστο όνομα";
+      
+      // Get email with fallbacks
+      const email = member.email || 
+                   member.melos?.epafes?.email || 
+                   member.epafes?.email || '-';
+      
+      // Get phone with fallbacks
+      const tilefono = member.tilefono || 
+                      member.melos?.epafes?.tilefono || 
+                      member.epafes?.tilefono || '-';
+      
       return {
         id: member.id_es_melous || member.id,
-        fullName: member.fullName,
-        email: member.email || member.melos?.epafes?.email || '',
-        tilefono: member.tilefono || member.melos?.epafes?.tilefono || ''
+        fullName,
+        email,
+        tilefono
       };
-    }
-    
-    // Try all possible paths for name components
-    const onomateponymo = 
-      // Direct properties
-      member.onomateponymo ||
-      // Concatenated name if available directly
-      (member.epitheto && member.onoma ? `${member.epitheto} ${member.onoma}` : null) ||
-      // Last, first structure
-      (member.lastName && member.firstName ? `${member.lastName} ${member.firstName}` : null) ||
-      // Nested in melos.epafes
-      (member.melos?.epafes?.epitheto && member.melos?.epafes?.onoma 
-        ? `${member.melos.epafes.epitheto} ${member.melos.epafes.onoma}` 
-        : null) ||
-      // Nested in epafes
-      (member.epafes?.epitheto && member.epafes?.onoma 
-        ? `${member.epafes.epitheto} ${member.epafes.onoma}` 
-        : null);
-    
-    // If we found a valid name, use it
-    if (onomateponymo) {
-      return {
-        id: member.id_es_melous || member.id,
-        fullName: onomateponymo,
-        email: member.email || member.melos?.epafes?.email || member.epafes?.email || '',
-        tilefono: member.tilefono || member.melos?.epafes?.tilefono || member.epafes?.tilefono || ''
-      };
-    }
-    
-    // Ultimate fallback similar to your original code
-    const onoma = member.onoma || member.firstName || member.melos?.epafes?.onoma || member.epafes?.onoma || '';
-    const epitheto = member.epitheto || member.lastName || member.melos?.epafes?.epitheto || member.epafes?.epitheto || '';
-    const calculatedFullName = `${epitheto} ${onoma}`.trim();
-    
-    return {
-      id: member.id_es_melous || member.id,
-      fullName: calculatedFullName || "Δεν βρέθηκε όνομα",
-      email: member.email || member.melos?.epafes?.email || member.epafes?.email || '',
-      tilefono: member.tilefono || member.melos?.epafes?.tilefono || member.epafes?.tilefono || ''
-    };
-  })}
+    })}
   columns={[
     { field: "fullName", header: "Ονοματεπώνυμο" },
     { field: "email", header: "Email" },
     { field: "tilefono", header: "Τηλέφωνο" }
   ]}
-  selectedIds={ypefthynoi.map(y => y.id_es_melous)}
+  selectedIds={[]} // Start with empty selection
   onConfirm={handleAddResponsiblePersons}
+  pageSize={10} // Set page size to 10 items per page
+  enablePagination={true} // Explicitly enable pagination
 />
-  </DialogContent>
+</DialogContent>
 </Dialog>
         {paymentParticipant && (
           <AddDialog
