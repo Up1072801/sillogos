@@ -1,12 +1,17 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { MaterialReactTable } from "material-react-table";
-import { Box, Button, Typography, Grid, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton } from "@mui/material";
+import { 
+  Box, Button, Typography, Grid, Table, TableBody, TableCell, TableContainer, 
+  TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent, 
+  DialogActions, FormGroup, FormControlLabel, Checkbox, Divider, Alert 
+} from "@mui/material";
 import { Add, FileDownload, Edit, Delete, KeyboardArrowUp as KeyboardArrowUpIcon, KeyboardArrowDown as KeyboardArrowDownIcon } from "@mui/icons-material";
 import ExportMenu from "./ExportMenu";
 import ActionsCell from "./ActionsCell";
 import * as XLSX from "xlsx";
 import pdfMake from "pdfmake/build/pdfmake";
 import * as pdfFonts from "pdfmake/build/vfs_fonts";
+import html2canvas from 'html2canvas';
 
 // Διόρθωση της ρύθμισης των fonts για το pdfmake
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
@@ -38,10 +43,11 @@ const DataTable = React.memo(({
   enableRowActions = true,
   getRowId = (row) => row.id
 }) => {
+  // Όλα τα hook στην αρχή του component - μην τα μετακινείτε
   const [tableData, setTableData] = useState(data);
   const [anchorEl, setAnchorEl] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
-
+  
   useEffect(() => {
     setTableData(data);
   }, [data]);
@@ -303,23 +309,160 @@ const DataTable = React.memo(({
     setAnchorEl(null);
   };
 
+  // Τροποποιημένη συνάρτηση για να λαμβάνει υπόψη ΜΟΝΟ τις ορατές στήλες στο τρέχον UI
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(tableData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
-    XLSX.writeFile(workbook, "data.xlsx");
-    handleExportClose();
-  };
-  const exportToPDF = () => {
     try {
-      // Πόσες στήλες είναι ορατές
-      const visibleColumns = columns
-        .filter(col => col.accessorKey !== "actions")
-        .filter(col => {
-          // Έλεγχος αν η στήλη είναι ορατή
-          const columnVisibility = state.columnVisibility || initialState.columnVisibility || {};
-          return columnVisibility[col.accessorKey] !== false;
+      // Get all columns except actions column
+      const allExportableColumns = columns.filter(col => 
+        col.accessorKey !== "actions"
+      );
+      
+      // Παίρνουμε ΜΟΝΟ τις τρέχουσες ορατές στήλες από το UI (state)
+      const columnVisibility = state.columnVisibility || {};
+      
+      // DEBUG: Let's see what's in columnVisibility
+      console.log('All exportable columns:', allExportableColumns.map(c => c.accessorKey));
+      console.log('Column visibility state:', columnVisibility);
+      
+      // Φιλτράρουμε τις στήλες που είναι όντως ορατές στη διεπαφή χρήστη
+      const visibleColumns = allExportableColumns.filter(col => {
+        // In Material React Table, a column is visible if:
+        // 1. It's not explicitly set to false in columnVisibility, OR
+        // 2. columnVisibility is empty (all columns visible by default)
+        const isVisible = columnVisibility[col.accessorKey] !== false;
+        console.log(`Column ${col.accessorKey}: visibility = ${columnVisibility[col.accessorKey]}, isVisible = ${isVisible}`);
+        return isVisible;
+      });
+      
+      console.log('Visible columns for export:', visibleColumns.map(c => c.accessorKey));
+      
+      if (visibleColumns.length === 0) {
+        alert("Δεν υπάρχουν ορατές στήλες για εξαγωγή");
+        return;
+      }
+      
+      // Προετοιμασία δεδομένων με μόνο τις ορατές στήλες
+      const filteredData = tableData.map(row => {
+        const newRow = {};
+        
+        visibleColumns.forEach(col => {
+          let value;
+          
+          // Υποστήριξη για nested fields (όπως "melos.epafes.email")
+          if (col.accessorKey && col.accessorKey.includes(".")) {
+            const keys = col.accessorKey.split(".");
+            value = keys.reduce((obj, key) => obj && obj[key] !== undefined ? obj[key] : null, row);
+          } else if (col.accessorKey) {
+            value = row[col.accessorKey];
+          } else if (typeof col.accessor === 'string') {
+            const keys = col.accessor.split(".");
+            value = keys.reduce((obj, key) => obj && obj[key] !== undefined ? obj[key] : null, row);
+          }
+          
+          // Μορφοποίηση ημερομηνιών
+          if (value instanceof Date) {
+            value = value.toLocaleDateString('el-GR');
+          } else if (typeof value === 'string' && value.includes('T') && value.includes('Z')) {
+            try {
+              const date = new Date(value);
+              if (!isNaN(date.getTime())) {
+                value = date.toLocaleDateString('el-GR');
+              }
+            } catch (e) {
+              console.error("Σφάλμα μορφοποίησης ημερομηνίας:", e);
+            }
+          }
+          
+          newRow[col.header] = value !== null && value !== undefined ? value : '';
         });
+        
+        return newRow;
+      });
+      
+      // Δημιουργία του Excel worksheet
+      const worksheet = XLSX.utils.json_to_sheet(filteredData);
+      
+      // Αυτόματη προσαρμογή πλάτους στηλών
+      const colWidths = [];
+      
+      // Αρχικοποίηση με το πλάτος των επικεφαλίδων
+      visibleColumns.forEach((col, idx) => {
+        colWidths[idx] = col.header ? col.header.length + 2 : 10;
+      });
+      
+      // Υπολογισμός μέγιστου πλάτους βάσει περιεχομένου
+      filteredData.forEach(row => {
+        visibleColumns.forEach((col, idx) => {
+          const value = row[col.header];
+          if (value) {
+            const valueLength = String(value).length;
+            colWidths[idx] = Math.max(colWidths[idx], valueLength + 2);
+          }
+        });
+      });
+      
+      // Εφαρμογή των πλατών στο worksheet
+      worksheet['!cols'] = colWidths.map(width => ({ width }));
+      
+      // Δημιουργία του Excel αρχείου
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+      
+      // Κατέβασμα του Excel
+      const today = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `δεδομένα-${today}.xlsx`);
+      handleExportClose();
+    } catch (error) {
+      console.error("Σφάλμα κατά την εξαγωγή Excel:", error);
+      alert("Σφάλμα κατά την εξαγωγή Excel. Παρακαλώ δοκιμάστε ξανά.");
+    }
+  };
+
+  // Συνάρτηση που καλείται όταν θέλουμε να εξάγουμε σε PDF
+  const handleStartPdfExport = () => {
+    try {
+      // Get all columns except actions column
+      const allExportableColumns = columns.filter(col => 
+        col.accessorKey !== "actions"
+      );
+      
+      // Παίρνουμε ΜΟΝΟ τις τρέχουσες ορατές στήλες από το UI (state)
+      const columnVisibility = state.columnVisibility || {};
+      
+      // DEBUG: Let's see what's happening
+      console.log('PDF Export - All exportable columns:', allExportableColumns.map(c => c.accessorKey));
+      console.log('PDF Export - Column visibility state:', columnVisibility);
+      
+      // Φιλτράρουμε τις στήλες που είναι όντως ορατές στη διεπαφή χρήστη
+      const actuallyVisibleColumns = allExportableColumns.filter(col => {
+        const isVisible = columnVisibility[col.accessorKey] !== false;
+        console.log(`PDF Column ${col.accessorKey}: visibility = ${columnVisibility[col.accessorKey]}, isVisible = ${isVisible}`);
+        return isVisible;
+      });
+      
+      console.log('PDF Export - Visible columns:', actuallyVisibleColumns.map(c => c.accessorKey));
+      
+      if (actuallyVisibleColumns.length === 0) {
+        alert("Δεν υπάρχουν ορατές στήλες για εξαγωγή");
+        return;
+      }
+      
+      // Απευθείας εξαγωγή PDF με τις ορατές στήλες
+      exportToPDF(actuallyVisibleColumns.map(col => col.accessorKey));
+      handleExportClose();
+    } catch (error) {
+      console.error("Σφάλμα κατά την προετοιμασία εξαγωγής PDF:", error);
+      alert("Σφάλμα κατά την προετοιμασία εξαγωγής PDF. Παρακαλώ δοκιμάστε ξανά.");
+    }
+  };
+
+  // Τροποποιημένη συνάρτηση exportToPDF που δέχεται τις επιλεγμένες στήλες
+  const exportToPDF = (selectedColumnKeys) => {
+    try {
+      // Φιλτράρουμε τις στήλες με βάση τα selectedColumnKeys
+      const visibleColumns = columns.filter(col => 
+        selectedColumnKeys.includes(col.accessorKey)
+      );
 
       // Δημιουργία επικεφαλίδων για το PDF
       const headers = visibleColumns.map(col => ({
@@ -450,11 +593,9 @@ const DataTable = React.memo(({
       const today = new Date().toISOString().split('T')[0];
       pdfMake.createPdf(docDefinition).download(`δεδομένα-${today}.pdf`);
       
-      handleExportClose();
     } catch (error) {
       console.error("Σφάλμα κατά την εξαγωγή PDF:", error);
       alert("Σφάλμα κατά την εξαγωγή PDF. Παρακαλώ δοκιμάστε ξανά.");
-      handleExportClose();
     }
   };
 
@@ -509,7 +650,7 @@ const DataTable = React.memo(({
           anchorEl={anchorEl}
           onClose={handleExportClose}
           exportToExcel={exportToExcel}
-          exportToPDF={exportToPDF}
+          exportToPDF={handleStartPdfExport}
         />
       </Box>
       

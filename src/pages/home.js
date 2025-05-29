@@ -24,7 +24,7 @@ function Home({ user }) {
             return bookings
               .filter(b => new Date(b.arrival) >= new Date())
               .sort((a, b) => new Date(a.arrival) - new Date(b.arrival))
-              .slice(0, 2); // Changed to 2 items instead of 3
+              .slice(0, 2);
           });
         
         const expeditionsData = await fetchWithErrorHandling("/eksormiseis", 
@@ -33,7 +33,7 @@ function Home({ user }) {
             return expeditions
               .filter(e => new Date(e.hmerominia_anaxorisis) >= new Date())
               .sort((a, b) => new Date(a.hmerominia_anaxorisis) - new Date(b.hmerominia_anaxorisis))
-              .slice(0, 2); // Changed to 2 items instead of 3
+              .slice(0, 2);
           });
         
         const schoolsData = await fetchWithErrorHandling("/sxoles", 
@@ -81,25 +81,14 @@ function Home({ user }) {
             return schoolsWithDate
               .filter(s => s.earliestDate && s.earliestDate >= new Date())
               .sort((a, b) => a.earliestDate - b.earliestDate)
-              .slice(0, 2); // Changed to 2 items instead of 3
-          });
-        
-        // Updated to use correct field name hmerominia_liksis_deltiou
-        const athletesData = await fetchWithErrorHandling("/athlites/athletes", 
-          res => {
-            const athletes = res.data || [];
-            // Make sure we're filtering by the correct field name
-            return athletes
-              .filter(a => a.hmerominia_liksis_deltiou && new Date(a.hmerominia_liksis_deltiou) >= new Date())
-              .sort((a, b) => new Date(a.hmerominia_liksis_deltiou) - new Date(b.hmerominia_liksis_deltiou))
-              .slice(0, 2); // Changed to 2 items instead of 3
+              .slice(0, 2);
           });
         
         setUpcomingData({
           bookings: bookingsData,
           expeditions: expeditionsData,
           schools: schoolsData,
-          athleteIds: athletesData
+          athleteIds: [] // Keep empty array for consistency
         });
       } catch (error) {
         console.error("Σφάλμα κατά τη φόρτωση δεδομένων dashboard:", error);
@@ -136,8 +125,8 @@ function Home({ user }) {
         <Link to="/eksormiseis" className="category category-1" style={{ textDecoration: 'none' }}>
           <div>
             <h2 className="category-title" style={{ textDecoration: 'none' }}>Εξορμήσεις</h2>
-            <p>Προβολή Εξορμήσεων</p>
-            <p>Δημιουργία Εξόρμησης</p>
+            <p style={{ textDecoration: 'underline' }}>Προβολή Εξορμήσεων</p>
+            <p style={{ textDecoration: 'underline' }}>Δημιουργία Εξόρμησης</p>
           </div>
         </Link>
 
@@ -170,24 +159,24 @@ function Home({ user }) {
         <Link to="/katafigio" className="category category-3" style={{ textDecoration: 'none' }}>
           <div>
             <h2 className="category-title" style={{ textDecoration: 'none' }}>Καταφύγιο</h2>
-            <p>Προβολή Κρατήσεων</p>
-            <p>Δημιουργία Κρατήσεων</p>
+            <p style={{ textDecoration: 'underline' }}>Προβολή Κρατήσεων</p>
+            <p style={{ textDecoration: 'underline' }}>Δημιουργία Κρατήσεων</p>
           </div>
         </Link>
 
         <Link to="/sxoles" className="category category-4" style={{ textDecoration: 'none' }}>
           <div>
             <h2 className="category-title" style={{ textDecoration: 'none' }}>Σχολές και εκπαιδευτές</h2>
-            <p>Προβολή Σχολών και εκπαιδευτών</p>
-            <p>Δημιουργία Εξόρμησης</p>
+            <p style={{ textDecoration: 'underline' }}>Προβολή Σχολών και εκπαιδευτών</p>
+            <p style={{ textDecoration: 'underline' }}>Δημιουργία Εξόρμησης</p>
           </div>
         </Link>
 
         <Link to="/eksoplismos" className="category category-5" style={{ textDecoration: 'none' }}>
           <div>
             <h2 className="category-title" style={{ textDecoration: 'none' }}>Εξοπλισμός και δανεισμοί</h2>
-            <p>Προβολή δανεισμών και εξοπλισμού</p>
-            <p>Δημιουργία δανεισμού</p>
+            <p style={{ textDecoration: 'underline' }}>Προβολή δανεισμών και εξοπλισμού</p>
+            <p style={{ textDecoration: 'underline' }}>Δημιουργία δανεισμού</p>
           </div>
         </Link>
       </div>
@@ -198,8 +187,9 @@ function Home({ user }) {
         padding: '15px', 
         backgroundColor: '#f5f5f5', 
         borderRadius: '8px',
-        minHeight: '250px', // Reduced height since we're showing fewer items
-        maxWidth: '100%', // Use the full width
+        minHeight: '270px',
+        maxWidth: '100%',
+        width: '100%' // Ensure full width
       }}>
         <h2 style={{ 
           borderBottom: '2px solid #1976d2', 
@@ -215,73 +205,59 @@ function Home({ user }) {
           display: 'flex', 
           flexDirection: 'row', 
           flexWrap: 'wrap', 
-          gap: '15px', 
+          gap: '8px', // Reduced gap to provide more space for cards
           justifyContent: 'space-between'
         }}>
-          {/* Upcoming Bookings */}
-          <DashboardCard 
-            type="bookings"
-            title="Προσεχείς Κρατήσεις Καταφυγίου" 
-            items={loading ? [] : (upcomingData.bookings.map(booking => ({
-              id: booking.id,
-              name: booking.contactName || "Άγνωστος",
-              date: new Date(booking.arrival).toLocaleDateString('el-GR'),
-              info: booking.shelterName || "Καταφύγιο"
-            })))}
-            loading={loading}
-            emptyMessage="Δεν υπάρχουν προσεχείς κρατήσεις"
-            linkTo="/katafigio"
-          />
+          {/* Upcoming Bookings - increased width */}
+          <div style={{ flex: '1 1 calc(33.333% - 6px)', minWidth: '300px' }}>
+            <DashboardCard 
+              type="bookings"
+              title="Προσεχείς Κρατήσεις" 
+              items={loading ? [] : upcomingData.bookings.map(booking => ({
+                id: booking.id,
+                name: booking.contactName || "Άγνωστος",
+                date: new Date(booking.arrival).toLocaleDateString('el-GR'),
+                info: booking.shelterName || "Καταφύγιο"
+              }))}
+              loading={loading}
+              emptyMessage="Δεν υπάρχουν προσεχείς κρατήσεις"
+              linkTo="/katafigio"
+            />
+          </div>
           
-          {/* Upcoming Expeditions - with clickable titles */}
-          <DashboardCard 
-            type="expeditions"
-            title="Προσεχείς Εξορμήσεις" 
-            items={loading ? [] : (upcomingData.expeditions.map(expedition => ({
-              id: expedition.id_eksormisis || expedition.id,
-              name: expedition.titlos || "Χωρίς τίτλο",
-              date: new Date(expedition.hmerominia_anaxorisis).toLocaleDateString('el-GR'),
-              info: expedition.proorismos || "Άγνωστη τοποθεσία"
-            })))}
-            loading={loading}
-            emptyMessage="Δεν υπάρχουν προσεχείς εξορμήσεις"
-            linkTo="/eksormiseis"
-          />
+          {/* Upcoming Expeditions */}
+          <div style={{ flex: '1 1 calc(33.333% - 6px)', minWidth: '300px' }}>
+            <DashboardCard 
+              type="expeditions"
+              title="Προσεχείς Εξορμήσεις" 
+              items={loading ? [] : upcomingData.expeditions.map(expedition => ({
+                id: expedition.id_eksormisis || expedition.id,
+                name: expedition.titlos || "Χωρίς τίτλο",
+                date: new Date(expedition.hmerominia_anaxorisis).toLocaleDateString('el-GR'),
+                info: expedition.proorismos || "Άγνωστη τοποθεσία"
+              }))}
+              loading={loading}
+              emptyMessage="Δεν υπάρχουν προσεχείς εξορμήσεις"
+              linkTo="/eksormiseis"
+            />
+          </div>
           
-          {/* Upcoming Schools - sorted by earliest location date */}
-          <DashboardCard 
-            type="schools"
-            title="Προσεχείς Σχολές" 
-            items={loading ? [] : (upcomingData.schools.map(school => ({
-              id: school.id_sxolis || school.id,
-              name: `${school.klados || ''} ${school.epipedo || ''}`.trim() || "Χωρίς τίτλο",
-              date: school.earliestDate ? school.earliestDate.toLocaleDateString('el-GR') : "-",
-              info: school.athlima || "Γενική"
-            })))}
-            loading={loading}
-            emptyMessage="Δεν υπάρχουν προσεχείς σχολές"
-            linkTo="/sxoles"
-          />
-          
-          {/* Expiring Athlete IDs - using correct field names */}
-          <DashboardCard 
-            type="athletes"
-            title="Επόμενα Δελτία Αθλητών που Λήγουν" 
-            items={loading ? [] : (upcomingData.athleteIds.map(athlete => ({
-              id: athlete.id_athliti || athlete.id,
-              name: `${athlete.epitheto || ''} ${athlete.onoma || ''}`.trim() || 
-                    `${athlete.lastName || ''} ${athlete.firstName || ''}`.trim() || 
-                    athlete.name || 
-                    "Άγνωστος",
-              date: athlete.hmerominia_liksis_deltiou ? 
-                    new Date(athlete.hmerominia_liksis_deltiou).toLocaleDateString('el-GR') : 
-                    "Άγνωστη",
-              info: `Αρ. Δελτίου: ${athlete.arithmos_deltiou || "-"}`
-            })))}
-            loading={loading}
-            emptyMessage="Δεν υπάρχουν δελτία που λήγουν σύντομα"
-            linkTo="/athlites"
-          />
+          {/* Upcoming Schools */}
+          <div style={{ flex: '1 1 calc(33.333% - 6px)', minWidth: '300px' }}>
+            <DashboardCard 
+              type="schools"
+              title="Προσεχείς Σχολές" 
+              items={loading ? [] : upcomingData.schools.map(school => ({
+                id: school.id_sxolis || school.id,
+                name: `${school.klados || ''} ${school.epipedo || ''}`.trim() || "Χωρίς τίτλο",
+                date: school.earliestDate ? school.earliestDate.toLocaleDateString('el-GR') : "-",
+                info: school.athlima || "Γενική"
+              }))}
+              loading={loading}
+              emptyMessage="Δεν υπάρχουν προσεχείς σχολές"
+              linkTo="/sxoles"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -309,18 +285,27 @@ function DashboardCard({ type, title, items, loading, emptyMessage, linkTo }) {
 
   return (
     <div style={{ 
-      flex: '1 1 23%', // Use approximately a quarter of the space, allowing for some gap
-      minWidth: '240px', // Minimum width to ensure readability
+      width: '100%',
+      height: '210px', // Slightly increased height
       backgroundColor: 'white', 
       padding: '12px',
       borderRadius: '5px', 
       boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
       display: 'flex',
       flexDirection: 'column',
-      height: '180px', // Reduced height since we're showing fewer items
-      overflow: 'hidden' // Prevent overflow issues
+      overflow: 'hidden'
     }}>
-      <h3 style={{ color: '#444', marginBottom: '8px', fontSize: '1rem' }}>{title}</h3>
+      <h3 style={{ 
+        color: '#444', 
+        marginBottom: '8px', 
+        fontSize: '1rem', // Slightly increased font size
+        whiteSpace: 'nowrap', 
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        paddingRight: '5px' // Add some padding on the right
+      }}>
+        {title}
+      </h3>
       
       {loading ? (
         <div style={{ textAlign: 'center', padding: '10px' }}>
@@ -384,8 +369,19 @@ function DashboardCard({ type, title, items, loading, emptyMessage, linkTo }) {
         </ul>
       )}
       
-      <div style={{ textAlign: 'right', marginTop: '8px' }}>
-        <Link to={linkTo} style={{ color: '#1976d2', fontSize: '0.85rem', textDecoration: 'none' }}>
+      {/* Ensure the "More" link has enough space and is always visible */}
+      <div style={{ 
+        textAlign: 'right', 
+        marginTop: 'auto', // Push to bottom
+        paddingTop: '8px',
+        borderTop: '1px solid #f5f5f5' 
+      }}>
+        <Link to={linkTo} style={{ 
+          color: '#1976d2', 
+          fontSize: '0.85rem', 
+          textDecoration: 'none',
+          display: 'block' // Ensure full width
+        }}>
           Περισσότερα →
         </Link>
       </div>
