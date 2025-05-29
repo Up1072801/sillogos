@@ -5,8 +5,21 @@ import { Add, FileDownload, Edit, Delete, KeyboardArrowUp as KeyboardArrowUpIcon
 import ExportMenu from "./ExportMenu";
 import ActionsCell from "./ActionsCell";
 import * as XLSX from "xlsx";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import pdfMake from "pdfmake/build/pdfmake";
+import * as pdfFonts from "pdfmake/build/vfs_fonts";
+
+// Διόρθωση της ρύθμισης των fonts για το pdfmake
+pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
+
+// Προσθήκη ελληνικών fonts (Roboto περιλαμβάνει ελληνικά)
+pdfMake.fonts = {
+  Roboto: {
+    normal: 'Roboto-Regular.ttf',
+    bold: 'Roboto-Medium.ttf',
+    italics: 'Roboto-Italic.ttf',
+    bolditalics: 'Roboto-MediumItalic.ttf'
+  }
+};
 
 const DataTable = React.memo(({
   data = [],
@@ -21,13 +34,12 @@ const DataTable = React.memo(({
   state = {},
   initialState = {},
   enableAddNew = true,
-  enableTopAddButton = true, // Νέα παράμετρος
+  enableTopAddButton = true,
   enableRowActions = true,
   getRowId = (row) => row.id
 }) => {
   const [tableData, setTableData] = useState(data);
   const [anchorEl, setAnchorEl] = useState(null);
-  // Προσθέτουμε state για παρακολούθηση των γραμμών που έχουν επεκταθεί
   const [expandedRows, setExpandedRows] = useState(new Set());
 
   useEffect(() => {
@@ -298,14 +310,152 @@ const DataTable = React.memo(({
     XLSX.writeFile(workbook, "data.xlsx");
     handleExportClose();
   };
-
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    const headers = columns.map(col => col.header);
-    const data = tableData.map(row => columns.map(col => row[col.accessorKey]));
-    autoTable(doc, { head: [headers], body: data });
-    doc.save("table.pdf");
-    handleExportClose();
+    try {
+      // Πόσες στήλες είναι ορατές
+      const visibleColumns = columns
+        .filter(col => col.accessorKey !== "actions")
+        .filter(col => {
+          // Έλεγχος αν η στήλη είναι ορατή
+          const columnVisibility = state.columnVisibility || initialState.columnVisibility || {};
+          return columnVisibility[col.accessorKey] !== false;
+        });
+
+      // Δημιουργία επικεφαλίδων για το PDF
+      const headers = visibleColumns.map(col => ({
+        text: col.header,
+        style: 'tableHeader'
+      }));
+
+      // Βελτιωμένη εξαγωγή δεδομένων με καλύτερο χειρισμό των πεδίων
+      const body = tableData.map(row => {
+        return visibleColumns.map(col => {
+          // Πιο στιβαρή προσπέλαση της τιμής
+          let accessorKey = col.accessorKey || col.accessor;
+          let value;
+          
+          // Έλεγχος για nested accessors (με τελείες)
+          if (typeof accessorKey === 'string' && accessorKey.includes('.')) {
+            const keys = accessorKey.split('.');
+            value = keys.reduce((obj, key) => obj && obj[key] !== undefined ? obj[key] : null, row);
+          } else if (accessorKey) {
+            value = row[accessorKey];
+          } else if (col.accessor && typeof col.accessor === 'function') {
+            // Υποστήριξη για function accessors
+            value = col.accessor(row);
+          }
+          
+          // Ειδική διαχείριση για email και τηλέφωνα
+          if (accessorKey === 'email' || 
+              accessorKey === 'tilefono' || 
+              accessorKey === 'phone' || 
+              /email|tilefono|phone/i.test(accessorKey)) {
+            return { 
+              text: value != null ? String(value) : '', 
+              style: 'tableCell',
+              characterSpacing: 0
+            };
+          }
+          
+          // Μορφοποίηση ημερομηνιών
+          if (value instanceof Date) {
+            value = value.toLocaleDateString('el-GR');
+          } else if (typeof value === 'string' && value.includes('T') && value.includes('Z')) {
+            try {
+              value = new Date(value).toLocaleDateString('el-GR');
+            } catch (e) { }
+          }
+          
+          return { 
+            text: value != null ? String(value) : '', 
+            style: 'tableCell' 
+          };
+        });
+      });
+
+      // Υπολογισμός πλάτους στηλών με βάση το πλήθος των στηλών
+      const calculateColumnWidths = () => {
+        // Αν έχουμε πολλές στήλες, προσαρμόζουμε τα πλάτη
+        if (visibleColumns.length > 8) {
+          // Προσαρμοσμένα πλάτη για καλύτερη κατανομή στο χώρο
+          const totalWidth = 530; // Περίπου το διαθέσιμο πλάτος σε points στη σελίδα landscape
+          const avgWidth = Math.floor(totalWidth / visibleColumns.length);
+          
+          return Array(visibleColumns.length).fill(avgWidth);
+        }
+        // Διαφορετικά χρησιμοποιούμε auto πλάτος
+        return Array(visibleColumns.length).fill('*');
+      };
+
+      // Ορίζουμε το έγγραφο PDF
+      const docDefinition = {
+        // Πάντα landscape όταν έχουμε πολλές στήλες
+        pageOrientation: visibleColumns.length > 5 ? 'landscape' : 'portrait',
+        pageSize: 'A4',
+        // Μικρότερα περιθώρια για να χωρέσουν περισσότερα δεδομένα
+        pageMargins: [15, 20, 15, 20],
+        defaultStyle: {
+          font: 'Roboto'
+        },
+        content: [
+          { text: 'Εξαγωγή Δεδομένων', style: 'header' },
+          {
+            style: 'table',
+            table: {
+              headerRows: 1,
+              // Υπολογισμός πλάτους στηλών αναλόγως το πλήθος τους
+              widths: calculateColumnWidths(),
+              body: [headers, ...body]
+            },
+            layout: {
+              fillColor: function(rowIndex) {
+                return (rowIndex % 2 === 0) ? '#f9f9f9' : null;
+              },
+              // Μικρότερα paddings για εξοικονόμηση χώρου
+              paddingLeft: function() { return 3; },
+              paddingRight: function() { return 3; },
+              paddingTop: function() { return 2; },
+              paddingBottom: function() { return 2; }
+            }
+          }
+        ],
+        styles: {
+          header: {
+            fontSize: 16,
+            bold: true,
+            alignment: 'center',
+            color: '#2980b9',
+            margin: [0, 0, 0, 10]
+          },
+          table: {
+            margin: [0, 5, 0, 10]
+          },
+          tableHeader: {
+            bold: true,
+            // Μικρότερη γραμματοσειρά για το header
+            fontSize: visibleColumns.length > 10 ? 8 : (visibleColumns.length > 8 ? 9 : 10),
+            color: '#ffffff',
+            fillColor: '#2980b9',
+            alignment: 'left'
+          },
+          tableCell: {
+            // Μικρότερη γραμματοσειρά για τα κελιά
+            fontSize: visibleColumns.length > 10 ? 7 : (visibleColumns.length > 8 ? 8 : 9),
+            alignment: 'left'
+          }
+        }
+      };
+
+      // Δημιουργία και κατέβασμα του PDF
+      const today = new Date().toISOString().split('T')[0];
+      pdfMake.createPdf(docDefinition).download(`δεδομένα-${today}.pdf`);
+      
+      handleExportClose();
+    } catch (error) {
+      console.error("Σφάλμα κατά την εξαγωγή PDF:", error);
+      alert("Σφάλμα κατά την εξαγωγή PDF. Παρακαλώ δοκιμάστε ξανά.");
+      handleExportClose();
+    }
   };
 
   const columnsWithActions = useMemo(() => {

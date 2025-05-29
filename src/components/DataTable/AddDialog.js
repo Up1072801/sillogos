@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  TextField, FormControl, InputLabel, MenuItem, Select, FormHelperText,
+  TextField, FormControl, InputLabel, MenuItem, Select, FormHelperText, Divider,
   Table, TableHead, TableRow, TableCell, TableBody, Checkbox, TableContainer,
-  Paper, Typography, Box, InputAdornment, IconButton, TablePagination, Radio
+  Paper, Typography, Box, InputAdornment, IconButton, TablePagination, Radio,
+  FormLabel, FormGroup, FormControlLabel, Grid
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
@@ -123,7 +124,7 @@ const AddDialog = ({
     onClose();
   };
 
-  // Αντικείμενο που αντιστοιχεί τύπους πεδίων με components
+  // Αντικείμενο που αντιστοιχίζει τύπους πεδίων με components
   const CUSTOM_COMPONENTS = {
     locationEditor: (field, formik) => (
       <LocationEditor
@@ -480,7 +481,77 @@ const AddDialog = ({
       }
         
       case 'custom':
-        return field.render ? field.render(formik) : null;
+        return field.renderInput({ 
+          field: { 
+            value: formik.values[field.accessorKey] || [], 
+            onChange: (value) => formik.setFieldValue(field.accessorKey, value) 
+          },
+          fieldState: { 
+            error: formik.touched[field.accessorKey] && formik.errors[field.accessorKey] 
+              ? { message: formik.errors[field.accessorKey] } 
+              : undefined 
+          }
+        });
+        
+      case 'checkboxGroup':
+        return (
+          <FormControl 
+            fullWidth 
+            margin="normal"
+            error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+          >
+            <FormLabel component="legend" sx={{ mb: 1, fontWeight: 'medium' }}>{field.header}</FormLabel>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 1.5, 
+                maxHeight: '200px', 
+                overflowY: 'auto',
+                backgroundColor: '#fafafa'
+              }}
+            >
+              <Grid container spacing={2}>
+                {field.options.map((option) => (
+                  <Grid item xs={12} sm={6} md={4} key={option.value}>
+                    <FormControlLabel
+                      sx={{
+                        display: 'flex',
+                        m: 0,
+                        '& .MuiFormControlLabel-label': {
+                          fontSize: '0.875rem'
+                        }
+                      }}
+                      control={
+                        <Checkbox
+                          checked={formik.values[field.accessorKey]?.includes(option.value.toString())}
+                          onChange={(e) => {
+                            const values = [...(formik.values[field.accessorKey] || [])];
+                            if (e.target.checked) {
+                              values.push(option.value.toString());
+                            } else {
+                              const index = values.indexOf(option.value.toString());
+                              if (index !== -1) {
+                                values.splice(index, 1);
+                              }
+                            }
+                            formik.setFieldValue(field.accessorKey, values);
+                          }}
+                          name={`${field.accessorKey}-${option.value}`}
+                          size="small"
+                          color="primary"
+                        />
+                      }
+                      label={option.label}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+            <FormHelperText error={Boolean(formik.touched[field.accessorKey] && formik.errors[field.accessorKey])}>
+              {formik.touched[field.accessorKey] && formik.errors[field.accessorKey]}
+            </FormHelperText>
+          </FormControl>
+        );
         
       default:
         return (

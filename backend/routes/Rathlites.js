@@ -222,11 +222,11 @@ router.post("/athlete", async (req, res) => {
 
       // 5. Συσχέτιση με αθλήματα
       if (athlimata && athlimata.length > 0) {
-        for (const athlima of athlimata) {
+        for (const athleteId of athlimata) {
           await prismaTransaction.asxoleitai.create({
             data: {
               id_athliti: newAthlitis.id_athliti,
-              id_athlimatos: athlima.id_athlimatos
+              id_athlimatos: athleteId
             }
           });
         }
@@ -969,11 +969,16 @@ router.put("/athlete/:id", async (req, res) => {
         });
         
         // Δημιουργία νέων συσχετίσεων
-        for (const athlima of athlimata) {
+        for (const athleteItem of athlimata) {
+          // Handle both formats: direct ID or object with id_athlimatos
+          const athleteId = typeof athleteItem === 'object' && athleteItem.id_athlimatos 
+            ? athleteItem.id_athlimatos 
+            : parseInt(athleteItem);
+            
           await prismaTransaction.asxoleitai.create({
             data: {
               id_athliti: id,
-              id_athlimatos: athlima.id_athlimatos
+              id_athlimatos: athleteId
             }
           });
         }

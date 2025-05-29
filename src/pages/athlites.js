@@ -3,11 +3,12 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { el } from "date-fns/locale";
 import DataTable from "../components/DataTable/DataTable";
+
 import { 
   Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  Table, TableHead, TableBody, TableRow, TableCell, Paper, TableContainer, IconButton,
-  Grid, FormControl, InputLabel, Select, MenuItem
-} from "@mui/material";
+  Table, TableHead, TableBody, TableRow, TableCell, Paper, Divider, TableContainer, IconButton,
+  Grid, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, FormHelperText
+} from '@mui/material';
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
 import SelectionDialog from "../components/SelectionDialog";
@@ -82,6 +83,14 @@ const athleteDetailPanelConfig = {
     { accessor: "phone", header: "Τηλέφωνο" },
     { accessor: "odos", header: "Διεύθυνση" },
     { accessor: "tk", header: "ΤΚ" },
+        { 
+      accessor: "athlimata", 
+      header: "Αθλήματα",
+      Cell: ({ row }) => {
+        const athlimata = row.original.athlimata || [];
+        return athlimata.map(a => a.onoma).join(", ");
+      }
+    },
     { accessor: "arithmos_mitroou", header: "Αριθμός Μητρώου" },
     { accessor: "arithmosdeltiou", header: "Αριθμός Δελτίου" },
     { accessor: "hmerominiaenarksis", header: "Ημ/νία Έναρξης Δελτίου", format: (value) => value ? new Date(value).toLocaleDateString("el-GR", {day: '2-digit', month: '2-digit', year: 'numeric'}) : "-" },
@@ -128,7 +137,8 @@ export default function Athlites() {
   const [availableYears, setAvailableYears] = useState([]);
   const [filteredCompetitions, setFilteredCompetitions] = useState([]);
   const [dialogSelectedSport, setDialogSelectedSport] = useState(null);
-
+// Add this with the other state variables at the top of your component
+const [currentSportName, setCurrentSportName] = useState("");
   // Φόρτωση δεδομένων
   useEffect(() => {
     const fetchData = async () => {
@@ -1296,13 +1306,24 @@ const convertDateFormat = (dateString) => {
       type: "date", 
       dateFormat: "dd/MM/yyyy",
     },
-    { 
-      accessorKey: "athlimata", 
-      header: "Αθλήματα", 
-      type: "multiSelect",
-      options: sportsListData.map(sport => ({ value: sport.id_athlimatos, label: sport.onoma })),
-      validation: yup.array().min(1, "Πρέπει να επιλέξετε τουλάχιστον ένα άθλημα")
-    },
+ // Replace the existing "athlimata" field in athleteFormFields
+{ 
+  accessorKey: "athlimata", 
+  header: "Αθλήματα", 
+  type: "custom",
+  validation: yup.array().min(1, "Πρέπει να επιλέξετε τουλάχιστον ένα άθλημα"),
+  renderInput: ({ field, fieldState }) => (
+    <CheckboxSportsSelector
+      options={sportsListData.map(sport => ({ 
+        value: sport.id_athlimatos, 
+        label: sport.onoma 
+      }))}
+      value={field.value || []}
+      onChange={field.onChange}
+      error={fieldState.error?.message}
+    />
+  )
+},
   ], [difficultyLevels, sportsListData]);
 
   // Πεδία φόρμας για προσθήκη/επεξεργασία αγώνα
@@ -1515,8 +1536,8 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
         },
         athlimata: updatedAthlete.athlimata ? 
           (Array.isArray(updatedAthlete.athlimata) ? 
-            updatedAthlete.athlimata.map(id => ({ id_athlimatos: parseInt(id) })) : 
-            [{ id_athlimatos: parseInt(updatedAthlete.athlimata) }]
+            updatedAthlete.athlimata.map(id => parseInt(id)) : 
+            [parseInt(updatedAthlete.athlimata)]
           ) : [],
       };
 
@@ -1633,6 +1654,7 @@ const handleAthleteCompetitionTableDelete = (athlete, competition) => {
       if (!comp.hmerominia) return false;
       const compYear = new Date(comp.hmerominia).getFullYear().toString();
       return compYear === selectedYearFilter.toString();
+   
     });
   }
   
@@ -1640,12 +1662,106 @@ const handleAthleteCompetitionTableDelete = (athlete, competition) => {
   filtered.sort((a, b) => {
     if (!a.hmerominia) return 1;
     if (!b.hmerominia) return -1;
+
     return new Date(b.hmerominia) - new Date(a.hmerominia);
   });
   
   setFilteredCompetitions(filtered);
 };
 
+// Add this component inside your file, before the main Athlites component
+// Replace your current CheckboxSportsSelector with this improved version:
+// Replace your current CheckboxSportsSelector component with this improved version
+
+const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
+  const handleToggle = (sportId) => {
+    const currentIndex = value.indexOf(sportId);
+    const newChecked = [...value];
+
+    if (currentIndex === -1) {
+      newChecked.push(sportId);
+    } else {
+      newChecked.splice(currentIndex, 1);
+    }
+
+    onChange(newChecked);
+  };
+
+  return (
+    <Box>
+      <Paper 
+        elevation={0}
+        variant="outlined"
+        sx={{
+          borderRadius: 1,
+          borderColor: error ? 'error.main' : 'divider',
+          backgroundColor: '#00000000',
+          mb: 1
+        }}
+      >
+        <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+            Επιλέξτε ένα ή περισσότερα αθλήματα:
+          </Typography>
+        </Box>
+        
+        <Box sx={{ p: 1.5, maxHeight: '180px', overflowY: 'auto' }}>
+          <Grid container spacing={1}>
+            {options.map((sport) => (
+              <Grid item xs={12} sm={6} key={sport.value}>
+                <Box 
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    p: 0.75,
+                    borderRadius: 1,
+                    transition: 'all 0.15s ease',
+                    backgroundColor: value.includes(sport.value) ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
+                    '&:hover': {
+                      backgroundColor: value.includes(sport.value) 
+                        ? 'rgb(253, 253, 253)' 
+                        : 'rgb(255, 255, 255)'
+                    }
+                  }}
+                >
+                  <Checkbox
+                    checked={value.includes(sport.value)}
+                    onChange={() => handleToggle(sport.value)}
+                    size="small"
+                    sx={{ p: 0.5, mr: 1 }}
+                  />
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontWeight: value.includes(sport.value) ? 500 : 400,
+                      color: value.includes(sport.value) ? 'primary.main' : 'text.primary'
+                    }}
+                  >
+                    {sport.label}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      </Paper>
+      
+      {error && <FormHelperText error>{error}</FormHelperText>}
+      
+      <Typography 
+        variant="caption" 
+        sx={{ 
+          display: 'block', 
+          mt: 0.5, 
+          color: value.length ? 'primary.main' : 'text.secondary',
+          fontWeight: value.length ? 500 : 400
+        }}
+      >
+        Επιλεγμένα: {value.length} {value.length === 1 ? 'άθλημα' : 'αθλήματα'}
+      </Typography>
+    </Box>
+  );
+};
 
 // Νέα συνάρτηση για προβολή διαλόγου επιβεβαίωσης όπως στο EksormisiDetails.js
 const showDeleteConfirmation = (item, type, callback) => {
@@ -1898,3 +2014,4 @@ const showDeleteConfirmation = (item, type, callback) => {
   </LocalizationProvider>
   );
 }
+
