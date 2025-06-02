@@ -18,7 +18,6 @@ router.get("/", async (_req, res) => {
       }
     });
     
-    console.log(`Βρέθηκαν ${eksoplismos.length} εξοπλισμοί`);
     
     const serializedEksoplismos = eksoplismos.map(item => {
       const serializedItem = {
@@ -42,7 +41,6 @@ router.get("/", async (_req, res) => {
       };
 
       // Προσθήκη log για debugging
-      console.log(`Εξοπλισμός ${item.id_eksoplismou} (${item.onoma}) έχει ${serializedItem.daneizetai.length} δανεισμούς`);
       
       return serializedItem;
     });
@@ -142,7 +140,6 @@ router.post("/daneismos", async (req, res) => {
       }
     });
 
-    console.log("Δημιουργήθηκε νέος δανεισμός:", newDaneismos);
 
     // Μορφοποίηση της απάντησης
     const borrowerName = `${newDaneismos.epafes?.onoma || ""} ${newDaneismos.epafes?.epitheto || ""}`.trim();

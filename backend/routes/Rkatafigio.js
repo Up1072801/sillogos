@@ -181,10 +181,27 @@ router.get("/availability/:id_katafigiou", async (req, res) => {
     overlappingBookings.forEach(booking => {
       const bookingStart = new Date(booking.hmerominia_afiksis);
       const bookingEnd = new Date(booking.hmerominia_epistrofis);
+
+      // Προσθέστε περισσότερες εκτυπώσεις για εντοπισμό του προβλήματος
+      console.log(`Booking ID: ${booking.id_kratisis}, External Space: "${booking.eksoterikos_xoros}", Type: ${typeof booking.eksoterikos_xoros}`);
       
-      // Μην υπολογίζουμε κρατήσεις εξωτερικού χώρου στη διαθεσιμότητα
-      if (booking.eksoterikos_xoros !== "Ναι") {
-        const peopleCount = booking.atoma || 0;
+      // Ελέγχουμε με πιο αυστηρό τρόπο αν είναι εξωτερικός χώρος
+      const isExternalSpace = booking.eksoterikos_xoros === "Ναι" || 
+                              booking.eksoterikos_xoros === "ΝΑΙ" || 
+                              booking.eksoterikos_xoros === "Αίθουσα 1" ||
+                              booking.eksoterikos_xoros === true ||
+                              booking.eksoterikos_xoros === 1 ||
+                              booking.eksoterikos_xoros === "1" ||
+                              String(booking.eksoterikos_xoros).toLowerCase() === "Ναι" ||
+                              String(booking.eksoterikos_xoros).toLowerCase() === "ναι";
+      
+      // Αντιστρέφουμε τη λογική για περισσότερη σαφήνεια
+      if (!isExternalSpace) {
+        // Μόνο για εσωτερικό χώρο υπολογίζουμε τη χωρητικότητα
+        const membersCount = parseInt(booking.arithmos_melwn || 0);
+        const nonMembersCount = parseInt(booking.arithmos_mi_melwn || 0);
+        const peopleCount = membersCount + nonMembersCount;
+        
         
         for (let date = new Date(Math.max(bookingStart, start)); 
              date <= new Date(Math.min(bookingEnd, end)); 
@@ -192,6 +209,7 @@ router.get("/availability/:id_katafigiou", async (req, res) => {
           const dateStr = date.toISOString().split('T')[0];
           dailyOccupancy[dateStr] += peopleCount;
         }
+      } else {
       }
     });
     

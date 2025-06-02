@@ -237,12 +237,11 @@ useEffect(() => {
       
       // Φόρτωση εξοπλισμού
       const eksoplismosResponse = await api.get("/eksoplismos");
-      console.log("Δεδομένα εξοπλισμού από API:", eksoplismosResponse.data);
       
       // Φόρτωση δανεισμών
       const daneismoiResponse = await api.get("/eksoplismos/daneismoi");
-      console.log("Δεδομένα δανεισμών από API:", daneismoiResponse.data);
-      
+
+  
       // Επεξεργασία δεδομένων εξοπλισμού και προσθήκη δανεισμών για κάθε εξοπλισμό
       const processedEquipment = eksoplismosResponse.data.map(item => {
         // Διασφάλιση ότι το πεδίο daneizetai υπάρχει πάντα
@@ -261,7 +260,6 @@ useEffect(() => {
         };
         
         // Debug log
-        console.log(`Εξοπλισμός ${item.onoma} (ID:${item.id_eksoplismou}): ${itemWithDaneizetai.daneizetai?.length || 0} δανεισμοί`);
         
         return itemWithDaneizetai;
       });
@@ -328,7 +326,6 @@ const processedLoans = daneismoiResponse.data.map(item => {
 const enhanceLoanData = async () => {
   if (daneismoiData.length === 0 || contactsList.length === 0 || eksoplismosData.length === 0) return;
   
-  console.log("Ενισχύω τα δεδομένα δανεισμών με πλήρη στοιχεία...");
   
   // Ενημέρωση των δεδομένων δανεισμού με πλήρη στοιχεία επαφών και εξοπλισμού
   const enhanced = daneismoiData.map(loan => {
@@ -351,10 +348,6 @@ const enhanceLoanData = async () => {
     return enhancedLoan;
   });
   
-  console.log("Πριν:", daneismoiData.filter(d => d.epafes).length, "με επαφές,", 
-              daneismoiData.filter(d => d.eksoplismos).length, "με εξοπλισμό");
-  console.log("Μετά:", enhanced.filter(d => d.epafes).length, "με επαφές,", 
-              enhanced.filter(d => d.eksoplismos).length, "με εξοπλισμό");
   
   // Έλεγχος αν υπάρχει πραγματική αλλαγή για αποφυγή άσκοπων ενημερώσεων
   const beforeCount = daneismoiData.filter(d => d.epafes && d.eksoplismos).length;
@@ -363,7 +356,6 @@ const enhanceLoanData = async () => {
   if (afterCount > beforeCount) {
     setDaneismoiData(enhanced);
   } else {
-    console.log("Καμία αλλαγή στα ενισχυμένα δεδομένα, παραλείπεται η ενημέρωση.");
   }
 };
 
@@ -444,7 +436,6 @@ const updateLoanStatusToOverdue = async (loanId) => {
     await api.put(`/eksoplismos/daneismos/${loanId}/status`, {
       katastasi_daneismou: "Εκπρόθεσμο"
     });
-    console.log(`Ο δανεισμός με ID: ${loanId} ενημερώθηκε ως εκπρόθεσμος`);
   } catch (error) {
     console.error("Σφάλμα κατά την ενημέρωση κατάστασης δανεισμού:", error);
   }
@@ -496,7 +487,6 @@ const handleAddLoan = async (newLoan) => {
       throw new Error("Λείπουν απαιτούμενα πεδία: Δανειζόμενος ή Εξοπλισμός");
     }
     
-    console.log("Επιλεγμένη επαφή ID:", id_epafis, "Επιλεγμένος εξοπλισμός ID:", id_eksoplismou);
     
     // Αναζήτηση πλήρων δεδομένων επαφών και εξοπλισμού για καλύτερη ενημέρωση UI
     const borrower = contactsList.find(c => parseInt(c.id_epafis) === parseInt(id_epafis));
@@ -518,10 +508,8 @@ const handleAddLoan = async (newLoan) => {
       hmerominia_epistrofis: newLoan.hmerominia_epistrofis || null // Διασφάλιση ότι είναι null όταν δεν υπάρχει
     };
     
-    console.log("Αποστολή δεδομένων για προσθήκη δανεισμού:", formattedLoan);
     
     const response = await api.post("/eksoplismos/daneismos", formattedLoan);
-    console.log("API response:", response.data);
     
     // Δημιουργία πλήρους αντικειμένου με όλα τα απαραίτητα δεδομένα
     const newDaneismosEntry = {
@@ -616,7 +604,6 @@ const handleEditLoan = async (editedLoan) => {
       katastasi_daneismou: editedLoan.katastasi_daneismou // Προσθήκη της κατάστασης στα δεδομένα που αποστέλλονται
     };
     
-    console.log("Αποστολή δεδομένων για επεξεργασία:", formattedLoan);
     
     const response = await api.put(`/eksoplismos/daneismos/${editLoanData.id}`, formattedLoan);
     
@@ -673,7 +660,6 @@ const handleEditLoan = async (editedLoan) => {
 
   // Αντικαταστήστε την υπάρχουσα συνάρτηση handleEditLoanClick
 const handleEditLoanClick = (loan) => {
-  console.log("Επεξεργασία δανεισμού:", loan);
   
   // Διασφάλιση των σωστών μορφών ημερομηνιών
   const formatDate = (dateStr) => {
@@ -701,7 +687,6 @@ const handleEditLoanClick = (loan) => {
     katastasi_daneismou: loan.katastasi_daneismou || "Σε εκκρεμότητα" // Προσθήκη της κατάστασης δανεισμού
   };
   
-  console.log("Δεδομένα για επεξεργασία δανεισμού:", loanData);
   
   setEditLoanData(loanData);
   setEditLoanDialogOpen(true);
@@ -709,7 +694,6 @@ const handleEditLoanClick = (loan) => {
 
   // Βελτιωμένος χειριστής επεξεργασίας εξοπλισμού
 const handleEditEquipmentClick = (equipment) => {
-  console.log("Επεξεργασία εξοπλισμού:", equipment);
   
   // Μορφοποίηση ημερομηνίας (διασφαλίζει σωστή μορφή για το input)
   const formatDate = (dateStr) => {
@@ -755,7 +739,6 @@ const handleEditEquipment = async (editedEquipment) => {
       throw new Error("Δεν βρέθηκε ID εξοπλισμού για επεξεργασία");
     }
 
-    console.log("Αποστολή ενημερωμένου εξοπλισμού:", editedEquipment, "με ID:", equipmentId);
     
     // Δημιουργία αντικειμένου με τα δεδομένα που θα αποσταλούν
     const dataToSend = {
@@ -844,7 +827,6 @@ const handleEditEquipment = async (editedEquipment) => {
         prevData.filter(loan => parseInt(loan.id_eksoplismou) !== equipmentId)
       );
       
-      console.log(`Διαγράφηκε ο εξοπλισμός με ID ${id} και ${relatedLoans.length} σχετικοί δανεισμοί`);
       
     } catch (error) {
       console.error("Σφάλμα κατά τη διαγραφή εξοπλισμού:", error);
@@ -903,11 +885,9 @@ const loanDetailPanelConfig = {
     {
       title: "Στοιχεία Δανειζόμενου",
       getData: (row) => {
-        console.log("Δανεισμός για επεξεργασία:", row);
         
         // Απλουστευμένη λογική με log για debugging
         if (row.epafes) {
-          console.log("Χρήση του row.epafes:", row.epafes);
           return [{
             fullName: `${row.epafes.onoma || ''} ${row.epafes.epitheto || ''}`.trim(),
             email: row.epafes.email || '-',
@@ -917,7 +897,6 @@ const loanDetailPanelConfig = {
         
         if (row.id_epafis) {
           const contact = contactsList.find(c => parseInt(c.id_epafis) === parseInt(row.id_epafis));
-          console.log("Εύρεση επαφής με id_epafis:", row.id_epafis, contact ? "Βρέθηκε" : "Δε βρέθηκε");
           
           if (contact) return [{
             fullName: contact.fullName,
@@ -939,10 +918,8 @@ const loanDetailPanelConfig = {
       title: "Στοιχεία Εξοπλισμού",
       getData: (row) => {
         // Παρόμοια απλουστευμένη λογική για εξοπλισμό
-        console.log("Δανεισμός για στοιχεία εξοπλισμού:", row);
         
         if (row.eksoplismos) {
-          console.log("Χρήση του row.eksoplismos:", row.eksoplismos);
           return [{
             onoma: row.eksoplismos.onoma || '-',
             marka: row.eksoplismos.marka || '-',
@@ -953,7 +930,6 @@ const loanDetailPanelConfig = {
         }
         
         if (row.id_eksoplismou) {
-          console.log("Αναζήτηση εξοπλισμού με id:", row.id_eksoplismou);
           const equipment = eksoplismosData.find(e => parseInt(e.id_eksoplismou) === parseInt(row.id_eksoplismou));
           if (equipment) return [{
             onoma: equipment.onoma || '-',

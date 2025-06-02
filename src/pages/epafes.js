@@ -10,19 +10,16 @@ const fields = [
     accessorKey: "onoma",
     header: "Όνομα",
     validation: yup.string().required("Το όνομα είναι υποχρεωτικό"),
-    example: "π.χ. Γιάννης",
   },
   {
     accessorKey: "epitheto",
     header: "Επώνυμο",
     validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό"),
-    example: "π.χ. Παπαδόπουλος",
   },
   {
     accessorKey: "email",
     header: "Email",
     validation: yup.string().email("Μη έγκυρο email").required("Το email είναι υποχρεωτικό"),
-    example: "π.χ. example@email.com",
   },
   {
     accessorKey: "tilefono",
@@ -31,13 +28,11 @@ const fields = [
       .string()
       .matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία")
       .required("Το τηλέφωνο είναι υποχρεωτικό"),
-    example: "π.χ. 2101234567",
   },
   {
     accessorKey: "idiotita",
     header: "Ιδιότητα",
     validation: yup.string().required("Η ιδιότητα είναι υποχρεωτική"),
-    example: "π.χ. Μέλος",
   },
 ];
 
@@ -70,8 +65,8 @@ export default function Epafes() {
   }, []);
 
   const handleEditClick = (row) => {
-    console.log("Editing contact:", row);
-    
+
+  
     // Βεβαιωνόμαστε ότι έχουμε όλα τα απαραίτητα πεδία
     const editData = {
       id: row.id,
@@ -83,7 +78,6 @@ export default function Epafes() {
       idiotita: row.idiotita || ""
     };
     
-    console.log("Prepared contact edit data:", editData);
     setCurrentRow(editData);
     setEditDialogOpen(true);
   };
@@ -95,7 +89,6 @@ export default function Epafes() {
 
   const handleEditSave = async (updatedRow) => {
     try {
-      console.log("Updated Row:", updatedRow); // Επαλήθευση του updatedRow
   
       const { id, id_epafis, onoma, epitheto, email, tilefono, idiotita } = updatedRow;
   
@@ -105,14 +98,6 @@ export default function Epafes() {
       if (!epafisId) {
         throw new Error("Το id_epafis είναι undefined");
       }
-  
-      console.log("Αποστολή δεδομένων:", {
-        onoma,
-        epitheto,
-        email,
-        tilefono,
-        idiotita,
-      });
   
       // Ενημέρωση της επαφής στο backend
       const response = await api.put(`/Repafes/${epafisId}`, {

@@ -54,41 +54,65 @@ const CustomCalendar = React.forwardRef(({ bookings, shelters = [], onDateRangeC
       const departureDate = new Date(b.departure);
       return arrivalDate <= currentDate && departureDate >= currentDate;
     });
-    
-    // Υπολογίζουμε συνολικά άτομα και χωρητικότητα
-    const totalPeople = dayBookings.reduce((sum, b) => sum + ((b.members || 0) + (b.nonMembers || 0)), 0);
+
+    // Βελτιωμένη συνάρτηση για έλεγχο εξωτερικού χώρου
+    const isExternalSpace = (booking) => {
+      // Έλεγχος τόσο του eksoterikos_xoros όσο και του externalSpace
+      const value = booking.eksoterikos_xoros || booking.externalSpace;
+      
+      if (!value) return false;
+      
+      // Μετατροπή σε string και καθαρισμός
+      const cleanValue = String(value).toLowerCase().trim();
+      
+      // Έλεγχος για όλες τις πιθανές τιμές που υποδηλώνουν εξωτερικό χώρο
+      return cleanValue === "ναι" || 
+             cleanValue === "nai" ||
+             cleanValue === "yes" ||
+             cleanValue === "1" ||
+             cleanValue === "true" || 
+             cleanValue === "αίθουσα 1" || 
+             cleanValue === "αιθουσα 1" ||
+             cleanValue.includes("αίθουσα") ||
+             cleanValue.includes("αιθουσα") ||
+             cleanValue.includes("εξωτερικ") ||
+             cleanValue.includes("εξωτ") ||
+             value === true ||
+             value === 1;
+    };
+
+    // Διαχωρισμός κρατήσεων μόνο για υπολογισμό χωρητικότητας
+    const dayBookingsInside = dayBookings.filter(booking => !isExternalSpace(booking));
+
+    // Υπολογισμός χωρητικότητας μόνο με τις κρατήσεις εσωτερικού χώρου
+    const totalPeople = dayBookingsInside.reduce((sum, b) => 
+      sum + ((b.members || 0) + (b.nonMembers || 0)), 0);
     
     // Βρίσκουμε τη χωρητικότητα του καταφυγίου
     let totalCapacity = 0;
-    if (dayBookings.length > 0) {
-      // Μετατροπή σε string για να διασφαλίσουμε τη σύγκριση
-      const bookingKatafigioId = String(dayBookings[0].id_katafigiou);
-      
+    if (dayBookingsInside.length > 0) {
+      const bookingKatafigioId = String(dayBookingsInside[0].id_katafigiou);
       const shelter = shelters.find(s => String(s.id_katafigiou) === bookingKatafigioId);
       
       if (shelter) {
-        console.log(`Βρέθηκε καταφύγιο: ${shelter.onoma}, χωρητικότητα: ${shelter.xoritikotita}`);
         totalCapacity = shelter.xoritikotita || 0;
-      } else {
-        console.log(`Δεν βρέθηκε καταφύγιο με ID ${bookingKatafigioId}. Διαθέσιμα καταφύγια:`, 
-          shelters.map(s => `ID: ${s.id_katafigiou}, Όνομα: ${s.onoma}`));
       }
     }
     
     const percentageOccupied = totalCapacity > 0 ? Math.round((totalPeople / totalCapacity) * 100) : 0;
     const isFull = percentageOccupied >= 100;
-    
-    // Υπολογισμός διαθέσιμης χωρητικότητας (πάντα ≥ 0)
     const remainingCapacity = Math.max(0, totalCapacity - totalPeople);
     
     return {
+      // Εμφάνιση ως κράτηση αν υπάρχει οποιαδήποτε κράτηση (εσωτερική ή εξωτερική)
       className: dayBookings.length > 0 ? (isFull ? styles.full : styles.available) : "",
-      bookings: dayBookings,
+      bookings: dayBookings, // Όλες οι κρατήσεις
       totalPeople,
       totalCapacity,
-      remainingCapacity, // Προσθήκη διαθέσιμης χωρητικότητας
+      remainingCapacity,
       percentage: percentageOccupied,
-      hasBookings: dayBookings.length > 0
+      hasBookings: dayBookings.length > 0, // Όλες οι κρατήσεις
+      isExternalSpace // Περνάμε τη συνάρτηση για χρήση στο tooltip
     };
   }, [calendarBookings, selectedYear, selectedMonth, shelters]);
 
@@ -99,24 +123,45 @@ const CustomCalendar = React.forwardRef(({ bookings, shelters = [], onDateRangeC
   const createTooltipContent = (status) => {
     if (!status.hasBookings) return "Καμία κράτηση";
 
+    // Διαχωρισμός κρατήσεων για το tooltip
+    const internalBookings = status.bookings.filter(booking => !status.isExternalSpace(booking));
+    const externalBookings = status.bookings.filter(booking => status.isExternalSpace(booking));
+
     return (
       <div className={styles.tooltipContent}>
-        <div className={styles.tooltipHeader}>
-          <strong>Πληρότητα: {status.percentage}%</strong> ({status.totalPeople}/{status.totalCapacity} άτομα)
-        </div>
-        <div className={styles.tooltipHeader} style={{color: status.remainingCapacity > 0 ? 'green' : 'red', marginTop: '5px'}}>
-          <strong>Διαθέσιμη χωρητικότητα: {status.remainingCapacity} άτομα</strong>
-        </div>
+        {internalBookings.length > 0 && (
+          <>
+            <div className={styles.tooltipHeader}>
+              <strong>Πληρότητα (εσωτερικός χώρος): {status.percentage}%</strong> ({status.totalPeople}/{status.totalCapacity} άτομα)
+            </div>
+            <div className={styles.tooltipHeader} style={{color: status.remainingCapacity > 0 ? 'green' : 'red', marginTop: '5px'}}>
+              <strong>Διαθέσιμη χωρητικότητα: {status.remainingCapacity} άτομα</strong>
+            </div>
+          </>
+        )}
+        
         <ul className={styles.bookingsList}>
-          {status.bookings.map((booking, idx) => (
-            <li key={idx}>
-              <div><strong>{booking.contactName}</strong> ({booking.shelterName})</div>
-              <div>Άφιξη: {new Date(booking.arrival).toLocaleDateString("el-GR")}</div>
-              <div>Αναχώρηση: {new Date(booking.departure).toLocaleDateString("el-GR")}</div>
-              <div>Άτομα: {(booking.members || 0) + (booking.nonMembers || 0)}</div>
-            </li>
-          ))}
+          {status.bookings.map((booking, idx) => {
+            const isExternal = status.isExternalSpace(booking);
+            return (
+              <li key={idx} style={isExternal ? {backgroundColor: '#f0f0f0'} : {}}>
+                <div><strong>{booking.contactName}</strong> ({booking.shelterName})</div>
+                <div>Άφιξη: {new Date(booking.arrival).toLocaleDateString("el-GR")}</div>
+                <div>Αναχώρηση: {new Date(booking.departure).toLocaleDateString("el-GR")}</div>
+                <div>Άτομα: {(booking.members || 0) + (booking.nonMembers || 0)}</div>
+                {isExternal && (
+                  <div><i>Εξωτερικός χώρος: {booking.eksoterikos_xoros || booking.externalSpace}</i></div>
+                )}
+              </li>
+            );
+          })}
         </ul>
+        
+        {externalBookings.length > 0 && internalBookings.length > 0 && (
+          <div style={{marginTop: '5px', fontSize: '12px', color: '#666'}}>
+            <i>Οι κρατήσεις εξωτερικού χώρου δεν υπολογίζονται στη διαθεσιμότητα</i>
+          </div>
+        )}
       </div>
     );
   };

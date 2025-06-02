@@ -210,7 +210,7 @@ export default function MeliAllwn() {
   };
 
   const handleEditClick = (row) => {
-    console.log("Editing member:", row);
+
     
     // Εξαγωγή των ακριβών τιμών που χρειάζονται για την επεξεργασία
     const editData = {
@@ -224,7 +224,7 @@ export default function MeliAllwn() {
       onomasillogou: row.onomasillogou || row.onoma_sillogou || ""
     };
     
-    console.log("Prepared edit data:", editData);
+
     setEditValues(editData);
     setOpenEditDialog(true);
   };
@@ -243,11 +243,16 @@ export default function MeliAllwn() {
           email: updatedRow.email,
           tilefono: updatedRow.phone,
         },
-        vathmos_diskolias: {
-          id_vathmou_diskolias: selectedDifficultyLevel ? selectedDifficultyLevel.id_vathmou_diskolias : 1,
+        melos: {
+          tipo_melous: "eksoteriko",
+          vathmos_diskolias: {
+            id_vathmou_diskolias: selectedDifficultyLevel ? selectedDifficultyLevel.id_vathmou_diskolias : 1,
+          },
         },
-        arithmosmitroou: updatedRow.arithmosmitroou,
-        onomasillogou: updatedRow.onomasillogou,
+        eksoteriko_melos: {
+          onoma_sillogou: updatedRow.onomasillogou,
+          arithmos_mitroou: parseInt(updatedRow.arithmosmitroou),
+        },
       };
 
       const id = updatedRow.id;
@@ -271,6 +276,12 @@ export default function MeliAllwn() {
       setOpenEditDialog(false);
     } catch (error) {
       console.error("Σφάλμα ενημέρωσης:", error);
+      // Εμφάνιση λεπτομερειών σφάλματος
+      if (error.response?.data) {
+        alert(`Σφάλμα: ${error.response.data.error || JSON.stringify(error.response.data)}`);
+      } else {
+        alert(`Σφάλμα: ${error.message}`);
+      }
     }
   };
 

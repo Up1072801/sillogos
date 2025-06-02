@@ -11,28 +11,41 @@ router.get("/", async (req, res) => {
       include: {
         drastiriotita: {
           include: {
-            vathmos_diskolias: true,
-            simmetoxi_drastiriotites: {
+            vathmos_diskolias: true
+          }
+        },
+        // Add this to include participants
+        simmetoxi: {
+          include: {
+            melos: {
               include: {
-                simmetoxi: {
+                epafes: true
+              }
+            }
+          }
+        },
+        // Fix: Use ypefthynos instead of esoteriko_melos
+        ypefthinoi: {
+          include: {
+            ypefthynos: {
+              include: {
+                melos: {
                   include: {
-                    melos: { include: { epafes: true } }
+                    epafes: true
                   }
                 }
               }
             }
           }
-        },
-        simmetoxi: {
-          include: {
-            melos: { include: { epafes: true } }
-          }
         }
+      },
+      orderBy: {
+        hmerominia_anaxorisis: 'asc'
       }
     });
 
     const serializedEksormiseis = eksormiseis.map(eksormisi => {
-      // Υπολογισμός μοναδικών συμμετεχόντων από τις συμμετοχές της εξόρμησης
+      // Calculate unique participants from simmetoxi
       const uniqueParticipantIds = new Set();
       eksormisi.simmetoxi?.forEach(sim => {
         if (sim.id_melous) {
@@ -50,25 +63,24 @@ router.get("/", async (req, res) => {
         hmerominia_anaxorisis: eksormisi.hmerominia_anaxorisis,
         hmerominia_afiksis: eksormisi.hmerominia_afiksis,
         participantsCount: participantsCount,
-        drastiriotites: eksormisi.drastiriotita?.map(dr => ({
-          id: dr.id_drastiriotitas,
+        // Include simmetoxi data for frontend processing
+        simmetoxi: eksormisi.simmetoxi || [],
+        drastiriotites: (eksormisi.drastiriotita || []).map(dr => ({
           id_drastiriotitas: dr.id_drastiriotitas,
-          titlos: dr.titlos || "",
+          titlos: dr.titlos,
+          ores_poreias: dr.ores_poreias,
+          diafora_ipsous: dr.diafora_ipsous,
+          megisto_ipsometro: dr.megisto_ipsometro,
           hmerominia: dr.hmerominia,
-          vathmos_diskolias: dr.vathmos_diskolias
-            ? {
-                id_vathmou_diskolias: dr.vathmos_diskolias.id_vathmou_diskolias,
-                epipedo: dr.vathmos_diskolias.epipedo
-              }
-            : null
-        })) || []
+          vathmos_diskolias: dr.vathmos_diskolias || { epipedo: 1 }
+        }))
       };
     });
 
     res.json(serializedEksormiseis);
   } catch (error) {
     console.error("Σφάλμα κατά την ανάκτηση των εξορμήσεων:", error);
-    res.status(500).json({ error: "Σφάλμα κατά την ανάκτηση των εξορμήσεων" });
+    res.status(500).json({ error: "Εσωτερικό σφάλμα διακομιστή" });
   }
 });
 

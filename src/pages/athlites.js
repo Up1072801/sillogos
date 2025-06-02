@@ -323,10 +323,8 @@ const [currentSportName, setCurrentSportName] = useState("");
     }
     
     if (window.confirm(message)) {
-      console.log(`Επιβεβαιώθηκε διαγραφή: ${type} με ID: ${id}`);
       
       if (type === 'athlete-from-competition') {
-        console.log("Αφαίρεση αθλητή από αγώνα:", { id, secondaryId });
         handleDeleteAthleteFromCompetition(id, secondaryId);
       } else if (type === 'competition') {
         handleDeleteCompetition(id);
@@ -338,7 +336,6 @@ const [currentSportName, setCurrentSportName] = useState("");
   
   // Χειρισμός επεξεργασίας αγώνα
 const handleEditCompetition = (competition) => {
-  console.log('Editing competition:', competition);
   
   // Βρίσκουμε το σωστό ID
   const competitionId = competition.id_agona || competition.id;
@@ -348,7 +345,6 @@ const handleEditCompetition = (competition) => {
     typeof athlete.id === 'number' ? athlete.id : parseInt(athlete.id)
   ) || [];
   
-  console.log('Athlete IDs:', athleteIds);
   
   setEditCompetitionData({
     id: competitionId,
@@ -414,7 +410,6 @@ const handleEditCompetition = (competition) => {
           return !existingAthleteIds.some(id => id === athleteId);
         });
         
-        console.log(`Βρέθηκαν ${filteredAthletes.length} διαθέσιμοι αθλητές από σύνολο ${allAthletes.length}`);
         
         // Διαμόρφωση αθλητών για εμφάνιση
         const formattedAthletes = filteredAthletes.map(athlete => ({
@@ -454,18 +449,15 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
     // Remove any window.confirm() calls from here since the DataTable will handle confirmation
 
     // Make sure we're using the correct ID properties
-    console.log("Original IDs:", { competitionId, athleteId });
     
     let compId = competitionId;
     let athId = athleteId;
 
     // If they are objects, extract the correct IDs
     if (typeof competitionId === 'object') {
-      console.log("Competition ID is object:", competitionId);
       compId = competitionId.id_agona || competitionId.id;
     }
     if (typeof athleteId === 'object') {
-      console.log("Athlete ID is object:", athleteId);
       athId = athleteId.id_athliti || athleteId.id;
     }
 
@@ -478,14 +470,11 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
       return false;
     }
 
-    console.log(`Αφαίρεση αθλητή ${athId} από τον αγώνα ${compId}`);
 
     const deleteRoute = `/athlites/agona/${compId}/athlete/${athId}`;
-    console.log("Using DELETE route:", deleteRoute);
 
     // Try to delete the athlete from the competition
     const response = await api.delete(deleteRoute);
-    console.log("API response:", response.data);
 
     // Manually update the sportsData state to remove the athlete from the competition
     setSportsData(prevSportsData => 
@@ -507,7 +496,6 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
     );
     
     // Refresh data to ensure consistency
-    console.log("Refreshing data to update UI...");
     await refreshData();
     
     return true;
@@ -548,11 +536,9 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
           { accessor: "count", header: "Συμμετοχές" }
         ],
         renderExpandedRow: (yearData, rowData) => {
-          console.log("renderExpandedRow called with:", { yearData, rowData });
           
           // First check if we have the year data
           if (!yearData || !yearData.year) {
-            console.log("No year data found");
             return (
               <Box sx={{ pl: 2, pr: 2, pb: 2 }}>
                 <Typography variant="body2" color="text.secondary">
@@ -574,36 +560,30 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
               // This is the most reliable source - direct parent row
               currentSport = rowData.parentRow.original;
               sportId = currentSport.id || currentSport.id_athlimatos;
-              console.log("Found sport from parent row:", currentSport);
             } 
             else if (rowData && rowData.original) {
               // Secondary method
               currentSport = rowData.original;
               sportId = currentSport.id || currentSport.id_athlimatos;
-              console.log("Using rowData.original:", currentSport);
             } 
             else if (rowData && rowData.row && rowData.row.original) {
               // Another possible structure
               currentSport = rowData.row.original;
               sportId = currentSport.id || currentSport.id_athlimatos;
-              console.log("Using rowData.row.original:", currentSport);
             } 
             else if (rowData && (rowData.id || rowData.id_athlimatos)) {
               // Directly from rowData
               currentSport = rowData;
               sportId = currentSport.id || currentSport.id_athlimatos;
-              console.log("Using rowData directly:", currentSport);
             }
             
             // If we still don't have currentSport, search the sportsData array
             // using BOTH the year AND the sport context
             if (!currentSport && sportsData) {
-              console.log("Sport not found in row data, searching in sportsData...");
               
               // First try to get sportId from the expanded row context
               if (rowData.id || rowData.id_athlimatos) {
                 sportId = rowData.id || rowData.id_athlimatos;
-                console.log("Using sportId from rowData:", sportId);
               }
               
               // If we have a sportId, find that exact sport
@@ -611,12 +591,10 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
                 currentSport = sportsData.find(sport => 
                   sport.id === sportId || sport.id_athlimatos === sportId
                 );
-                console.log("Found sport by ID:", currentSport);
               }
               
               // Last resort: Find any sport with this year's data
               if (!currentSport && yearData) {
-                console.log("Fallback: Finding any sport with year:", yearData.year);
                 currentSport = sportsData.find(sport => {
                   return sport.yearlyParticipations?.some(y => y.year === yearData.year);
                 });
@@ -631,7 +609,6 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
               if (tableParent?.original) {
                 currentSport = tableParent.original;
                 sportId = currentSport.id || currentSport.id_athlimatos;
-                console.log("Found sport from table context:", currentSport);
               }
             }
             
@@ -898,7 +875,6 @@ const handleAddCompetition = async (newCompetition) => {
   // Νέα συνάρτηση ανανέωσης δεδομένων - προσθέστε την στο component
   const refreshData = async () => {
     try {
-      console.log("Refreshing data...");
       
       // Store current data before fetching new data
       const currentAthletes = [...athletesData];
@@ -1024,7 +1000,6 @@ const handleAddCompetition = async (newCompetition) => {
       setAthletesData(formattedAthletes);
       setSportsData(formattedSports);
       
-      console.log("Data refresh complete");
     } catch (error) {
       console.error("Error refreshing data:", error);
     }
@@ -1048,7 +1023,6 @@ const handleCompetitionAthleteSelection = async (selectedIds) => {
       return;
     }
 
-    console.log(`Προσθήκη ${validIds.length} αθλητών στον αγώνα ${selectedCompetitionId}`);
 
     await api.post(`/athlites/agona/${selectedCompetitionId}/athletes`, {
       athleteIds: validIds
@@ -1075,7 +1049,6 @@ const handleCompetitionAthleteSelection = async (selectedIds) => {
         throw new Error(`Μη έγκυρο ID αθλητή: ${athleteId}`);
       }
       
-      console.log(`Διαγραφή αθλητή με ID: ${id}`);
       
       // API κλήση
       await api.delete(`/athlites/athlete/${id}`);
@@ -1097,7 +1070,6 @@ const handleCompetitionAthleteSelection = async (selectedIds) => {
 // Πρόσθεσε αυτή τη συνάρτηση ακριβώς πριν το handleDeleteAthlete
 const handleDeleteCompetition = async (competitionId) => {
   try {
-    console.log("Attempting to delete competition with ID:", competitionId);
     
     // Χειρισμός διαφορετικών τύπων παραμέτρων
     let id;
@@ -1105,7 +1077,6 @@ const handleDeleteCompetition = async (competitionId) => {
     // Αν είναι αντικείμενο, προσπαθούμε να εξάγουμε το ID
     if (typeof competitionId === 'object' && competitionId !== null) {
       id = competitionId.id_agona || competitionId.id;
-      console.log("Extracted ID from object:", id);
     } else {
       // Αν είναι primitive (string ή number)
       id = competitionId;
@@ -1118,7 +1089,6 @@ const handleDeleteCompetition = async (competitionId) => {
       throw new Error(`Μη έγκυρο ID αγώνα: ${competitionId}`);
     }
     
-    console.log(`Διαγραφή αγώνα με ID: ${id}`);
     
     // Κλήση του API για διαγραφή
     await api.delete(`/athlites/agona/${id}`);
@@ -1491,7 +1461,6 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
 
   // Πλήρης υλοποίηση του handleEditAthlete
   const handleEditAthlete = async (athlete) => {
-    console.log("Editing athlete:", athlete);
     
     // Δημιουργία αντικειμένου με όλα τα απαραίτητα δεδομένα για επεξεργασία
     const editValues = {
@@ -1511,7 +1480,6 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
       athlimata: athlete.athlimata?.map(a => a.id) || []
     };
 
-    console.log("Prepared athlete edit data:", editValues);
     
     // Ορίζουμε τις τιμές για επεξεργασία και ανοίγουμε το dialog
     setEditAthleteValues(editValues);
@@ -1521,7 +1489,6 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
   // Προσθήκη συνάρτησης για την αποθήκευση των αλλαγών μετά την επεξεργασία
   const handleEditAthleteSave = async (updatedAthlete) => {
     try {
-      console.log("Saving edited athlete:", updatedAthlete);
       
       const athleteId = updatedAthlete.id;
       
@@ -1592,7 +1559,6 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
   ], []);
 
 const handleAthleteCompetitionTableDelete = (athlete, competition) => {
-  console.log("Delete from table called with:", { athlete, competition });
   
   // The competition parameter comes from the parent row context
   const competitionId = competition?.id_agona || competition?.id;
@@ -1600,7 +1566,6 @@ const handleAthleteCompetitionTableDelete = (athlete, competition) => {
   // The athlete parameter is the actual row being deleted
   const athleteId = athlete?.id_athliti || athlete?.id;
   
-  console.log("Extracted IDs:", { competitionId, athleteId });
   
   // Open confirmation dialog instead of directly deleting
   setAthleteToDelete({ athleteId, competitionId });
@@ -1951,10 +1916,8 @@ const showDeleteConfirmation = (item, type, callback) => {
               if (editCompetitionData) {
                 // Για επεξεργασία, κρατάμε τους ήδη επιλεγμένους και για προσθήκη νέων
                 const existingIds = selectedAthletes || [];
-                console.log("Υπάρχοντες αθλητές στον αγώνα:", existingIds.length);
               } else {
                 // Για νέο αγώνα, δεν χρειαζόμαστε φιλτράρισμα
-                console.log("Φόρτωση όλων των διαθέσιμων αθλητών για νέο αγώνα");
               }
               
               // Ensure athlete data is properly formatted for display

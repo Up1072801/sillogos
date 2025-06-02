@@ -750,23 +750,36 @@ const applyDateFilter = () => {
 
 // Προσθέστε αυτό το useEffect για να ενημέρωνετε το filteredBookings όταν αλλάζουν τα bookings
 useEffect(() => {
-  if (isFiltering && dateFilter) {
-    // Αν υπάρχει ενεργό φίλτρο ημερομηνίας, εφαρμόζουμε ξανά το φίλτρο
-    handleCalendarDateChange(dateFilter.start, dateFilter.end);
-  } else if (selectedShelter) {
-    // Διατήρηση του φίλτρου καταφυγίου, ακόμα και χωρίς φίλτρο ημερομηνίας
-    const filtered = bookings.filter(booking => 
+  // Only update filtered bookings when bookings or selectedShelter changes
+  // Don't call handleCalendarDateChange again from here
+  if (selectedShelter) {
+    let filtered = bookings.filter(booking => 
       String(booking.id_katafigiou) === selectedShelter
     );
+    
+    // If there's also a date filter, apply it directly
+    if (dateFilter) {
+      filtered = filtered.filter(booking => {
+        if (!booking.arrival || !booking.departure) return false;
+        
+        const arrivalDate = new Date(booking.arrival);
+        const departureDate = new Date(booking.departure);
+        
+        return (
+          (arrivalDate >= dateFilter.start && arrivalDate <= dateFilter.end) ||
+          (departureDate >= dateFilter.start && departureDate <= dateFilter.end) ||
+          (arrivalDate <= dateFilter.start && departureDate >= dateFilter.end)
+        );
+      });
+    }
+    
     setFilteredBookings(filtered);
-    // Το isFiltering παραμένει true, αφού φιλτράρουμε ανά καταφύγιο
     setIsFiltering(true);
   } else {
-    // Μόνο αν δεν υπάρχει ούτε επιλεγμένο καταφύγιο, δείχνουμε όλες τις κρατήσεις
     setFilteredBookings(bookings);
     setIsFiltering(false);
   }
-}, [bookings, dateFilter, selectedShelter]);
+}, [bookings, selectedShelter, dateFilter]);
 
   // Προσαρμογή του χειριστή για το άνοιγμα του dialog επεξεργασίας κράτησης
 
@@ -804,7 +817,6 @@ const handleEditBookingClick = (booking) => {
     totalPrice: booking.totalPrice
   };
   
-  console.log("Επεξεργασία κράτησης με αρχικό κόστος:", booking.totalPrice);
   
   setEditBookingData(bookingData);
   setEditBookingDialogOpen(true);
@@ -814,28 +826,20 @@ const handleEditBookingClick = (booking) => {
 const calculateBookingCost = (formValues, resourceData) => {
   try {
     // For debugging
-    console.log("Υπολογισμός κόστους με:", formValues);
-    console.log("Διαθέσιμα resourceData:", Object.keys(resourceData));
 
     // Αντίγραφο των formValues για ασφαλή τροποποίηση
     let values = { ...formValues };
     
     // Ειδική περίπτωση για τις περιορισμένες επεξεργάσιμες φόρμες
     if (!values.id_katafigiou && resourceData?.currentBookingData) {
-      console.log("Χρήση currentBookingData για συμπλήρωση ελλείποντων πεδίων:", resourceData.currentBookingData);
       
       // Προσθήκη του id_katafigiou από το currentBookingData
       values.id_katafigiou = resourceData.currentBookingData.id_katafigiou;
-      console.log("Συμπλήρωση id_katafigiou:", values.id_katafigiou);
     }
 
     // Έλεγχος ξανά μετά τη συμπλήρωση
     if (!values.id_katafigiou || !values.hmerominia_afiksis || !values.hmerominia_epistrofis) {
-      console.log("Λείπουν απαραίτητα δεδομένα:", { 
-        id_katafigiou: values.id_katafigiou, 
-        arrival: values.hmerominia_afiksis, 
-        departure: values.hmerominia_epistrofis 
-      });
+     
       return null;
     }
     
@@ -844,38 +848,22 @@ const calculateBookingCost = (formValues, resourceData) => {
     
     // Εύρεση του επιλεγμένου καταφυγίου
     const sheltersList = resourceData?.sheltersList || [];
-    console.log("Λίστα καταφυγίων:", sheltersList.map(s => ({
-      id: s.id_katafigiou, 
-      name: s.onoma,
-      memberPrice: s.timi_melous,
-      nonMemberPrice: s.timi_mi_melous,
-      extMemberPrice: s.timi_eksoxwrou_melos,
-      extNonMemberPrice: s.timi_eksoxwroy_mimelos
-    })));
+   
     
     const selectedShelter = sheltersList.find(s => 
       String(s.id_katafigiou) === shelterId
     );
     
     if (!selectedShelter) {
-      console.log("Δεν βρέθηκε το καταφύγιο με ID:", shelterId);
       return null;
     }
     
-    console.log("Επιλεγμένο καταφύγιο:", {
-      id: selectedShelter.id_katafigiou, 
-      name: selectedShelter.onoma,
-      memberPrice: selectedShelter.timi_melous,
-      nonMemberPrice: selectedShelter.timi_mi_melous,
-      extMemberPrice: selectedShelter.timi_eksoxwrou_melos,
-      extNonMemberPrice: selectedShelter.timi_eksoxwroy_mimelos
-    });
+  
     
     const arrival = new Date(values.hmerominia_afiksis);
     const departure = new Date(values.hmerominia_epistrofis);
     
     if (isNaN(arrival.getTime()) || isNaN(departure.getTime())) {
-      console.log("Μη έγκυρες ημερομηνίες:", { arrival, departure });
       return null;
     }
     
@@ -892,31 +880,16 @@ const calculateBookingCost = (formValues, resourceData) => {
       // Τιμές για εξωτερικό χώρο - βεβαιωνόμαστε ότι χρησιμοποιούμε τα σωστά πεδία
       memberPrice = members * (parseInt(selectedShelter.timi_eksoxwrou_melos) || 0) * nights;
       nonMemberPrice = nonMembers * (parseInt(selectedShelter.timi_eksoxwroy_mimelos) || 0) * nights;
-      console.log("Τιμές εξωτερικού χώρου:", {
-        memberRate: selectedShelter.timi_eksoxwrou_melos,
-        nonMemberRate: selectedShelter.timi_eksoxwroy_mimelos
-      });
+    
     } else {
       // Τιμές για εσωτερικό χώρο (καταφύγιο)
       memberPrice = members * (parseInt(selectedShelter.timi_melous) || 0) * nights;
       nonMemberPrice = nonMembers * (parseInt(selectedShelter.timi_mi_melous) || 0) * nights;
-      console.log("Τιμές εσωτερικού χώρου:", {
-        memberRate: selectedShelter.timi_melous,
-        nonMemberRate: selectedShelter.timi_mi_melous
-      });
+
     }
     
     const totalPrice = memberPrice + nonMemberPrice;
     
-    console.log("Επιτυχής υπολογισμός κόστους:", { 
-      nights, 
-      members, 
-      nonMembers,
-      isExternalSpace: values.eksoterikos_xoros === "Ναι",
-      memberPrice, 
-      nonMemberPrice, 
-      totalPrice 
-    });
     
     return {
       days: nights, // Κρατάμε το όνομα "days" για συμβατότητα, αλλά είναι διανυκτερεύσεις

@@ -5,7 +5,8 @@ import {
   Box, Typography, Paper, Container, Divider, Grid,
   IconButton, Button, TableContainer, Table, 
   TableHead, TableRow, TableCell, TableBody, 
-  CircularProgress, Alert, Chip, TextField, Breadcrumbs, Link, Dialog, DialogTitle, DialogContent
+  CircularProgress, Alert, Chip, TextField, Breadcrumbs, Link, Dialog, DialogTitle, DialogContent,
+  DialogContentText, DialogActions // Add these two components
 } from "@mui/material";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -85,7 +86,8 @@ export default function EksormisiDetails() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [difficultyLevels, setDifficultyLevels] = useState([]);
   const [availableMembers, setAvailableMembers] = useState([]);
-  
+  const [openDeleteResponsibleDialog, setOpenDeleteResponsibleDialog] = useState(false);
+const [personToDelete, setPersonToDelete] = useState(null);
   // Dialog states
   const [editEksormisiDialog, setEditEksormisiDialog] = useState(false);
   const [editedEksormisi, setEditedEksormisi] = useState(null);
@@ -346,6 +348,34 @@ const fetchResponsiblePersons = async () => {
     }
   };
 
+  // Add this function before the return statement
+const handleRemoveResponsiblePersonClick = (personId) => {
+  setPersonToDelete(personId);
+  setOpenDeleteResponsibleDialog(true);
+};
+
+// Add this function to handle the actual deletion after confirmation
+const confirmRemoveResponsiblePerson = async (personId) => {
+  if (!personId) return;
+  
+  try {
+    setDeletingResponsibleId(personId);
+    await api.delete(`/eksormiseis/${id}/ypefthynoi/${personId}`);
+    
+    // Update local state
+    setYpefthynoi(prev => prev.filter(y => 
+      y.id_ypefthynou !== personId && 
+      y.id_es_melous !== personId &&
+      y.id !== personId
+    ));
+  } catch (error) {
+    console.error("Error removing responsible person:", error);
+    alert("Σφάλμα κατά την αφαίρεση υπευθύνου: " + error.message);
+  } finally {
+    setDeletingResponsibleId(null);
+  }
+};
+
 // Update the handleRemoveResponsiblePerson function
 const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
   try {
@@ -408,47 +438,33 @@ const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
 };
 // Ενημερωμένη έκδοση της handleAddResponsiblePersons που διατηρεί τους υπάρχοντες υπεύθυνους
 const handleAddResponsiblePersons = async (selectedIds) => {
+  if (!selectedIds || selectedIds.length === 0) return;
+  
   try {
-    if (!selectedIds || selectedIds.length === 0) {
-      return;
-    }
-    
-    console.log("Προσθήκη υπευθύνων:", selectedIds);
-    
-    // Κάνε το API call για να προσθέσεις τους υπευθύνους
-    await api.post(`/eksormiseis/${id}/ypefthynoi`, {
-      id_ypefthynon: selectedIds
-    });
-    
-    // Βρες τα πλήρη αντικείμενα των νέων υπευθύνων από τα internalMembers
-    const newResponsiblePersons = selectedIds.map(newId => {
-      const member = internalMembers.find(m => 
-        (m.id_es_melous === newId || m.id === newId)
-      );
+    // Make API call to add each responsible person
+    await Promise.all(selectedIds.map(async (personId) => {
+      await api.post(`/eksormiseis/${id}/ypefthynos`, { id_es_melous: personId });
       
-      if (member) {
-        // Δημιουργία αντικειμένου με την ίδια δομή που έχουν τα ypefthynoi
-        return {
-          id_es_melous: member.id_es_melous || member.id,
-          id_ypefthynou: member.id_es_melous || member.id,
-          fullName: member.fullName || `${member.epitheto || ''} ${member.onoma || ''}`.trim(),
-          onoma: member.onoma || member.firstName || member.melos?.epafes?.onoma || '',
-          epitheto: member.epitheto || member.lastName || member.melos?.epafes?.epitheto || '',
-          email: member.email || member.melos?.epafes?.email || '',
-          tilefono: member.tilefono || member.melos?.epafes?.tilefono || ''
-        };
+      // Find the person's details
+      const person = internalMembers.find(m => (m.id_es_melous || m.id) === personId);
+      
+      if (person) {
+        // Add to the local state (append, not replace)
+        setYpefthynoi(prev => [...prev, {
+          id_es_melous: personId,
+          id_ypefthynou: personId,
+          fullName: `${person.epitheto || person.melos?.epafes?.epitheto || ''} ${person.onoma || person.melos?.epafes?.onoma || ''}`.trim(),
+          email: person.email || person.melos?.epafes?.email || '-',
+          tilefono: person.tilefono || person.melos?.epafes?.tilefono || '-',
+        }]);
       }
-      return null;
-    }).filter(Boolean); // Αφαίρεσε τυχόν null values
+    }));
     
-    // Προσθήκη των νέων υπευθύνων στο τοπικό state
-    setYpefthynoi(prevYpefthynoi => [...prevYpefthynoi, ...newResponsiblePersons]);
-    
-    // Κλείσε το dialog
+    // Close the dialog
     setResponsiblePersonDialog(false);
   } catch (error) {
-    console.error("Σφάλμα κατά την προσθήκη υπευθύνων:", error);
-    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
+    console.error("Error adding responsible persons:", error);
+    alert("Σφάλμα κατά την προσθήκη υπευθύνων: " + error.message);
   }
 };
 
@@ -2341,15 +2357,15 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                                     <TableCell>{ypefthynos.email || '-'}</TableCell>
                                     <TableCell>{ypefthynos.tilefono || '-'}</TableCell>
                                     <TableCell align="right">
-                                      <IconButton 
-                                        size="small" 
-                                        color="error" 
-                                        onClick={() => handleRemoveResponsiblePerson(ypefthynos.id_es_melous)}
-                                        disabled={deletingResponsibleId === ypefthynos.id_es_melous}
-                                      >
-                                        {deletingResponsibleId === ypefthynos.id_es_melous ? 
-                                          <CircularProgress size={18} /> : <DeleteIcon fontSize="small" />}
-                                      </IconButton>
+                              <IconButton 
+  size="small" 
+  color="error" 
+  onClick={() => handleRemoveResponsiblePersonClick(ypefthynos.id_es_melous)}
+  disabled={deletingResponsibleId === ypefthynos.id_es_melous}
+>
+  {deletingResponsibleId === ypefthynos.id_es_melous ? 
+    <CircularProgress size={18} /> : <DeleteIcon fontSize="small" />}
+</IconButton>
                                     </TableCell>
                                   </TableRow>
                                 ))}
@@ -2609,80 +2625,36 @@ const updateParticipantActivityLists = (deletedActivityId) => {
   />
 )}
         {/* Responsible Person Selection Dialog */}
+  {/* Add this confirmation dialog for responsible person deletion */}
+
 <Dialog
-  open={responsiblePersonDialog}
-  onClose={() => setResponsiblePersonDialog(false)}
-  maxWidth="md"
-  fullWidth
+  open={openDeleteResponsibleDialog}
+  onClose={() => setOpenDeleteResponsibleDialog(false)}
 >
-  <DialogTitle>
-    Επιλογή Υπεύθυνου Εξόρμησης
-  </DialogTitle>
-  // Inside the Dialog component
-<DialogContent>
-  <Box sx={{ mb: 2 }}>
-    <Typography variant="body2" color="text.secondary">
-      Επιλέξτε εσωτερικά μέλη ως υπεύθυνους για την εξόρμηση
-    </Typography>
-  </Box>
- <SelectionDialog
-  open={true}
-  onClose={() => setResponsiblePersonDialog(false)}
-  title="Επιλογή Υπεύθυνων Εξόρμησης"
-  data={internalMembers
-    // Filter out members who are already responsible
-    .filter(member => {
-      const memberId = member.id_es_melous || member.id;
-      // Check if this member is already in the ypefthynoi list
-      return !ypefthynoi.some(y => 
-        y.id_ypefthynou === memberId || 
-        y.id_es_melous === memberId || 
-        y.id === memberId
-      );
-    })
-    .map(member => {
-      // Extract name parts with fallbacks
-      const onoma = member.onoma || 
-                   member.firstName || 
-                   member.melos?.epafes?.onoma || 
-                   member.epafes?.onoma || '';
-                   
-      const epitheto = member.epitheto || 
-                      member.lastName || 
-                      member.melos?.epafes?.epitheto || 
-                      member.epafes?.epitheto || '';
-      
-      // Create fullName with proper order
-      const fullName = `${epitheto} ${onoma}`.trim() || member.fullName || "Άγνωστο όνομα";
-      
-      // Get email with fallbacks
-      const email = member.email || 
-                   member.melos?.epafes?.email || 
-                   member.epafes?.email || '-';
-      
-      // Get phone with fallbacks
-      const tilefono = member.tilefono || 
-                      member.melos?.epafes?.tilefono || 
-                      member.epafes?.tilefono || '-';
-      
-      return {
-        id: member.id_es_melous || member.id,
-        fullName,
-        email,
-        tilefono
-      };
-    })}
-  columns={[
-    { field: "fullName", header: "Ονοματεπώνυμο" },
-    { field: "email", header: "Email" },
-    { field: "tilefono", header: "Τηλέφωνο" }
-  ]}
-  selectedIds={[]} // Start with empty selection
-  onConfirm={handleAddResponsiblePersons}
-  pageSize={10} // Set page size to 10 items per page
-  enablePagination={true} // Explicitly enable pagination
-/>
-</DialogContent>
+  <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον υπεύθυνο από την εξόρμηση;
+    </DialogContentText>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpenDeleteResponsibleDialog(false)} color="primary">
+      Ακύρωση
+    </Button>
+    <Button 
+      onClick={() => {
+        if (personToDelete) {
+          confirmRemoveResponsiblePerson(personToDelete);
+          setOpenDeleteResponsibleDialog(false);
+          setPersonToDelete(null);
+        }
+      }} 
+      color="error" 
+      autoFocus
+    >
+      Διαγραφή
+    </Button>
+  </DialogActions>
 </Dialog>
         {paymentParticipant && (
           <AddDialog

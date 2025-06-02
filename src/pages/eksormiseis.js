@@ -66,7 +66,8 @@ export default function Eksormiseis() {
             
             // Create a Set of unique member IDs to count unique participants
             const uniqueParticipantIds = new Set();
-            (eksormisi.summetexei || []).forEach(s => {
+            // Fix: Use simmetoxi instead of summetexei
+            (eksormisi.simmetoxi || []).forEach(s => {
               if (s.id_melous) uniqueParticipantIds.add(s.id_melous);
             });
             const uniqueParticipantsCount = uniqueParticipantIds.size;
@@ -93,15 +94,15 @@ export default function Eksormiseis() {
             };
           }) 
         : []; // Επιστροφή κενού πίνακα αν response.data δεν είναι array
-      
-      setEksormiseisData(processedData);
-      setLoading(false);
-    } catch (error) {
-      setError("Σφάλμα κατά τη φόρτωση δεδομένων. Παρακαλώ δοκιμάστε ξανά αργότερα.");
-      setLoading(false);
-      console.error("Error fetching data:", error);
-    }
-  };
+    
+    setEksormiseisData(processedData);
+    setLoading(false);
+  } catch (error) {
+    setError("Σφάλμα κατά τη φόρτωση δεδομένων. Παρακαλώ δοκιμάστε ξανά αργότερα.");
+    setLoading(false);
+    console.error("Error fetching data:", error);
+  }
+};
   
   // Προσθήκη νέας εξόρμησης
   const handleAddEksormisi = async (newEksormisi) => {
@@ -126,8 +127,8 @@ export default function Eksormiseis() {
         timi: Number(response.data.timi || 0),
         hmerominia_anaxorisis: response.data.hmerominia_anaxorisis ? new Date(response.data.hmerominia_anaxorisis) : null,
         hmerominia_afiksis: response.data.hmerominia_afiksis ? new Date(response.data.hmerominia_afiksis) : null,
-        participantsCount: 0, // New expedition has no participants yet
-        drastiriotites: [] // Empty array initially
+        participantsCount: 0 // New expedition has no participants yet
+        ,drastiriotites: [] // Empty array initially
       };
       
       // Add to local data
