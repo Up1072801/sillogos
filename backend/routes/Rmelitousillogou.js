@@ -653,9 +653,10 @@ router.delete("/:id", async (req, res) => {
       }
 
       // 7. Διαγραφή εξορμήσεων όπου το μέλος είναι υπεύθυνος
-      await prisma.eksormisi.updateMany({
-        where: { id_ypefthynou: id },
-        data: { id_ypefthynou: null }
+      await prisma.ypefthynoi_eksormisis.deleteMany({
+        where: {
+          id_ypefthynou: id
+        }
       });
 
       // 8. Διαγραφή εγγραφών αθλητή/συνδρομητή

@@ -48,6 +48,11 @@ const DataTable = React.memo(({
   const [anchorEl, setAnchorEl] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
   
+  // New state for export column selection
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportType, setExportType] = useState(null); // 'excel' or 'pdf'
+  const [selectedExportColumns, setSelectedExportColumns] = useState({});
+  
   useEffect(() => {
     setTableData(data);
   }, [data]);
@@ -309,213 +314,121 @@ const DataTable = React.memo(({
     setAnchorEl(null);
   };
 
-  // Τροποποιημένη συνάρτηση για να λαμβάνει υπόψη ΜΟΝΟ τις ορατές στήλες στο τρέχον UI
-  const exportToExcel = () => {
+  // Helper function to check if a value is a date and format it
+  const formatDateIfNeeded = (value) => {
+    if (value === null || value === undefined || value === '') 
+      return '';
+    
+    // Check if it's a date string by trying to parse it
+    const dateObj = new Date(value);
+    if (!isNaN(dateObj.getTime())) {
+      // Format as DD/MM/YYYY
+      return dateObj.toLocaleDateString("el-GR", {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+    return value;
+  };
+
+  // Updated Excel export function with date formatting
+  const exportToExcel = (selectedColumnKeys) => {
     try {
-      // Get all columns except actions column
-      const allExportableColumns = columns.filter(col => 
-        col.accessorKey !== "actions"
+      // Filter columns based on selected keys
+      const visibleColumns = columns.filter(col => 
+        selectedColumnKeys.includes(col.accessorKey)
       );
       
-      // Παίρνουμε ΜΟΝΟ τις τρέχουσες ορατές στήλες από το UI (state)
-      const columnVisibility = state.columnVisibility || {};
-      
-      // DEBUG: Let's see what's in columnVisibility
-      console.log('All exportable columns:', allExportableColumns.map(c => c.accessorKey));
-      console.log('Column visibility state:', columnVisibility);
-      
-      // Φιλτράρουμε τις στήλες που είναι όντως ορατές στη διεπαφή χρήστη
-      const visibleColumns = allExportableColumns.filter(col => {
-        // In Material React Table, a column is visible if:
-        // 1. It's not explicitly set to false in columnVisibility, OR
-        // 2. columnVisibility is empty (all columns visible by default)
-        const isVisible = columnVisibility[col.accessorKey] !== false;
-        console.log(`Column ${col.accessorKey}: visibility = ${columnVisibility[col.accessorKey]}, isVisible = ${isVisible}`);
-        return isVisible;
-      });
-      
-      console.log('Visible columns for export:', visibleColumns.map(c => c.accessorKey));
-      
       if (visibleColumns.length === 0) {
-        alert("Δεν υπάρχουν ορατές στήλες για εξαγωγή");
+        alert("Δεν υπάρχουν στήλες για εξαγωγή");
         return;
       }
       
-      // Προετοιμασία δεδομένων με μόνο τις ορατές στήλες
+      // Προετοιμασία δεδομένων για εξαγωγή - μόνο επιλεγμένες στήλες
       const filteredData = tableData.map(row => {
         const newRow = {};
         
         visibleColumns.forEach(col => {
-          let value;
+          let cellValue = null;
           
-          // Υποστήριξη για nested fields (όπως "melos.epafes.email")
+          // Χειρισμός ένθετων ιδιοτήτων (π.χ., "melos.epafes.email")
           if (col.accessorKey && col.accessorKey.includes(".")) {
             const keys = col.accessorKey.split(".");
-            value = keys.reduce((obj, key) => obj && obj[key] !== undefined ? obj[key] : null, row);
+            cellValue = keys.reduce((obj, key) => (obj && obj[key] !== undefined) ? obj[key] : null, row);
           } else if (col.accessorKey) {
-            value = row[col.accessorKey];
-          } else if (typeof col.accessor === 'string') {
-            const keys = col.accessor.split(".");
-            value = keys.reduce((obj, key) => obj && obj[key] !== undefined ? obj[key] : null, row);
+            cellValue = row[col.accessorKey];
           }
           
-          // Μορφοποίηση ημερομηνιών
-          if (value instanceof Date) {
-            value = value.toLocaleDateString('el-GR');
-          } else if (typeof value === 'string' && value.includes('T') && value.includes('Z')) {
-            try {
-              const date = new Date(value);
-              if (!isNaN(date.getTime())) {
-                value = date.toLocaleDateString('el-GR');
-              }
-            } catch (e) {
-              console.error("Σφάλμα μορφοποίησης ημερομηνίας:", e);
-            }
-          }
-          
-          newRow[col.header] = value !== null && value !== undefined ? value : '';
+          // Format dates and use header as column name
+          newRow[col.header] = formatDateIfNeeded(cellValue);
         });
         
         return newRow;
       });
       
-      // Δημιουργία του Excel worksheet
+      // Δημιουργία Excel workbook και worksheet
       const worksheet = XLSX.utils.json_to_sheet(filteredData);
       
-      // Αυτόματη προσαρμογή πλάτους στηλών
-      const colWidths = [];
+      // Ορισμός πλάτους στηλών βάσει περιεχομένου
+      const colWidths = visibleColumns.map(col => ({
+        width: Math.max(
+          (col.header || '').length,
+          ...filteredData.map(row => String(row[col.header] || '').length)
+        ) + 2
+      }));
       
-      // Αρχικοποίηση με το πλάτος των επικεφαλίδων
-      visibleColumns.forEach((col, idx) => {
-        colWidths[idx] = col.header ? col.header.length + 2 : 10;
-      });
+      worksheet['!cols'] = colWidths;
       
-      // Υπολογισμός μέγιστου πλάτους βάσει περιεχομένου
-      filteredData.forEach(row => {
-        visibleColumns.forEach((col, idx) => {
-          const value = row[col.header];
-          if (value) {
-            const valueLength = String(value).length;
-            colWidths[idx] = Math.max(colWidths[idx], valueLength + 2);
-          }
-        });
-      });
-      
-      // Εφαρμογή των πλατών στο worksheet
-      worksheet['!cols'] = colWidths.map(width => ({ width }));
-      
-      // Δημιουργία του Excel αρχείου
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
       
-      // Κατέβασμα του Excel
       const today = new Date().toISOString().split('T')[0];
       XLSX.writeFile(workbook, `δεδομένα-${today}.xlsx`);
-      handleExportClose();
+      
     } catch (error) {
       console.error("Σφάλμα κατά την εξαγωγή Excel:", error);
       alert("Σφάλμα κατά την εξαγωγή Excel. Παρακαλώ δοκιμάστε ξανά.");
     }
   };
 
-  // Συνάρτηση που καλείται όταν θέλουμε να εξάγουμε σε PDF
-  const handleStartPdfExport = () => {
-    try {
-      // Get all columns except actions column
-      const allExportableColumns = columns.filter(col => 
-        col.accessorKey !== "actions"
-      );
-      
-      // Παίρνουμε ΜΟΝΟ τις τρέχουσες ορατές στήλες από το UI (state)
-      const columnVisibility = state.columnVisibility || {};
-      
-      // DEBUG: Let's see what's happening
-      console.log('PDF Export - All exportable columns:', allExportableColumns.map(c => c.accessorKey));
-      console.log('PDF Export - Column visibility state:', columnVisibility);
-      
-      // Φιλτράρουμε τις στήλες που είναι όντως ορατές στη διεπαφή χρήστη
-      const actuallyVisibleColumns = allExportableColumns.filter(col => {
-        const isVisible = columnVisibility[col.accessorKey] !== false;
-        console.log(`PDF Column ${col.accessorKey}: visibility = ${columnVisibility[col.accessorKey]}, isVisible = ${isVisible}`);
-        return isVisible;
-      });
-      
-      console.log('PDF Export - Visible columns:', actuallyVisibleColumns.map(c => c.accessorKey));
-      
-      if (actuallyVisibleColumns.length === 0) {
-        alert("Δεν υπάρχουν ορατές στήλες για εξαγωγή");
-        return;
-      }
-      
-      // Απευθείας εξαγωγή PDF με τις ορατές στήλες
-      exportToPDF(actuallyVisibleColumns.map(col => col.accessorKey));
-      handleExportClose();
-    } catch (error) {
-      console.error("Σφάλμα κατά την προετοιμασία εξαγωγής PDF:", error);
-      alert("Σφάλμα κατά την προετοιμασία εξαγωγής PDF. Παρακαλώ δοκιμάστε ξανά.");
-    }
-  };
-
-  // Τροποποιημένη συνάρτηση exportToPDF που δέχεται τις επιλεγμένες στήλες
+  // Updated PDF export with date formatting
   const exportToPDF = (selectedColumnKeys) => {
     try {
-      // Φιλτράρουμε τις στήλες με βάση τα selectedColumnKeys
+      // Filter columns based on the passed selectedColumnKeys
       const visibleColumns = columns.filter(col => 
         selectedColumnKeys.includes(col.accessorKey)
       );
+      
+      if (visibleColumns.length === 0) {
+        alert("Δεν υπάρχουν στήλες για εξαγωγή");
+        return;
+      }
 
-      // Δημιουργία επικεφαλίδων για το PDF
       const headers = visibleColumns.map(col => ({
         text: col.header,
         style: 'tableHeader'
       }));
 
-      // Βελτιωμένη εξαγωγή δεδομένων με καλύτερο χειρισμό των πεδίων
+      // Filter row data to include only visible columns
       const body = tableData.map(row => {
         return visibleColumns.map(col => {
-          // Πιο στιβαρή προσπέλαση της τιμής
-          let accessorKey = col.accessorKey || col.accessor;
-          let value;
+          let cellValue = null;
           
-          // Έλεγχος για nested accessors (με τελείες)
-          if (typeof accessorKey === 'string' && accessorKey.includes('.')) {
-            const keys = accessorKey.split('.');
-            value = keys.reduce((obj, key) => obj && obj[key] !== undefined ? obj[key] : null, row);
-          } else if (accessorKey) {
-            value = row[accessorKey];
-          } else if (col.accessor && typeof col.accessor === 'function') {
-            // Υποστήριξη για function accessors
-            value = col.accessor(row);
+          if (col.accessorKey && col.accessorKey.includes('.')) {
+            const keys = col.accessorKey.split('.');
+            cellValue = keys.reduce((o, i) => (o && o[i] !== undefined) ? o[i] : null, row);
+          } else if (col.accessorKey) {
+            cellValue = row[col.accessorKey];
           }
           
-          // Ειδική διαχείριση για email και τηλέφωνα
-          if (accessorKey === 'email' || 
-              accessorKey === 'tilefono' || 
-              accessorKey === 'phone' || 
-              /email|tilefono|phone/i.test(accessorKey)) {
-            return { 
-              text: value != null ? String(value) : '', 
-              style: 'tableCell',
-              characterSpacing: 0
-            };
-          }
+          // Format dates before converting to string
+          cellValue = formatDateIfNeeded(cellValue);
           
-          // Μορφοποίηση ημερομηνιών
-          if (value instanceof Date) {
-            value = value.toLocaleDateString('el-GR');
-          } else if (typeof value === 'string' && value.includes('T') && value.includes('Z')) {
-            try {
-              value = new Date(value).toLocaleDateString('el-GR');
-            } catch (e) { }
-          }
-          
-          return { 
-            text: value != null ? String(value) : '', 
-            style: 'tableCell' 
-          };
+          return { text: cellValue !== undefined && cellValue !== null ? cellValue.toString() : '-' };
         });
       });
-
+      
       // Υπολογισμός πλάτους στηλών με βάση το πλήθος των στηλών
       const calculateColumnWidths = () => {
         // Αν έχουμε πολλές στήλες, προσαρμόζουμε τα πλάτη
@@ -626,6 +539,164 @@ const DataTable = React.memo(({
     ];
   }, [columns, enableEditMain, enableDelete, handleEditClick, handleDelete, enableRowActions]);
 
+  // Function to initialize column selection when starting an export (nothing pre-selected)
+  const startExport = (type) => {
+    try {
+      // Initialize column selection with nothing selected by default
+      const initialSelection = {};
+      columns.forEach(col => {
+        if (col.accessorKey && col.accessorKey !== 'actions') {
+          initialSelection[col.accessorKey] = false; // Default to unchecked
+        }
+      });
+      
+      setSelectedExportColumns(initialSelection);
+      setExportType(type);
+      setExportDialogOpen(true);
+      handleExportClose();
+    } catch (error) {
+      console.error(`Σφάλμα κατά την προετοιμασία εξαγωγής ${type}:`, error);
+      alert(`Σφάλμα κατά την προετοιμασία εξαγωγής. Παρακαλώ δοκιμάστε ξανά.`);
+    }
+  };
+
+  // Modified handlers for export menu items
+  const handleStartExcelExport = () => startExport('excel');
+  const handleStartPdfExport = () => startExport('pdf');
+
+  // Function to handle export after column selection
+  const handleExportWithSelectedColumns = (selectedColumnKeys) => {
+    try {
+      if (!selectedColumnKeys || selectedColumnKeys.length === 0) {
+        alert("Παρακαλώ επιλέξτε τουλάχιστον μια στήλη για εξαγωγή");
+        return;
+      }
+      
+      if (exportType === 'excel') {
+        exportToExcel(selectedColumnKeys);
+      } else if (exportType === 'pdf') {
+        exportToPDF(selectedColumnKeys);
+      }
+      
+      setExportDialogOpen(false);
+    } catch (error) {
+      console.error("Σφάλμα κατά την εξαγωγή:", error);
+      alert("Προέκυψε σφάλμα κατά την εξαγωγή. Παρακαλώ δοκιμάστε ξανά.");
+    }
+  };
+
+  // First, let's create a memoized version of the column selection dialog
+
+  const ColumnSelectionDialog = React.memo(({
+    open,
+    onClose,
+    columns,
+    exportType,
+    selectedColumns,
+    onSelectionChange,
+    onExport
+  }) => {
+    // Local state for column selection to avoid parent re-renders
+    const [localSelectedColumns, setLocalSelectedColumns] = React.useState({});
+    
+    // Sync with parent state when dialog opens
+    React.useEffect(() => {
+      if (open) {
+        setLocalSelectedColumns(selectedColumns);
+      }
+    }, [open, selectedColumns]);
+    
+    const allColumnsCount = columns.filter(col => col.accessorKey && col.accessorKey !== 'actions').length;
+    const selectedCount = Object.values(localSelectedColumns).filter(Boolean).length;
+    const allSelected = selectedCount === allColumnsCount && allColumnsCount > 0;
+    
+    const handleSelectAll = (checked) => {
+      const newSelection = {};
+      columns.forEach(col => {
+        if (col.accessorKey && col.accessorKey !== 'actions') {
+          newSelection[col.accessorKey] = checked;
+        }
+      });
+      setLocalSelectedColumns(newSelection);
+    };
+    
+    const handleCheckboxChange = (accessorKey, checked) => {
+      setLocalSelectedColumns(prev => ({
+        ...prev,
+        [accessorKey]: checked
+      }));
+    };
+    
+    const handleExportClick = () => {
+      // Only send the updated selection back to parent when actually exporting
+      onSelectionChange(localSelectedColumns);
+      
+      // Get selected column keys
+      const selectedColumnKeys = Object.keys(localSelectedColumns)
+        .filter(key => localSelectedColumns[key]);
+        
+      // Pass selected keys to the export function
+      onExport(selectedColumnKeys);
+    };
+    
+    return (
+      <Dialog 
+        open={open} 
+        onClose={onClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Επιλέξτε Στήλες για Εξαγωγή {exportType === 'excel' ? 'Excel' : 'PDF'}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" paragraph>
+            Επιλέξτε τις στήλες που θέλετε να συμπεριληφθούν στην εξαγωγή:
+          </Typography>
+          <FormGroup>
+            {/* Select All checkbox */}
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={allSelected}
+                  indeterminate={selectedCount > 0 && !allSelected}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                />
+              }
+              label={<strong>Επιλογή Όλων</strong>}
+            />
+            <Divider sx={{ my: 1 }} />
+            
+            {columns.map((column) => (
+              column.accessorKey && column.accessorKey !== 'actions' && (
+                <FormControlLabel
+                  key={column.accessorKey}
+                  control={
+                    <Checkbox
+                      checked={!!localSelectedColumns[column.accessorKey]}
+                      onChange={(e) => handleCheckboxChange(column.accessorKey, e.target.checked)}
+                    />
+                  }
+                  label={column.header}
+                />
+              )
+            ))}
+          </FormGroup>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Ακύρωση</Button>
+          <Button 
+            variant="contained"
+            color="primary"
+            onClick={handleExportClick}
+          >
+            Εξαγωγή
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  });
+
   return (
     <Box sx={{ p: 2 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
@@ -649,8 +720,17 @@ const DataTable = React.memo(({
         <ExportMenu
           anchorEl={anchorEl}
           onClose={handleExportClose}
-          exportToExcel={exportToExcel}
+          exportToExcel={handleStartExcelExport}
           exportToPDF={handleStartPdfExport}
+        />
+        <ColumnSelectionDialog
+          open={exportDialogOpen}
+          onClose={() => setExportDialogOpen(false)}
+          columns={columns}
+          exportType={exportType}
+          selectedColumns={selectedExportColumns}
+          onSelectionChange={setSelectedExportColumns}
+          onExport={handleExportWithSelectedColumns}
         />
       </Box>
       

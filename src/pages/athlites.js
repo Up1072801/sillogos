@@ -5,7 +5,7 @@ import { el } from "date-fns/locale";
 import DataTable from "../components/DataTable/DataTable";
 
 import { 
-  Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions,
+  Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
   Table, TableHead, TableBody, TableRow, TableCell, Paper, Divider, TableContainer, IconButton,
   Grid, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, FormHelperText
 } from '@mui/material';
@@ -137,6 +137,9 @@ export default function Athlites() {
   const [availableYears, setAvailableYears] = useState([]);
   const [filteredCompetitions, setFilteredCompetitions] = useState([]);
   const [dialogSelectedSport, setDialogSelectedSport] = useState(null);
+  // Add these with your other state variables
+const [openDeleteAthleteDialog, setOpenDeleteAthleteDialog] = useState(false);
+const [athleteToDelete, setAthleteToDelete] = useState(null);
 // Add this with the other state variables at the top of your component
 const [currentSportName, setCurrentSportName] = useState("");
   // Φόρτωση δεδομένων
@@ -447,6 +450,8 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
       console.error("Λείπει το ID αγώνα ή αθλητή");
       return false;
     }
+
+    // Remove any window.confirm() calls from here since the DataTable will handle confirmation
 
     // Make sure we're using the correct ID properties
     console.log("Original IDs:", { competitionId, athleteId });
@@ -772,8 +777,8 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
                                           onClick={() => {
                                             const competitionId = competition.id_agona || competition.id;
                                             const athleteId = athlete.id_athliti || athlete.id;
-                                            console.log("Deleting athlete with IDs:", { competitionId, athleteId, athlete });
-                                            handleConfirmDelete(competitionId, athleteId, 'athlete-from-competition');
+                                            setAthleteToDelete({ athleteId, competitionId });
+                                            setOpenDeleteAthleteDialog(true);
                                           }}
                                         >
                                           <Delete fontSize="small" />
@@ -843,15 +848,18 @@ const handleAddCompetition = async (newCompetition) => {
     
     const sportId = parseInt(newCompetition.sportId);
     
+    // Format athleteIds properly - ensure it's an array of valid integers
+    const validAthleteIds = selectedAthletes
+      .map(id => typeof id === 'number' ? id : parseInt(id))
+      .filter(id => !isNaN(id));
+    
     // Προετοιμασία δεδομένων για API
     const requestData = {
       id_athlimatos: sportId,
       onoma: newCompetition.onoma,
       perigrafi: newCompetition.perigrafi || "",
       hmerominia: newCompetition.hmerominia ? new Date(newCompetition.hmerominia).toISOString() : null,
-      athleteIds: selectedAthletes
-        .map(id => typeof id === 'number' ? id : parseInt(id))
-        .filter(id => !isNaN(id))
+      athleteIds: validAthleteIds
     };
     
     if (editCompetitionData) {
@@ -859,10 +867,13 @@ const handleAddCompetition = async (newCompetition) => {
       const competitionId = editCompetitionData.id_agona || editCompetitionData.id;
       await api.put(`/athlites/agona/${competitionId}`, requestData);
       
-      // Ενημέρωση αθλητών στον αγώνα
-      await api.post(`/athlites/agona/${competitionId}/athletes`, {
-        athleteIds: requestData.athleteIds
-      });
+      // Only add athletes if there are valid IDs to add
+      if (validAthleteIds.length > 0) {
+        // Ενημέρωση αθλητών στον αγώνα
+        await api.post(`/athlites/agona/${competitionId}/athletes`, {
+          athleteIds: validAthleteIds
+        });
+      }
     } else {
       // Προσθήκη νέου αγώνα
       await api.post("/athlites/agona", requestData);
@@ -878,7 +889,9 @@ const handleAddCompetition = async (newCompetition) => {
     setDialogSelectedSport(null);
   } catch (error) {
     console.error("Σφάλμα προσθήκης/επεξεργασίας αγώνα:", error);
-    alert(`Σφάλμα: ${error.response?.data?.error || error.message}`);
+    // Include more detailed error information
+    const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message;
+    alert(`Σφάλμα: ${errorMessage}`);
   }
 };
 
@@ -1170,7 +1183,7 @@ const handleDeleteCompetition = async (competitionId) => {
           hmerominia_enarksis_deltiou: newAthlete.hmerominiaenarksis ? convertDateFormat(newAthlete.hmerominiaenarksis) : null,
           hmerominia_liksis_deltiou: newAthlete.hmerominialiksis ? convertDateFormat(newAthlete.hmerominialiksis) : null,
         },
-        athlimata: newAthlete.athlimata ? newAthlete.athlimata.map(id => ({ id_athlimatos: parseInt(id) })) : [],
+        athlimata: newAthlete.athlimata ? newAthlete.athlimata.map(id => parseInt(id)) : [],
       };
 
       const response = await api.post("/athlites/athlete", requestData);
@@ -1589,8 +1602,9 @@ const handleAthleteCompetitionTableDelete = (athlete, competition) => {
   
   console.log("Extracted IDs:", { competitionId, athleteId });
   
-  // Now call the original function with parameters in the correct order
-  return handleDeleteAthleteFromCompetition(competitionId, athleteId);
+  // Open confirmation dialog instead of directly deleting
+  setAthleteToDelete({ athleteId, competitionId });
+  setOpenDeleteAthleteDialog(true);
 };
 
   // Διαμόρφωση του detail panel για τους αγώνες - διορθώνουμε το ορθογραφικό
@@ -2010,6 +2024,40 @@ const showDeleteConfirmation = (item, type, callback) => {
         fields={athleteFormFields} // Χρησιμοποιούμε τα ίδια πεδία με το AddDialog
         title="Επεξεργασία Αθλητή"
       />
+
+      {/* Add this Dialog component at the end of your return statement */}
+<Dialog
+  open={openDeleteAthleteDialog}
+  onClose={() => setOpenDeleteAthleteDialog(false)}
+>
+  <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      Είστε σίγουρος ότι θέλετε να αφαιρέσετε αυτόν τον αθλητή από τον αγώνα;
+    </DialogContentText>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpenDeleteAthleteDialog(false)} color="primary">
+      Ακύρωση
+    </Button>
+    <Button 
+      onClick={() => {
+        if (athleteToDelete) {
+          handleDeleteAthleteFromCompetition(
+            athleteToDelete.competitionId, 
+            athleteToDelete.athleteId
+          );
+          setOpenDeleteAthleteDialog(false);
+          setAthleteToDelete(null);
+        }
+      }} 
+      color="error" 
+      autoFocus
+    >
+      Διαγραφή
+    </Button>
+  </DialogActions>
+</Dialog>
     </Box>
   </LocalizationProvider>
   );

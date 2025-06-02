@@ -168,7 +168,7 @@ const detailPanelConfig = {
           Cell: ({ row }) => formatDate(row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.hmerominia) || "-"
         }
       ],
-      getData: (row) => row.melos?.simmetoxi || [],
+      getData: (row) => (row.melos?.simmetoxi || []).filter(item => item.katastasi === "Ενεργή"),
       noRowHover: true,
       noRowClick: true
     },
@@ -202,7 +202,7 @@ const detailPanelConfig = {
           }
         }
       ],
-      getData: (row) => row.melos?.parakolouthisi || [],
+      getData: (row) => (row.melos?.parakolouthisi || []).filter(item => item.katastasi === "Ενεργή"),
       noRowHover: true,
       noRowClick: true
     },
@@ -273,7 +273,6 @@ const calculateSubscriptionEndDate = (registrationDateStr, paymentDateStr) => {
         if (registrationDate >= juneFirst) {
           // Αν η εγγραφή έγινε μετά την 1η Ιουνίου του έτους πληρωμής, 
           // λήγει στην αρχή του μεθεπόμενου έτους
-          console.log(`Μέλος με εγγραφή μετά την 1η Ιουνίου ${paymentYear}: λήξη 1/1/${paymentYear + 2}`);
           return `1/1/${paymentYear + 2}`;
         }
       }
@@ -313,7 +312,8 @@ const formatDate = (dateStr) => {
   }
 };
 
-// Βελτιωμένη συνάρτηση μετατροπής ημερομηνίας σε μορφή ISO
+// Updated toISODate function that returns a full ISO datetime string
+
 const toISODate = (dateStr) => {
   if (!dateStr) return null;
   
@@ -327,19 +327,13 @@ const toISODate = (dateStr) => {
       }
     }
     
-    // Αν είναι ήδη στη μορφή YYYY-MM-DD
-    if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dateStr; // Επιστρέφουμε απευθείας το string σε YYYY-MM-DD μορφή
-    }
-    
-    // Μετατροπή σε Date και έπειτα σε ISO
+    // Μετατροπή σε Date
     const date = dateStr instanceof Date ? dateStr : new Date(dateStr);
     if (isNaN(date.getTime())) return null; // Έλεγχος για invalid date
     
-    // Επιστρέφουμε μόνο το YYYY-MM-DD μέρος
-    return date.toISOString().split('T')[0];
+    // Επιστροφή πλήρους ISO string (με ώρα)
+    return date.toISOString();
   } catch (e) {
-    console.error("Σφάλμα μετατροπής σε ISO:", e, dateStr);
     return null;
   }
 };
@@ -514,9 +508,6 @@ export default function Meloi() {
             const registrationDate = member.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis || null;
             const paymentDate = member.sindromitis?.exei?.[0]?.hmerominia_pliromis || null;
             
-            // Εμφάνιση στην κονσόλα για αποσφαλμάτωση
-            console.log(`Member ID: ${member.id_es_melous}, Birth date: ${birthDate}, Registration: ${registrationDate}, Payment: ${paymentDate}`);
-            
             return {
               ...member,
               id: member.id_es_melous,
@@ -565,7 +556,6 @@ export default function Meloi() {
       if (newRow.epipedo) {
         // Απευθείας μετατροπή σε αριθμό (χωρίς τη χρήση του find)
         difficultyId = parseInt(newRow.epipedo);
-        console.log("Επιλεγμένος βαθμός δυσκολίας ID:", difficultyId);
       }
 
       // Χρήση της συνάρτησης toISODate για ασφαλή μετατροπή ημερομηνιών
@@ -614,16 +604,10 @@ export default function Meloi() {
         },
       };
 
-      console.log("Μορφοποιημένες ημερομηνίες για αποστολή:", {
-        birthDate: formattedBirthDate,
-        startDate: formattedStartDate,
-        paymentDate: formattedPaymentDate
-      });
-
-      console.log("Αποστέλλονται δεδομένα:", requestData);
+      
+      
       
       const response = await api.post("/melitousillogou", requestData);
-      console.log("Απάντηση:", response.data);
       
       // Κλείσιμο του dialog
       setOpenAddDialog(false);
@@ -665,8 +649,6 @@ export default function Meloi() {
   };
 
   const handleEditClick = (row) => {
-    console.log("Editing member:", row);
-    
     // Έλεγχος αν το μέλος είναι αθλητής
     const isAthlete = Boolean(row.athlitis);
     
@@ -703,7 +685,6 @@ export default function Meloi() {
       "melos.vathmos_diskolias.epipedo": row.melos?.vathmos_diskolias?.epipedo || ""
     };
     
-    console.log("Prepared edit data:", editData);
     setEditValues(editData);
     setOpenEditDialog(true);
   };
@@ -769,10 +750,7 @@ export default function Meloi() {
         })
       };
       
-      console.log("Αποστέλλονται δεδομένα ενημέρωσης:", requestData);
-      
       const response = await api.put(`/melitousillogou/${id}`, requestData);
-      console.log("Απάντηση από API:", response.data);
       
       // Ενημέρωση των τοπικών δεδομένων
       setData(prevData => 
@@ -863,6 +841,11 @@ export default function Meloi() {
         validation: yup.string().required("Υποχρεωτικό") 
       },
       { 
+        accessorKey: "patronimo", 
+        header: "Πατρώνυμο", 
+        validation: yup.string().required("Υποχρεωτικό") 
+      },
+      { 
         accessorKey: "email", 
         header: "Email", 
         validation: yup.string().email("Μη έγκυρο email").required("Υποχρεωτικό") 
@@ -873,25 +856,10 @@ export default function Meloi() {
         validation: yup.string().matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία").required("Υποχρεωτικό") 
       },
       { 
-        accessorKey: "epipedo", 
-        header: "Βαθμός Δυσκολίας", 
-        type: "select",
-        options: difficultyLevels.map(level => ({ 
-          value: level.id_vathmou_diskolias, 
-          label: `Βαθμός ${level.epipedo}` 
-        })),
-        validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1")
-      },
-      { 
         accessorKey: "hmerominia_gennhshs", 
         header: "Ημερομηνία Γέννησης", 
         type: "date",
         validation: yup.date().required("Υποχρεωτικό")
-      },
-      { 
-        accessorKey: "patronimo", 
-        header: "Πατρώνυμο", 
-        validation: yup.string().required("Υποχρεωτικό") 
       },
       { 
         accessorKey: "odos", 
@@ -909,19 +877,19 @@ export default function Meloi() {
         validation: yup.number().required("Υποχρεωτικό") 
       },
       { 
+        accessorKey: "eidosSindromis", 
+        header: "Είδος Συνδρομής",
+        type: "select",
+        options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
+        validation: yup.string().required("Υποχρεωτικό")
+      },
+      { 
         accessorKey: "katastasi_sindromis", 
         header: "Κατάσταση Συνδρομής",
         type: "select",
         options: subscriptionStatuses,
         defaultValue: "Ενεργή",
         validation: yup.string().required("Υποχρεωτικό")
-      },
-      { 
-        accessorKey: "hmerominia_pliromis", 
-        header: "Ημερομηνία Πληρωμής", 
-        type: "date",
-        defaultValue: new Date().toISOString().split('T')[0],
-        validation: yup.date().required("Υποχρεωτικό")
       },
       { 
         accessorKey: "hmerominia_enarksis", 
@@ -937,11 +905,21 @@ export default function Meloi() {
             })
       },
       { 
-        accessorKey: "eidosSindromis", 
-        header: "Είδος Συνδρομής",
+        accessorKey: "hmerominia_pliromis", 
+        header: "Ημερομηνία Πληρωμής", 
+        type: "date",
+        defaultValue: new Date().toISOString().split('T')[0],
+        validation: yup.date().required("Υποχρεωτικό")
+      },
+      { 
+        accessorKey: "epipedo", 
+        header: "Βαθμός Δυσκολίας", 
         type: "select",
-        options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
-        validation: yup.string().required("Υποχρεωτικό")
+        options: difficultyLevels.map(level => ({ 
+          value: level.id_vathmou_diskolias, 
+          label: `Βαθμός ${level.epipedo}` 
+        })),
+        validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1")
       }
     ];
   }, [difficultyLevels, subscriptionTypes, subscriptionStatuses]);
@@ -1002,18 +980,10 @@ export default function Meloi() {
               validation: yup.string().matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία").required("Υποχρεωτικό") 
             },
             { 
-              accessorKey: "epipedo", 
-              header: "Βαθμός Δυσκολίας", 
-              type: "select",
-              options: difficultyLevels.map(level => ({ 
-                value: level.id_vathmou_diskolias, 
-                label: `Βαθμός ${level.epipedo}` 
-              })),
-              validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1") 
-            },
-            { 
-              accessorKey: "arithmos_mitroou", 
-              header: "Αριθμός Μητρώου" 
+              accessorKey: "hmerominia_gennhshs", 
+              header: "Ημερομηνία Γέννησης", 
+              type: "date",
+              validation: yup.date().required("Υποχρεωτικό")
             },
             { 
               accessorKey: "odos", 
@@ -1024,6 +994,11 @@ export default function Meloi() {
               accessorKey: "tk", 
               header: "ΤΚ", 
               validation: yup.number().required("Υποχρεωτικό") 
+            },
+            { 
+              accessorKey: "arithmos_mitroou", 
+              header: "Αριθμός Μητρώου", 
+              validation: yup.number()
             },
             // Πεδία συνδρομής - εμφανίζονται μόνο αν δεν είναι αθλητής
             ...(!editValues.isAthlete ? [
@@ -1060,10 +1035,14 @@ export default function Meloi() {
               }
             ] : []),
             { 
-              accessorKey: "hmerominia_gennhshs", 
-              header: "Ημερομηνία Γέννησης", 
-              type: "date",
-              validation: yup.date().required("Υποχρεωτικό")
+              accessorKey: "epipedo", 
+              header: "Βαθμός Δυσκολίας", 
+              type: "select",
+              options: difficultyLevels.map(level => ({ 
+                value: level.id_vathmou_diskolias, 
+                label: `Βαθμός ${level.epipedo}` 
+              })),
+              validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1") 
             }
           ]}
         />

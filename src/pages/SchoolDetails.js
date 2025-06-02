@@ -674,7 +674,7 @@ const handleEditParticipant = async (updatedParticipant) => {
     
     // Κλήση στο API - διορθωμένο URL
     const response = await api.put(
-      `/sxoles/${id}/parakolouthisis/${updatedParticipant.id_parakolouthisis}`,
+      `/sxoles/${id}/parakolouthisi/${updatedParticipant.id_parakolouthisis}`,
       participantData
     );
     

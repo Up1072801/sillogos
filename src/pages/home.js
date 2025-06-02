@@ -62,7 +62,7 @@ function Home({ user }) {
                     });
                   }
                 } catch (e) {
-                  console.error("Error parsing topothesies for school:", school.id_sxolis);
+                  // Removed console.error statement
                 }
               }
               
@@ -91,7 +91,7 @@ function Home({ user }) {
           athleteIds: [] // Keep empty array for consistency
         });
       } catch (error) {
-        console.error("Σφάλμα κατά τη φόρτωση δεδομένων dashboard:", error);
+        // Removed console.error statement
       } finally {
         setLoading(false);
       }
@@ -103,7 +103,6 @@ function Home({ user }) {
         const response = await api.get(endpoint);
         return processFunction(response);
       } catch (error) {
-        console.log(`Σφάλμα κατά την κλήση του endpoint ${endpoint}:`, error);
         return [];
       }
     }
@@ -274,7 +273,7 @@ function DashboardCard({ type, title, items, loading, emptyMessage, linkTo }) {
       case 'expeditions':
         return `/eksormisi/${item.id}`;
       case 'schools':
-        return `/school/${item.id}`;
+        return `/sxoles/${item.id}`; // Changed from /school/ to /sxoles/
       case 'athletes':
         return `/athlites/${item.id}`;
       case 'bookings':
