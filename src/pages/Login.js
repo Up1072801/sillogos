@@ -34,7 +34,7 @@ export default function Login({ setUser }) {
     setLoading(true);
     
     try {
-      const response = await api.post('/api/auth/login', { username, password });
+      const response = await api.post('/auth/login', { username, password });
       
       // 1. Αποθήκευση token και στοιχείων χρήστη
       const token = response.data.token;
