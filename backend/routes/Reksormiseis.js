@@ -1107,7 +1107,46 @@ router.post("/:id/ypefthynoi", async (req, res) => {
       });
     }));
     
-    res.json({ message: "Οι υπεύθυνοι προστέθηκαν επιτυχώς" });
+    // Now fetch the complete data for all added responsible persons
+    const responsiblePersons = await prisma.ypefthynoi_eksormisis.findMany({
+      where: { id_eksormisis: id },
+      include: {
+        ypefthynos: {
+          include: {
+            melos: {
+              include: {
+                epafes: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    const formattedResponsiblePersons = responsiblePersons.map(rp => {
+      // Extract name parts first for more reliable access
+      const onoma = rp.ypefthynos?.melos?.epafes?.onoma || '';
+      const epitheto = rp.ypefthynos?.melos?.epafes?.epitheto || '';
+      
+      // Calculate fullName only after extracting the parts
+      const fullName = `${epitheto} ${onoma}`.trim();
+      
+      return {
+        id_es_melous: rp.id_ypefthynou,
+        onoma,
+        epitheto,
+        firstName: onoma,
+        lastName: epitheto,
+        fullName: fullName || "Άγνωστο όνομα",
+        email: rp.ypefthynos?.melos?.epafes?.email || '',
+        tilefono: rp.ypefthynos?.melos?.epafes?.tilefono ? rp.ypefthynos.melos.epafes.tilefono.toString() : '',
+      };
+    });
+    
+    res.json({
+      message: "Οι υπεύθυνοι προστέθηκαν επιτυχώς",
+      responsiblePersons: formattedResponsiblePersons
+    });
   } catch (error) {
     console.error("Error adding responsible persons:", error);
     res.status(500).json({ 

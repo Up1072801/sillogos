@@ -100,6 +100,8 @@ const [personToDelete, setPersonToDelete] = useState(null);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [paymentParticipant, setPaymentParticipant] = useState(null);
   // Add after the other state variable declarations
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
+const [openDeletePaymentDialog, setOpenDeletePaymentDialog] = useState(false);
   const [internalMembers, setInternalMembers] = useState([]);
   const [responsiblePersonDialog, setResponsiblePersonDialog] = useState(false);
   // Add these states
@@ -135,28 +137,21 @@ const fetchResponsiblePersons = async () => {
   try {
     const response = await api.get(`/eksormiseis/${id}/ypefthynoi`);
     
-    // ΠΡΟΣΘΗΚΗ DEBUG - Δείτε τι δεδομένα έρχονται πραγματικά
-    console.log("Raw responsible persons data from API:", JSON.stringify(response.data, null, 2));
     
     if (Array.isArray(response.data)) {
       const formattedPersons = response.data.map(person => {
-        // DEBUG: Δείτε τη δομή κάθε person
-        console.log("Processing person:", JSON.stringify(person, null, 2));
-        
-        // ΔΙΟΡΘΩΣΗ: Χρησιμοποιούμε τη σωστή διαδρομή που έρχεται από το backend
         const lastName = person.ypefthynos?.melos?.epafes?.epitheto || 
-                         person.epitheto || // fallback από το formatted response
+                         person.epitheto || 
                          '';
         const firstName = person.ypefthynos?.melos?.epafes?.onoma || 
-                          person.onoma || // fallback από το formatted response
+                          person.onoma || 
                           '';
         
-        console.log("Extracted names:", { firstName, lastName });
         
         return {
           ...person,
-          // ΔΙΟΡΘΩΣΗ: Σωστή σειρά - πρώτα όνομα, μετά επώνυμο
-          fullName: `${firstName} ${lastName}`.trim() || "Άγνωστο όνομα",
+          // ΔΙΟΡΘΩΣΗ: Σωστή σειρά για ελληνικά ονόματα - πρώτα επώνυμο, μετά όνομα
+          fullName: `${lastName} ${firstName}`.trim() || "Άγνωστο όνομα",
           // Make sure we have these fields for display
           email: person.ypefthynos?.melos?.epafes?.email || 
                  person.email || 
@@ -167,7 +162,6 @@ const fetchResponsiblePersons = async () => {
         };
       });
       
-      console.log("Formatted responsible persons:", formattedPersons);
       setYpefthynoi(formattedPersons);
     } else {
       setYpefthynoi([]);
@@ -253,7 +247,6 @@ const fetchResponsiblePersons = async () => {
         
         if (Array.isArray(participantsResponse.data)) {
           const formattedParticipants = participantsResponse.data.map(item => {
-            console.log("plironei για συμμετοχή", item.id_simmetoxis, item.plironei);
         
             // Calculate payment info
             // Use the price as it is, even if the member participates in multiple activities
@@ -314,7 +307,6 @@ const fetchResponsiblePersons = async () => {
           participants.map(p => String(p.id_melous || p.id))
         );
 
-        console.log("Existing member IDs:", [...existingMemberIds]);
 
         const filteredMembers = membersResponse.data
           .filter(member => {
@@ -322,9 +314,7 @@ const fetchResponsiblePersons = async () => {
             const memberId = String(member.id_es_melous || member.id_ekso_melous || member.id);
             
             // Debug logging
-            if (existingMemberIds.has(memberId)) {
-              console.log(`Filtering out member ${memberId}: ${member.melos?.epafes?.onoma} ${member.melos?.epafes?.epitheto}`);
-            }
+          
             
             // Only include members that aren't already participants
             return !existingMemberIds.has(memberId);
@@ -379,32 +369,21 @@ const confirmRemoveResponsiblePerson = async (personId) => {
 // Update the handleRemoveResponsiblePerson function
 const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
   try {
-    // Check if we're already processing this ID or any ID
-    if (processingIds.has(id_ypefthynou) || deletingResponsibleId !== null) {
-      console.log("Already processing deletion, ignoring request");
-      return;
-    }
 
-    if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον υπεύθυνο;")) {
-      return;
-    }
     
     // Add this ID to the processing set AND set the deleting state
     setProcessingIds(prev => new Set(prev).add(id_ypefthynou));
     setDeletingResponsibleId(id_ypefthynou);
     
     // Log current responsible person count
-    console.log(`Before deletion: ${ypefthynoi.length} responsible persons`);
     
     try {
       // Try to delete from the API
       await api.delete(`/eksormiseis/${id}/ypefthynoi/${id_ypefthynou}`);
-      console.log(`Successfully deleted responsible person with ID ${id_ypefthynou} from API`);
     } catch (error) {
       // If the error is P2025 (record not found), we can consider it a success
       // as the record is already gone from the database
       if (error.response?.data?.details?.includes('P2025')) {
-        console.log("Record not found in database, considering delete successful");
       } else {
         // For other errors, throw to be caught by the outer catch
         throw error;
@@ -422,7 +401,6 @@ const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
     );
     
     // Log updated responsible person count 
-    console.log(`After deletion: Removed person with ID ${id_ypefthynou}`);
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση υπευθύνου:", error);
     alert("Σφάλμα: " + error.message);
@@ -437,30 +415,30 @@ const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
   }
 };
 // Ενημερωμένη έκδοση της handleAddResponsiblePersons που διατηρεί τους υπάρχοντες υπεύθυνους
+// Ενημερωμένη έκδοση της handleAddResponsiblePersons που διατηρεί τους υπάρχοντες υπεύθυνους
 const handleAddResponsiblePersons = async (selectedIds) => {
-  if (!selectedIds || selectedIds.length === 0) return;
-  
   try {
-    // Make API call to add each responsible person
-    await Promise.all(selectedIds.map(async (personId) => {
-      await api.post(`/eksormiseis/${id}/ypefthynos`, { id_es_melous: personId });
-      
-      // Find the person's details
-      const person = internalMembers.find(m => (m.id_es_melous || m.id) === personId);
-      
-      if (person) {
-        // Add to the local state (append, not replace)
-        setYpefthynoi(prev => [...prev, {
-          id_es_melous: personId,
-          id_ypefthynou: personId,
-          fullName: `${person.epitheto || person.melos?.epafes?.epitheto || ''} ${person.onoma || person.melos?.epafes?.onoma || ''}`.trim(),
-          email: person.email || person.melos?.epafes?.email || '-',
-          tilefono: person.tilefono || person.melos?.epafes?.tilefono || '-',
-        }]);
-      }
-    }));
+    // Δημιουργία λίστας με τα IDs των υπαρχόντων υπευθύνων
+    const existingIds = ypefthynoi.map(y => 
+      y.id_ypefthynou || y.id_es_melous || y.id
+    ).filter(Boolean);
     
-    // Close the dialog
+    // Συνδυασμός υπαρχόντων και νέων IDs (αποφυγή διπλοτύπων)
+    const allIds = [...new Set([...existingIds, ...selectedIds])];
+    
+    // Αποστολή όλων των IDs στο backend
+    const response = await api.post(`/eksormiseis/${id}/ypefthynoi`, {
+      id_ypefthynon: allIds
+    });
+    
+    if (response.data.responsiblePersons) {
+      // Update the state directly with the returned data
+      setYpefthynoi(response.data.responsiblePersons);
+    } else {
+      // Fallback to re-fetching if somehow the data isn't returned
+      fetchResponsiblePersons();
+    }
+    
     setResponsiblePersonDialog(false);
   } catch (error) {
     console.error("Error adding responsible persons:", error);
@@ -474,7 +452,6 @@ const fetchInternalMembers = async () => {
   try {
     // Fetch all internal members
     const response = await api.get("/melitousillogou/internal");
-    console.log("Internal member data:", response.data);
     
     if (Array.isArray(response.data)) {
       // Process each member to ensure names are correctly populated
@@ -1344,7 +1321,6 @@ const handleRemoveParticipant = async (participant) => {
   // Handle opening payment dialog
 // Στο handleOpenPaymentDialog, πρόσθεσε περισσότερα διαγνωστικά
 const handleOpenPaymentDialog = (participant) => {
-  console.log("handleOpenPaymentDialog called with participant:", participant);
   
   // Βεβαιώσου ότι έχεις πρόσβαση σε όλα τα δεδομένα
   let simmetoxiId = null;
@@ -1366,7 +1342,7 @@ const handleOpenPaymentDialog = (participant) => {
     simmetoxiId = participant.original.id_simmetoxis || participant.original.id;
   }
   
-  console.log("Εξαγόμενο simmetoxiId:", simmetoxiId);
+  
   
   if (!simmetoxiId) {
     console.error("ΠΡΟΣΟΧΗ: Δεν βρέθηκε έγκυρο ID συμμετοχής", participant);
@@ -1453,19 +1429,23 @@ const handleAddPayment = async (payment) => {
   }
 };
   
-  // Handle removing payment
-const handleRemovePayment = async (paymentId, simmetoxiId) => {
+  // First function to open the dialog and prepare for deletion
+const handleRemovePaymentClick = (paymentId, simmetoxiId) => {
   if (!paymentId || !simmetoxiId) {
     console.error("Μη έγκυρες παράμετροι για διαγραφή πληρωμής:", { paymentId, simmetoxiId });
     alert("Σφάλμα: Ελλιπή στοιχεία πληρωμής προς διαγραφή");
     return;
   }
-
-  console.log("Διαγραφή πληρωμής με paymentId:", paymentId, "και simmetoxiId:", simmetoxiId);
   
-  if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτή την πληρωμή;")) {
-    return;
-  }
+  setPaymentToDelete({ paymentId, simmetoxiId });
+  setOpenDeletePaymentDialog(true);
+};
+
+// Second function to actually perform the deletion after confirmation
+const confirmRemovePayment = async () => {
+  if (!paymentToDelete) return;
+  
+  const { paymentId, simmetoxiId } = paymentToDelete;
   
   try {
     await api.delete(`/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`);
@@ -1494,6 +1474,9 @@ const handleRemovePayment = async (paymentId, simmetoxiId) => {
         return p;
       })
     );
+    
+    setOpenDeletePaymentDialog(false);
+    setPaymentToDelete(null);
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση πληρωμής:", error);
     alert("Σφάλμα: " + error.message);
@@ -1742,20 +1725,20 @@ const participantDetailPanel = {
       ],
       onDelete: (payment, participant) => {
         if (!payment || !participant) return;
+        
         const paymentId = payment.id || payment.id_plironei;
         const participantId = participant.id_simmetoxis;
         
         if (!paymentId || !participantId) {
-          console.error("Missing ID for payment or participant");
+          console.error("Missing ID for payment or participant:", { payment, participant });
           return;
         }
         
-        handleRemovePayment(paymentId, participantId);
+        handleRemovePaymentClick(paymentId, participantId);
       },
       onAddNew: (rowOrId, meta) => {
         if (!rowOrId) return;
         
-        console.log("Payment onAddNew called with:", rowOrId, meta);
         
         let simmetoxiId;
         let participantObject;
@@ -2546,7 +2529,7 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                 titlos: dr.titlos || "Άγνωστη δραστηριότητα",
                 hmerominia: dr.hmerominia ? new Date(dr.hmerominia).toLocaleDateString('el-GR') : "-",
                 vathmos_diskolias: vathmosDisplay // εγγυημένο string
-              };
+            };
             })
           }}
         />
@@ -2625,37 +2608,66 @@ const updateParticipantActivityLists = (deletedActivityId) => {
   />
 )}
         {/* Responsible Person Selection Dialog */}
-  {/* Add this confirmation dialog for responsible person deletion */}
-
-<Dialog
-  open={openDeleteResponsibleDialog}
-  onClose={() => setOpenDeleteResponsibleDialog(false)}
->
-  <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
-  <DialogContent>
-    <DialogContentText>
-      Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον υπεύθυνο από την εξόρμηση;
-    </DialogContentText>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setOpenDeleteResponsibleDialog(false)} color="primary">
-      Ακύρωση
-    </Button>
-    <Button 
-      onClick={() => {
-        if (personToDelete) {
-          confirmRemoveResponsiblePerson(personToDelete);
-          setOpenDeleteResponsibleDialog(false);
-          setPersonToDelete(null);
-        }
-      }} 
-      color="error" 
-      autoFocus
-    >
-      Διαγραφή
-    </Button>
-  </DialogActions>
-</Dialog>
+<SelectionDialog
+  open={responsiblePersonDialog}
+  onClose={() => setResponsiblePersonDialog(false)}
+  title="Επιλογή Υπεύθυνων Εξόρμησης"
+  subtitle="Επιλέξτε εσωτερικά μέλη ως υπεύθυνους για την εξόρμηση"
+  data={internalMembers
+    .filter(member => {
+      const memberId = member.id_es_melous || member.id;
+      return !ypefthynoi.some(y => 
+        y.id_ypefthynou === memberId || 
+        y.id_es_melous === memberId || 
+        y.id === memberId
+      );
+    })
+    .map(member => {
+      // Extract name parts with fallbacks
+      const onoma = member.onoma || 
+                  member.firstName || 
+                  member.melos?.epafes?.onoma || 
+                  member.epafes?.onoma || '';
+                  
+      const epitheto = member.epitheto || 
+                      member.lastName || 
+                      member.melos?.epafes?.epitheto || 
+                      member.epafes?.epitheto || '';
+      
+      // Create fullName with proper order
+      const fullName = `${epitheto} ${onoma}`.trim() || member.fullName || "Άγνωστο όνομα";
+      
+      // Get email with fallbacks
+      const email = member.email || 
+                  member.melos?.epafes?.email || 
+                  member.epafes?.email || '-';
+      
+      // Get phone with fallbacks
+      const tilefono = member.tilefono || 
+                      member.melos?.epafes?.tilefono || 
+                      member.epafes?.tilefono || '-';
+      
+      return {
+        id: member.id_es_melous || member.id,
+        fullName,
+        email,
+        tilefono
+      };
+    })}
+  columns={[
+    { field: "fullName", header: "Ονοματεπώνυμο" },
+    { field: "email", header: "Email" },
+    { field: "tilefono", header: "Τηλέφωνο" }
+  ]}
+  selectedIds={[]}
+  onConfirm={handleAddResponsiblePersons}
+  pageSize={10}
+  enablePagination={true}
+  multiSelect={true}
+  enableSearch={true}
+  searchPlaceholder="Αναζήτηση μέλους..."
+  searchFields={["fullName", "email", "tilefono"]} // Add this line to enable search
+/>
         {paymentParticipant && (
           <AddDialog
             open={paymentDialog}
@@ -2669,6 +2681,53 @@ const updateParticipantActivityLists = (deletedActivityId) => {
             fields={paymentFormFields}
           />
         )}
+<Dialog
+  open={openDeleteResponsibleDialog}
+  onClose={() => setOpenDeleteResponsibleDialog(false)}
+>
+  <DialogTitle>Διαγραφή Υπεύθυνου</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον υπεύθυνο;
+    </DialogContentText>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpenDeleteResponsibleDialog(false)}>Άκυρο</Button>
+    <Button 
+      onClick={() => {
+        confirmRemoveResponsiblePerson(personToDelete);
+        setOpenDeleteResponsibleDialog(false);
+      }}
+      color="error" 
+      autoFocus
+    >
+      Διαγραφή
+    </Button>
+  </DialogActions>
+</Dialog>
+
+{/* Payment Deletion Confirmation Dialog */}
+<Dialog
+  open={openDeletePaymentDialog}
+  onClose={() => setOpenDeletePaymentDialog(false)}
+>
+  <DialogTitle>Διαγραφή Πληρωμής</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την πληρωμή;
+    </DialogContentText>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpenDeletePaymentDialog(false)}>Άκυρο</Button>
+    <Button 
+      onClick={confirmRemovePayment}
+      color="error" 
+      autoFocus
+    >
+      Διαγραφή
+    </Button>
+  </DialogActions>
+</Dialog>
 
         {/* Dialog προσθήκης συμμετέχοντα σε δραστηριότητα */}
         {selectedActivityForParticipant && (
@@ -2740,3 +2799,4 @@ const updateParticipantActivityLists = (deletedActivityId) => {
     </LocalizationProvider>
   );
 }
+
