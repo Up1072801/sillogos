@@ -6,5 +6,5 @@ services:
     ports:
       - "80:80"
     env:
-      - DATABASE_URL=postgresql://sillogosbase_0ss9_user:T0QddYyleriq2YeaU80dmZ1aHPEnqGrV@dpg-d0mba43uibrs73eidmjg-a.oregon-postgres.render.com/sillogosbase_0ss9
+      - DATABASE_URL=postgresql://sillogos_user:QUrDp0S5DOPlTJi4qZnxHFZKcV9NqOE4@dpg-d0vmn3emcj7s73fpbp5g-a.frankfurt-postgres.render.com/sillogos
       - NODE_ENV=production
