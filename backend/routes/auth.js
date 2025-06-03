@@ -298,4 +298,46 @@ router.delete('/users/:id', authenticateToken, isAdmin, async (req, res) => {
   }
 });
 
+// POST: Ανανέωση token
+router.post('/refresh-token', authenticateToken, async (req, res) => {
+  try {
+    // Λήψη του user ID από το request που προστέθηκε από το middleware authenticateToken
+    const userId = req.user.id;
+    
+    // Αναζήτηση χρήστη στη βάση δεδομένων
+    const user = await prisma.user.findUnique({  // Διορθώθηκε από prisma.xristes σε prisma.user
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        role: true
+      }
+    });
+    
+    if (!user) {
+      // Αν ο χρήστης δεν βρεθεί, αποσυνδέουμε το χρήστη
+      return res.status(401).json({ 
+        error: "Ο χρήστης δεν βρέθηκε", 
+        action: "logout" 
+      });
+    }
+    
+    // Δημιουργία νέου token με νέα ημερομηνία λήξης
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      SECRET_KEY,  // Χρησιμοποιούμε το ίδιο κλειδί όπως στο login
+      { expiresIn: '8h' } // 8 ώρες για συνέπεια με το login endpoint
+    );
+    
+    res.json({ token, user });
+  } catch (error) {
+    console.error("Σφάλμα κατά την ανανέωση του token:", error);
+    // Αν υπάρχει οποιοδήποτε σφάλμα, αποσυνδέουμε το χρήστη
+    return res.status(401).json({ 
+      error: "Σφάλμα κατά την ανανέωση του token", 
+      action: "logout" 
+    });
+  }
+});
+
 module.exports = { router, authenticateToken, isAdmin };

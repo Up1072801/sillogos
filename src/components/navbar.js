@@ -18,7 +18,9 @@ import {
   Button,
   IconButton,
   Menu,
-  MenuItem
+  MenuItem,
+  Chip,
+  Tooltip
 } from "@mui/material";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
@@ -33,7 +35,8 @@ import {
   Logout as LogoutIcon,
   Menu as MenuIcon,
   LockReset as LockResetIcon,
-  AccountCircle
+  AccountCircle,
+  Refresh as RefreshIcon
 } from "@mui/icons-material";
 import { useCallback } from "react";
 
@@ -95,12 +98,58 @@ const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })(
   })
 );
 
-export default function Navbar({ user, onLogout }) {
+// Token Expiry Countdown component
+const TokenExpiryCountdown = ({ refreshTrigger }) => {
+  const [timeRemaining, setTimeRemaining] = useState("");
+  
+  useEffect(() => {
+    const calculateTimeRemaining = () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return "Σύνδεση";
+        
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const expiry = payload.exp * 1000; // μετατροπή σε ms
+        const now = Date.now();
+        
+        if (expiry < now) {
+          return "Έληξε";
+        }
+        
+        // Υπολογισμός χρόνου που απομένει
+        const diff = expiry - now;
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        
+        // Μορφοποίηση με leading zeros αν χρειάζεται
+        return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      } catch (err) {
+        return "Σφάλμα";
+      }
+    };
+    
+    // Αρχικός υπολογισμός
+    setTimeRemaining(calculateTimeRemaining());
+    
+    // Ενημέρωση κάθε δευτερόλεπτο
+    const interval = setInterval(() => {
+      setTimeRemaining(calculateTimeRemaining());
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [refreshTrigger]); // Add refreshTrigger as dependency
+  
+  return timeRemaining;
+};
+
+export default function Navbar({ user, onLogout, tokenStatus, refreshing, refreshToken, getTokenStatusColor, getTokenStatusText }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const [membersOpen, setMembersOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
+  // Add a refresh trigger state that changes when token is refreshed
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Συνδυάζουμε media query με zoom level για καλύτερο έλεγχο
   const zoomLevel = useZoomLevel();
@@ -228,6 +277,25 @@ export default function Navbar({ user, onLogout }) {
     </>
   );
 
+  // Create a wrapper for the refreshToken function
+  const handleRefreshToken = async () => {
+    try {
+      // Δεν έχουμε πρόσβαση στο setRefreshing, θα πρέπει να το λάβουμε ως prop
+      // Καλούμε τη συνάρτηση ανανέωσης
+      await refreshToken();
+      
+      // Ενημέρωση του trigger για να ενημερωθεί το countdown
+      setRefreshTrigger(prev => prev + 1);
+      
+      // Εμφάνιση μηνύματος επιτυχίας
+    } catch (error) {
+      console.error("Σφάλμα κατά την ανανέωση:", error);
+    } finally {
+      // Δεν χρειάζεται να θέσουμε το refreshing σε false εδώ
+      // Αυτό θα γίνει στο Layout component
+    }
+  };
+  
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
@@ -268,6 +336,50 @@ export default function Navbar({ user, onLogout }) {
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
           
+          {/* Token status indicator */}
+          {user && tokenStatus && (
+            <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+              <Tooltip title={getTokenStatusText()}>
+                <Chip 
+                  size="small" 
+                  color={getTokenStatusColor()} 
+                  label={<TokenExpiryCountdown refreshTrigger={refreshTrigger} />}
+                  variant="outlined"
+                  sx={{ 
+                    mr: 1,
+                    color: 'white', // Κάνουμε το κείμενο άσπρο
+                    borderColor: 'white', // Κάνουμε το περίγραμμα άσπρο
+                    '& .MuiChip-label': {
+                      color: 'white' // Επιπλέον ορισμός για το κείμενο
+                    }
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title="Ανανέωση σύνδεσης">
+                <IconButton
+                  size="small"
+                  color="inherit"
+                  onClick={handleRefreshToken}
+                  sx={{ 
+                    opacity: refreshing ? 0.5 : 1,
+                    color: 'white !important',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                    }
+                  }}
+                >
+                  <RefreshIcon 
+                    fontSize="small" 
+                    sx={{ 
+                      color: 'white',
+                      animation: refreshing ? 'spin 1s linear infinite' : 'none' 
+                    }} 
+                  />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
+
           {/* User menu */}
           <IconButton
             color="inherit"
@@ -275,7 +387,6 @@ export default function Navbar({ user, onLogout }) {
             aria-controls="menu-appbar"
             aria-haspopup="true"
             onClick={handleUserMenuOpen}
-            sx={{ mr: 1 }}
           >
             <AccountCircle />
           </IconButton>

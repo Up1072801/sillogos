@@ -316,7 +316,6 @@ const fetchResponsiblePersons = async () => {
           ids.forEach(id => existingMemberIds.add(id));
         });
 
-        console.log("Existing member IDs:", [...existingMemberIds]);
 
         const filteredMembers = membersResponse.data
           .filter(member => {

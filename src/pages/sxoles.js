@@ -60,24 +60,20 @@ const safeParseId = (id) => {
 const extractId = (obj) => {
   // Διαχείριση κενών τιμών
   if (obj === null || obj === undefined) {
-    console.log("extractId called with null/undefined");
     return null;
   }
   
   // Αν είναι ήδη primitive (αριθμός/string) προσπαθούμε να το επιστρέψουμε άμεσα
   if (typeof obj !== 'object') {
-    console.log("extractId called with primitive value:", obj);
     return obj;
   }
   
   // Λεπτομερής καταγραφή για διάγνωση
-  console.log("Attempting to extract ID from:", obj);
   
   // Έλεγχος για απευθείας ID properties
   const idProps = ['id_sxolis', 'id', 'id_ekpaideuti', 'id_epafis'];
   for (const prop of idProps) {
     if (obj[prop] !== undefined) {
-      console.log(`Found ID in property '${prop}':`, obj[prop]);
       return obj[prop];
     }
   }
@@ -86,7 +82,6 @@ const extractId = (obj) => {
   if (obj.original) {
     for (const prop of idProps) {
       if (obj.original[prop] !== undefined) {
-        console.log(`Found ID in original.${prop}:`, obj.original[prop]);
         return obj.original[prop];
       }
     }
@@ -95,13 +90,11 @@ const extractId = (obj) => {
   if (obj.row) {
     for (const prop of idProps) {
       if (obj.row[prop] !== undefined) {
-        console.log(`Found ID in row.${prop}:`, obj.row[prop]);
         return obj.row[prop];
       }
     }
   }
   
-  console.log("No ID could be extracted from object");
   return null;
 };
 
@@ -205,13 +198,11 @@ const extractId = (obj) => {
           const teacherId = rowData.id || rowData.id_ekpaideuti || rowData.id_epafis;
           const schoolId = parentRow.id_sxolis || parentRow.id;
           
-          console.log(`Removing teacher ${teacherId} from school ${schoolId}`);
           
           // Κλήση της συνάρτησης με τα αντίστοιχα IDs
           handleRemoveTeacherFromSchool(teacherId, schoolId);
         },
         onAddNew: (parentRow) => {
-          console.log("onAddNew called for teachers with parentRow:", parentRow);
           
           // Ασφαλής εξαγωγή schoolId
           if (!parentRow) {
@@ -227,7 +218,6 @@ const extractId = (obj) => {
       {
         title: "Τοποθεσίες",
         getData: (row) => {
-          console.log("Τοποθεσίες row:", row); // Για διάγνωση
           
           // Έλεγχος για όλες τις πιθανές πηγές δεδομένων τοποθεσιών
           let topothesiaData = null;
@@ -298,7 +288,6 @@ const extractId = (obj) => {
           }
         ],
         onAddNew: (parentRow) => {
-          console.log("onAddNew called for locations with parentRow:", parentRow);
           
           // Ασφαλής εξαγωγή schoolId
           if (!parentRow) {
@@ -327,7 +316,6 @@ const extractId = (obj) => {
       {
         title: "Σχολές",
         getData: (row) => {
-          console.log("Λήψη σχολών για τον εκπαιδευτή:", row);
           // Διασφάλιση ότι επιστρέφουμε πάντα έναν πίνακα
           if (Array.isArray(row.sxoles)) {
             return row.sxoles.map(sxoli => ({
@@ -444,8 +432,7 @@ const fetchData = async () => {
       api.get("/Repafes/ekpaideutes-me-sxoles")
     ]);
     
-    console.log("Loaded sxoles data:", sxolesRes.data);
-    console.log("Loaded epafes data with schools:", ekpaideutesRes.data);
+
     
     // Process schools data
     if (Array.isArray(sxolesRes.data)) {
@@ -492,7 +479,6 @@ const fetchData = async () => {
     
     useEffect(() => {
       if (open) {
-        console.log("LocationEditorDialog received value:", value);
         
         // Αρχικοποίηση των τοποθεσιών όταν ανοίγει ο διάλογος
         if (Array.isArray(value) && value.length > 0) {
@@ -715,7 +701,6 @@ const fetchData = async () => {
     
     // Ενημέρωση των locations όταν αλλάζει το value από έξω
     useEffect(() => {
-      console.log("LocationEditor received value:", value);
       
       // Αν έχουμε τιμή και είναι πίνακας
       if (Array.isArray(value) && value.length > 0) {
@@ -938,7 +923,6 @@ const fetchData = async () => {
   // Βελτιωμένη έκδοση του handleAddTopothesia
 const handleAddTopothesia = async (parentRow) => {
   try {
-    console.log("AddTopothesia called with parentRow:", parentRow);
 
     // Ασφαλής εξαγωγή schoolId
     const schoolId = typeof parentRow === 'object' ? (parentRow.id_sxolis || parentRow.id) : parentRow;
@@ -949,7 +933,6 @@ const handleAddTopothesia = async (parentRow) => {
       return;
     }
 
-    console.log("Extracted school ID for adding location:", schoolId);
 
     // Φόρτωση υπάρχουσων τοποθεσιών για τη σχολή
     const response = await api.get(`/sxoles/${schoolId}`);
@@ -1001,7 +984,6 @@ const handleAddTopothesia = async (parentRow) => {
   // Replace the handleDeleteTopothesia function with local state update
 const handleDeleteTopothesia = async (rowData, parentRow) => {
   try {
-    console.log("Delete topothesia:", rowData, "parentRow:", parentRow);
     
     if (!parentRow) {
       console.error("Missing parentRow when deleting topothesia");
@@ -1014,7 +996,6 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
       (parentRow.id_sxolis || parentRow.id) : 
       parentRow;
     
-    console.log("School ID for topothesia deletion:", schoolId);
     
     if (!schoolId && schoolId !== 0) {
       console.error("Invalid school ID for topothesia deletion");
@@ -1063,13 +1044,11 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
       return;
     }
     
-    console.log("Τοποθεσίες πριν τη διαγραφή:", currentTopothesies);
-    console.log("Διαγραφή τοποθεσίας με ID/index:", rowData.id);
+ 
     
     // Αφαίρεση της τοποθεσίας με το συγκεκριμένο ID
     const updatedTopothesies = currentTopothesies.filter((_, index) => index !== rowData.id);
     
-    console.log("Τοποθεσίες μετά τη διαγραφή:", updatedTopothesies);
     
     // Δημιουργούμε το αντικείμενο ενημέρωσης διατηρώντας τις υπάρχουσες τιμές
     const updateData = {
@@ -1131,7 +1110,6 @@ const handleSaveLocations = async (locations) => {
       end: loc.end
     }));
     
-    console.log("Locations to be saved:", formattedLocations);
     
     // Create update object preserving existing values
     const updateData = {
@@ -1172,7 +1150,6 @@ const handleSaveLocations = async (locations) => {
   // Προετοιμασία για επεξεργασία σχολής
 const handleEditSxoliClick = async (row) => {
   try {
-    console.log("Edit sxoli clicked with full row data:", row);
 
     if (!row) {
       console.error("Missing row data for edit operation");
@@ -1189,7 +1166,6 @@ const handleEditSxoliClick = async (row) => {
       return;
     }
 
-    console.log("Extracted school ID:", schoolId);
 
     // Κλήση API για φόρτωση δεδομένων σχολής
     const response = await api.get(`/sxoles/${schoolId}`);
@@ -1198,7 +1174,6 @@ const handleEditSxoliClick = async (row) => {
     }
 
     const school = response.data;
-    console.log("School details from API:", school);
 
     // Δημιουργία δεδομένων για το EditDialog
     const sxoliData = {
@@ -1212,7 +1187,6 @@ const handleEditSxoliClick = async (row) => {
       topothesies: school.topothesies || []
     };
 
-    console.log("Prepared edit data:", sxoliData);
 
     setEditSxoliData(sxoliData);
     setCurrentSxoliId(schoolId);
@@ -1226,7 +1200,6 @@ const handleEditSxoliClick = async (row) => {
 // Προσθήκη εκπαιδευτή σε σχολή - γραμμή ~1125
 const handleAddTeacherToSchool = async (parentRow) => {
   try {
-    console.log("AddTeacherToSchool called with parentRow:", parentRow);
 
     // Ασφαλής εξαγωγή schoolId
     const schoolId = typeof parentRow === 'object' ? (parentRow.id_sxolis || parentRow.id) : parentRow;
@@ -1237,7 +1210,6 @@ const handleAddTeacherToSchool = async (parentRow) => {
       return;
     }
 
-    console.log("Extracted school ID for adding teacher:", schoolId);
 
     // Κλήση API για φόρτωση δεδομένων σχολής για εύρεση υπαρχόντων εκπαιδευτών
     try {
@@ -1279,7 +1251,7 @@ const handleAddSelectedTeachers = async () => {
   try {
     if (!currentSchoolForTeachers || selectedTeachers.length === 0) return;
 
-    console.log("Adding teachers to school:", currentSchoolForTeachers, "Teachers:", selectedTeachers);
+  
 
     // Get the school we're updating
     const schoolToUpdate = sxolesData.find(s => 
@@ -1297,11 +1269,11 @@ const handleAddSelectedTeachers = async () => {
     // Add each selected teacher
     for (const teacherId of selectedTeachers) {
       if (!teacherId && teacherId !== 0) {
-        console.log("Skipping invalid teacher ID:", teacherId);
+       
         continue;
       }
       
-      console.log("Adding teacher with ID:", teacherId);
+    
 
       // Find teacher object with better error handling
       const ekpaideutis = ekpaideutesData.find(e => 
@@ -1469,7 +1441,7 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
   // Προσθήκη νέας σχολής
   const handleAddSxoli = async (newSxoli) => {
     try {
-      console.log("Adding new sxoli:", newSxoli);
+   
       
       // Δημιουργία αντικειμένου για αποστολή στο API
       const formattedSxoli = {
@@ -1496,7 +1468,7 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
       // Αποστολή στο API με χειρισμό σφαλμάτων
       try {
         const response = await api.post("/sxoles", formattedSxoli);
-        console.log("Created new sxoli:", response.data);
+       
         
         // Τοπική ενημέρωση - προσθήκη της νέας σχολής στο state με όλα τα απαραίτητα δεδομένα
         const newSchoolWithId = {
@@ -1531,7 +1503,6 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
   // Επεξεργασία υπάρχουσας σχολής
   const handleEditSxoli = async (editedSxoli) => {
     try {
-      console.log("Editing sxoli:", editedSxoli, "with ID:", currentSxoliId);
       
       if (!currentSxoliId) {
         throw new Error("Δεν υπάρχει ID σχολής για επεξεργασία");
@@ -1559,7 +1530,6 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
 
       // Αποστολή στο API
       await api.put(`/sxoles/${currentSxoliId}`, formattedSxoli);
-      console.log("Updated sxoli with ID:", currentSxoliId);
       
       // Τοπικές ενημερώσεις καταστάσεων
       // 1. Ενημέρωση της σχολής στο sxolesData
@@ -1617,7 +1587,6 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
   // Διαγραφή σχολής
   const handleDeleteSxoli = async (id) => {
     try {
-      console.log("Deleting sxoli with ID:", id);
       
       if (!id) {
         alert("Δεν υπάρχει ID σχολής για διαγραφή");
@@ -1677,7 +1646,6 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
   // Διόρθωση στο handleEditEkpaideutiClick - Γραμμή ~1330
 const handleEditEkpaideutiClick = async (row) => {
   try {
-    console.log("Edit ekpaideutis clicked for row:", row);
     
     if (!row) {
       throw new Error("Δεν βρέθηκαν δεδομένα για τον εκπαιδευτή");
@@ -1697,7 +1665,6 @@ const handleEditEkpaideutiClick = async (row) => {
       klados: row.klados || ""
     };
     
-    console.log("Prepared ekpaideutis data for editing:", ekpaideutisData);
     
     // Βεβαιωνόμαστε ότι έχουμε έγκυρα δεδομένα πριν ανοίξουμε το dialog
     if (!ekpaideutisData.onoma && !ekpaideutisData.epitheto) {
@@ -1717,7 +1684,6 @@ const handleEditEkpaideutiClick = async (row) => {
   // Προσθήκη νέου εκπαιδευτή
   const handleAddEkpaideutis = async (newEkpaideutis) => {
     try {
-      console.log("Adding new ekpaideutis:", newEkpaideutis);
       
       // Δημιουργία αντικειμένου για αποστολή στο API
       const formattedEkpaideutis = {
@@ -1739,7 +1705,6 @@ const handleEditEkpaideutiClick = async (row) => {
       
       // Get the created teacher data with ID
       const newTeacherData = response.data;
-      console.log("Created new ekpaideutis:", newTeacherData);
       
       // Create complete teacher object for local state
       const newTeacher = {
@@ -1767,7 +1732,6 @@ const handleEditEkpaideutiClick = async (row) => {
   // Επεξεργασία υπάρχοντος εκπαιδευτή
   const handleEditEkpaideutis = async (editedEkpaideutis) => {
     try {
-      console.log("Editing ekpaideutis:", editedEkpaideutis, "with ID:", currentEkpaideutisId);
       
       if (!currentEkpaideutisId) {
         throw new Error("Δεν υπάρχει ID εκπαιδευτή για επεξεργασία");
@@ -1849,7 +1813,6 @@ const handleEditEkpaideutiClick = async (row) => {
   // Διαγραφή εκπαιδευτή - εντελώς νέα έκδοση
 const handleDeleteEkpaideutis = async (rowOrId) => {
   try {
-    console.log("Delete triggered with arg:", rowOrId);
     
     // ΒΗΜΑ 1: Βρίσκουμε το ID με οποιονδήποτε τρόπο μπορούμε
     let ekpaideutisId = null;
@@ -1857,24 +1820,20 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
     // A. Αν είναι αριθμός ή string, το χρησιμοποιούμε άμεσα
     if (typeof rowOrId === 'number' || (typeof rowOrId === 'string' && rowOrId.trim() !== '')) {
       ekpaideutisId = rowOrId;
-      console.log("Using direct ID value:", ekpaideutisId);
     } 
     // B. Αν είναι αντικείμενο, ψάχνουμε για ID μέσα σε αυτό
     else if (rowOrId && typeof rowOrId === 'object') {
       ekpaideutisId = rowOrId.id_ekpaideuti || rowOrId.id_epafis || rowOrId.id ||
         (rowOrId.original && (rowOrId.original.id_ekpaideuti || rowOrId.original.id_epafis || rowOrId.original.id));
-      console.log("Extracted ID from object:", ekpaideutisId);
     }
     // Γ. Αν είναι undefined/null, προσπαθούμε να πάρουμε το ID από το DOM
     else {
-      console.log("No valid argument, trying to find selected row in DOM");
       // 1. Έλεγχος για επιλεγμένη σειρά με κλάση Mui-selected
       const selectedRow = document.querySelector('.MuiDataGrid-row.Mui-selected');
       if (selectedRow) {
         const rowId = selectedRow.getAttribute('data-id');
         if (rowId) {
           ekpaideutisId = rowId;
-          console.log("Found ID from selected row:", ekpaideutisId);
         }
       }
       
@@ -1887,7 +1846,6 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
             const rowId = row.getAttribute('data-id');
             if (rowId) {
               ekpaideutisId = rowId;
-              console.log("Found ID from delete button's row:", ekpaideutisId);
             }
           }
         }
@@ -1896,13 +1854,11 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
       // 3. Έλεγχος για το currentEkpaideutisId από το state
       if (!ekpaideutisId && currentEkpaideutisId) {
         ekpaideutisId = currentEkpaideutisId;
-        console.log("Using currentEkpaideutisId:", ekpaideutisId);
       }
     }
 
     // Αν ακόμα δεν έχουμε ID, αναζήτηση στον πίνακα εκπαιδευτών
     if (!ekpaideutisId) {
-      console.log("All methods failed. Asking user to select an instructor from the list");
       
       // Δημιουργία popup επιλογής
       if (ekpaideutesData.length > 0) {
@@ -1918,7 +1874,6 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
           const parsedId = parseInt(userInput.split(':')[0].trim());
           if (!isNaN(parsedId)) {
             ekpaideutisId = parsedId;
-            console.log("User selected instructor ID:", ekpaideutisId);
           }
         }
       }
@@ -1939,7 +1894,6 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
       return;
     }
     
-    console.log("Final instructor ID for deletion:", numericId);
 
     // ΒΗΜΑ 3: Εύρεση εκπαιδευτή στα τοπικά δεδομένα
     const instructor = ekpaideutesData.find(e => 
@@ -1960,12 +1914,10 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
       )
     );
     
-    console.log(`Will remove instructor from ${schools.length} schools`);
     
     for (const school of schools) {
       try {
         const schoolId = school.id_sxolis || school.id;
-        console.log(`Removing instructor ${numericId} from school ${schoolId}`);
         await api.delete(`/sxoles/${schoolId}/ekpaideutis/${numericId}`);
       } catch (err) {
         console.error(`Failed to remove instructor from school:`, err);
@@ -1973,7 +1925,6 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
     }
 
     // ΒΗΜΑ 6: Διαγραφή του εκπαιδευτή
-    console.log(`Deleting instructor with ID ${numericId}`);
     await api.delete(`/Repafes/${numericId}`);
 
     // ΒΗΜΑ 7: Ενημέρωση τοπικών δεδομένων
@@ -2093,7 +2044,6 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
     const handleRowSelection = (rowData) => {
       if (rowData && (rowData.id_sxolis || rowData.id)) {
         const schoolId = rowData.id_sxolis || rowData.id;
-        console.log('Αποθήκευση επιλεγμένης σχολής:', schoolId);
         setCurrentSchoolForTeachers(schoolId);
       }
     };
@@ -2265,9 +2215,7 @@ const formatDateForInput = (dateString) => {
   handleDelete={handleDeleteEkpaideutis}
   deleteConfig={{
     getPayload: (row) => {
-      console.log("Delete config called with:", row);
       const id = row?.id_ekpaideuti || row?.id_epafis || row?.id;
-      console.log("Extracted ID:", id);
       return id;
     }
   }}

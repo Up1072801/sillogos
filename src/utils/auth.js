@@ -30,7 +30,6 @@ export const isAdmin = () => {
     if (!userStr) return false;
     
     const user = JSON.parse(userStr);
-    console.log("Checking admin rights for user:", user);
     
     return user && user.role === 'admin';
   } catch (e) {

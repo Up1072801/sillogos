@@ -40,8 +40,7 @@ export default function Login({ setUser }) {
       const token = response.data.token;
       const userData = response.data.user;
       
-      console.log("Login successful. Token received:", token);
-      console.log("User data:", userData);
+  
       
       // 2. Αποθήκευση στο localStorage
       localStorage.setItem('token', token);
