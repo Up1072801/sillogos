@@ -26,7 +26,7 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/auth/users');
+      const response = await api.get('/auth/users');
       setUsers(response.data);
       setError('');
     } catch (err) {
@@ -108,7 +108,7 @@ export default function UserManagement() {
     try {
       if (dialogMode === 'new') {
         // Δημιουργία νέου χρήστη
-        await api.post('/api/auth/users', {
+        await api.post('/auth/users', {
           username: newUser.username,
           password: newUser.password,
           role: newUser.role
@@ -116,7 +116,7 @@ export default function UserManagement() {
         
       } else if (dialogMode === 'reset') {
         // Επαναφορά κωδικού
-        await api.put(`/api/auth/users/${selectedUser.id}/reset-password`, {
+        await api.put(`/auth/users/${selectedUser.id}/reset-password`, {
           newPassword: newUser.password
         });
       }
@@ -137,7 +137,7 @@ export default function UserManagement() {
     }
     
     try {
-      await api.delete(`/api/auth/users/${userId}`);
+      await api.delete(`/auth/users/${userId}`);
       await fetchUsers();
     } catch (err) {
       console.error('Σφάλμα κατά τη διαγραφή:', err);

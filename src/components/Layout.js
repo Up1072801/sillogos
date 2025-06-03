@@ -80,7 +80,7 @@ const Layout = ({ children, user, onLogout }) => {
     try {
       setRefreshing(true);
       // Διόρθωση του endpoint path - προσθήκη του /api prefix
-      const response = await api.post('/api/auth/refresh-token');
+      const response = await api.post('/auth/refresh-token');
       
       if (response.data && response.data.token) {
         // Αποθήκευση νέου token
