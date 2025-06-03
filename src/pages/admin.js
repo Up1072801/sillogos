@@ -60,20 +60,16 @@ export default function AdminPage() {
   const fetchSports = async () => {
     try {
       setLoading(prev => ({ ...prev, sports: true }));
-      console.log("Attempting to fetch sports...");
       
       // Try without the /admin/ prefix
       const response = await api.get("/athlites/sports-list");
-      console.log("Sports response:", response.data);
       setSports(response.data);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση αθλημάτων:", error);
       
       // Try alternative path if first attempt fails
       try {
-        console.log("Trying alternative path for sports...");
         const response = await api.get("/sports-list");
-        console.log("Alternative sports response:", response.data);
         setSports(response.data);
       } catch (altError) {
         console.error("Alternative path also failed:", altError);
@@ -92,11 +88,9 @@ export default function AdminPage() {
   const fetchDifficultyLevels = async () => {
     try {
       setLoading(prev => ({ ...prev, difficulty: true }));
-      console.log("Attempting to fetch difficulty levels...");
       
       // Try without the /admin/ prefix
       const response = await api.get("/vathmoi-diskolias");
-      console.log("Difficulty levels response:", response.data);
       setDifficultyLevels(response.data);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση βαθμών δυσκολίας:", error);
@@ -114,11 +108,9 @@ export default function AdminPage() {
   const fetchSubscriptionTypes = async () => {
     try {
       setLoading(prev => ({ ...prev, subscription: true }));
-      console.log("Attempting to fetch subscription types...");
       
       // Try without the /admin/ prefix
       const response = await api.get("/eidi-sindromis");
-      console.log("Subscription types response:", response.data);
       setSubscriptionTypes(response.data);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση ειδών συνδρομής:", error);
@@ -136,11 +128,9 @@ export default function AdminPage() {
   const fetchRefugePrices = async () => {
     try {
       setLoading(prev => ({ ...prev, refuge: true }));
-      console.log("Attempting to fetch refuge prices...");
       
       // Try without the /admin/ prefix
       const response = await api.get("/katafigio/katafygia");
-      console.log("Refuge prices response:", response.data);
       setRefugePrices(response.data);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση τιμών καταφυγίου:", error);
@@ -177,7 +167,7 @@ export default function AdminPage() {
 
   const handleUpdateSport = async () => {
     try {
-      await api.put(`/admin/athlites/sport/${sportDialog.data.id_athlimatos}`, 
+      await api.put(`/athlites/sport/${sportDialog.data.id_athlimatos}`, 
         { onoma: sportDialog.data.onoma }
       );
       await fetchSports();
@@ -210,7 +200,7 @@ export default function AdminPage() {
         return;
       }
       
-      await api.post("/admin/vathmoi-diskolias", { 
+      await api.post("/vathmoi-diskolias", { 
         epipedo: epipedoValue
       });
       await fetchDifficultyLevels();
@@ -242,7 +232,7 @@ export default function AdminPage() {
         return;
       }
 
-      await api.put(`/admin/vathmoi-diskolias/${difficultyDialog.data.id_vathmou_diskolias}`, { 
+      await api.put(`/vathmoi-diskolias/${difficultyDialog.data.id_vathmou_diskolias}`, { 
         epipedo: epipedoValue 
       });
       await fetchDifficultyLevels();
@@ -268,7 +258,7 @@ export default function AdminPage() {
     }
 
     try {
-      await api.delete(`/admin/vathmoi-diskolias/${id}`);
+      await api.delete(`/vathmoi-diskolias/${id}`);
       setDifficultyLevels(difficultyLevels.filter(level => level.id_vathmou_diskolias !== id));
       setNotification({
         open: true,
@@ -297,7 +287,7 @@ export default function AdminPage() {
         return;
       }
 
-      const res = await api.post('/admin/eidi-sindromis', { 
+      const res = await api.post('/eidi-sindromis', { 
         typos: subscriptionDialog.data.titlos,
         kostos: subscriptionDialog.data.kostos || 0
       });
@@ -330,7 +320,7 @@ export default function AdminPage() {
         return;
       }
 
-      const res = await api.put(`/admin/eidi-sindromis/${subscriptionDialog.data.id_eidous}`, { 
+      const res = await api.put(`/eidi-sindromis/${subscriptionDialog.data.id_eidous}`, { 
         typos: subscriptionDialog.data.titlos,
         kostos: subscriptionDialog.data.kostos || 0
       });
@@ -363,7 +353,7 @@ export default function AdminPage() {
     }
 
     try {
-      await api.delete(`/admin/eidi-sindromis/${id}`);
+      await api.delete(`/eidi-sindromis/${id}`);
       setSubscriptionTypes(subscriptionTypes.filter(type => 
         type.id_eidous_sindromis !== id && type.id_eidous !== id));
       setNotification({
@@ -393,7 +383,7 @@ export default function AdminPage() {
         return;
       }
 
-      const res = await api.post('/admin/katafigio/katafygia', { 
+      const res = await api.post('/katafigio/katafygia', { 
         onoma: refugeDialog.data.onoma,
         xoritikotita: refugeDialog.data.xoritikotita || 0,
         timi_melous: refugeDialog.data.timi_melous || 0,
@@ -430,7 +420,7 @@ export default function AdminPage() {
         return;
       }
 
-      const res = await api.put(`/admin/katafigio/katafygia/${refugeDialog.data.id_katafigiou}`, { 
+      const res = await api.put(`/katafigio/katafygia/${refugeDialog.data.id_katafigiou}`, { 
         onoma: refugeDialog.data.onoma,
         xoritikotita: refugeDialog.data.xoritikotita || 0,
         timi_melous: refugeDialog.data.timi_melous || 0,
@@ -465,7 +455,7 @@ export default function AdminPage() {
     }
 
     try {
-      await api.delete(`/admin/katafigio/katafygia/${id}`);
+      await api.delete(`/katafigio/katafygia/${id}`);
       setRefugePrices(refugePrices.filter(refuge => refuge.id_katafigiou !== id));
       setNotification({
         open: true,

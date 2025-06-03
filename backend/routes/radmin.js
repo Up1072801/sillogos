@@ -1,4 +1,3 @@
-
 const express = require("express");
 const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
@@ -537,7 +536,7 @@ router.post("/katafigio/katafygia", async (req, res) => {
 router.put("/katafigio/katafygia/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { onoma, xoritikotita, timi_melous, timi_mi_melous } = req.body;
+    const { onoma, xoritikotita, timi_melous, timi_mi_melous, timi_eksoxwrou_melos, timi_eksoxwroy_mimelos } = req.body;
 
     if (isNaN(id)) {
       return res.status(400).json({ error: "Μη έγκυρο ID" });
@@ -565,7 +564,7 @@ router.put("/katafigio/katafygia/:id", async (req, res) => {
     });
 
     if (duplicateRefuge) {
-      return res.status(400).json({ error: "Υπάρχει ήδη άλλο καταφύγιο με αυτό το όνομα" });
+      return res.status(400).json({ error: "Υπάρχει ήδη άλλο καταφύριο με αυτό το όνομα" });
     }
 
     // Ενημέρωση του καταφυγίου
@@ -575,7 +574,9 @@ router.put("/katafigio/katafygia/:id", async (req, res) => {
         onoma,
         xoritikotita: parseInt(xoritikotita) || 0,
         timi_melous: parseInt(timi_melous) || 0,
-        timi_mi_melous: parseInt(timi_mi_melous) || 0
+        timi_mi_melous: parseInt(timi_mi_melous) || 0,
+        timi_eksoxwrou_melos: parseInt(timi_eksoxwrou_melos) || 0,
+        timi_eksoxwroy_mimelos: parseInt(timi_eksoxwroy_mimelos) || 0
       }
     });
 
@@ -584,7 +585,9 @@ router.put("/katafigio/katafygia/:id", async (req, res) => {
       onoma: updatedRefuge.onoma,
       xoritikotita: updatedRefuge.xoritikotita,
       timi_melous: updatedRefuge.timi_melous,
-      timi_mi_melous: updatedRefuge.timi_mi_melous
+      timi_mi_melous: updatedRefuge.timi_mi_melous,
+      timi_eksoxwrou_melos: updatedRefuge.timi_eksoxwrou_melos,
+      timi_eksoxwroy_mimelos: updatedRefuge.timi_eksoxwroy_mimelos
     });
   } catch (error) {
     console.error("Σφάλμα κατά την ενημέρωση καταφυγίου:", error);
