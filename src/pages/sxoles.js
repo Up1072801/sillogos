@@ -4,6 +4,7 @@ import { Box, Typography, Paper, TextField, IconButton, Button, Grid, TableConta
 import { Link } from "react-router-dom";
 import DataTable from "../components/DataTable/DataTable";
 import AddDialog from "../components/DataTable/AddDialog";
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import EditDialog from "../components/DataTable/EditDialog";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -500,8 +501,8 @@ const fetchData = async () => {
             ...loc,
             id: loc.id !== undefined ? loc.id : idx,
             topothesia: loc.topothesia || "",
-            start: formatDateForInput(loc.start || loc.hmerominia_enarksis || ""),
-            end: formatDateForInput(loc.end || loc.hmerominia_liksis || "")
+            start: loc.start || loc.hmerominia_enarksis || "",
+            end: loc.end || loc.hmerominia_liksis || ""
           })));
         } else {
           setLocations([]);
@@ -572,25 +573,43 @@ const fetchData = async () => {
                           />
                         </TableCell>
                         <TableCell>
-                          <TextField
-                            type="date"
-                            size="small"
-                            value={loc.start}
-                            inputProps={{ 
-                              max: loc.end || "9999-12-31"
+                          <DatePicker
+                            label=""
+                            value={loc.start ? new Date(loc.start) : null}
+                            onChange={(newDate) => {
+                              if (newDate) {
+                                // Αποθήκευση σε μορφή ISO για συμβατότητα με το backend
+                                const isoDate = newDate.toISOString().split('T')[0];
+                                handleUpdateLocation(loc.id, "start", isoDate);
+                              }
                             }}
-                            onChange={(e) => handleUpdateLocation(loc.id, "start", e.target.value)}
+                            format="dd/MM/yyyy"
+                            slotProps={{ 
+                              textField: { 
+                                size: "small",
+                                fullWidth: true
+                              }
+                            }}
                           />
                         </TableCell>
                         <TableCell>
-                          <TextField
-                            type="date"
-                            size="small"
-                            value={loc.end}
-                            inputProps={{ 
-                              min: loc.start || "0000-01-01"
+                          <DatePicker
+                            label=""
+                            value={loc.end ? new Date(loc.end) : null}
+                            onChange={(newDate) => {
+                              if (newDate) {
+                                const isoDate = newDate.toISOString().split('T')[0];
+                                handleUpdateLocation(loc.id, "end", isoDate);
+                              }
                             }}
-                            onChange={(e) => handleUpdateLocation(loc.id, "end", e.target.value)}
+                            format="dd/MM/yyyy"
+                            slotProps={{ 
+                              textField: { 
+                                size: "small",
+                                fullWidth: true
+                              }
+                            }}
+                            minDate={loc.start ? new Date(loc.start) : undefined}
                           />
                         </TableCell>
                         <TableCell>
@@ -622,25 +641,42 @@ const fetchData = async () => {
                   />
                 </Grid>
                 <Grid item xs={12} sm={3}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    size="small"
+                  <DatePicker
                     label="Ημ/νία Έναρξης"
-                    InputLabelProps={{ shrink: true }}
-                    value={newLocation.start}
-                    onChange={(e) => setNewLocation({...newLocation, start: e.target.value})}
+                    value={newLocation.start ? new Date(newLocation.start) : null}
+                    onChange={(newDate) => {
+                      if (newDate) {
+                        const isoDate = newDate.toISOString().split('T')[0];
+                        setNewLocation({...newLocation, start: isoDate});
+                      }
+                    }}
+                    format="dd/MM/yyyy"
+                    slotProps={{ 
+                      textField: { 
+                        size: "small",
+                        fullWidth: true 
+                      } 
+                    }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={3}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    size="small"
+                  <DatePicker
                     label="Ημ/νία Λήξης"
-                    InputLabelProps={{ shrink: true }}
-                    value={newLocation.end}
-                    onChange={(e) => setNewLocation({...newLocation, end: e.target.value})}
+                    value={newLocation.end ? new Date(newLocation.end) : null}
+                    onChange={(newDate) => {
+                      if (newDate) {
+                        const isoDate = newDate.toISOString().split('T')[0];
+                        setNewLocation({...newLocation, end: isoDate});
+                      }
+                    }}
+                    format="dd/MM/yyyy"
+                    slotProps={{ 
+                      textField: { 
+                        size: "small",
+                        fullWidth: true
+                      }
+                    }}
+                    minDate={newLocation.start ? new Date(newLocation.start) : undefined}
                   />
                 </Grid>
                 <Grid item xs={12} sm={2}>
@@ -668,205 +704,237 @@ const fetchData = async () => {
   };
 
   // ΤΟΠΟΘΕΣΙΕΣ - Διαχείριση τοποθεσιών (component)
-// Βελτίωση του component LocationEditor
-const LocationEditor = ({ value, onChange }) => {
-  const [locations, setLocations] = useState([]);
-  const [newLocation, setNewLocation] = useState({ 
-    topothesia: "", 
-    start: "", 
-    end: "" 
-  });
-  
-  // Ενημέρωση των locations όταν αλλάζει το value από έξω
-  useEffect(() => {
-    console.log("LocationEditor received value:", value);
-    
-    // Αν έχουμε τιμή και είναι πίνακας
-    if (Array.isArray(value) && value.length > 0) {
-      // Διασφαλίζουμε ότι κάθε τοποθεσία έχει μοναδικό id και σωστά ονόματα πεδίων
-      setLocations(value.map((loc, idx) => ({
-        ...loc,
-        id: loc.id !== undefined ? loc.id : idx,
-        topothesia: loc.topothesia || "",
-        start: formatDateForInput(loc.start || loc.hmerominia_enarksis || ""), 
-        end: formatDateForInput(loc.end || loc.hmerominia_liksis || "")
-      })));
-    } else {
-      // Αν δεν έχουμε αρχική τιμή, ξεκινάμε με άδειο πίνακα
-      setLocations([]);
-    }
-  }, [value]);
-  
-  // Προσθήκη νέας τοποθεσίας με validation
-  const handleAddLocation = () => {
-    if (!newLocation.topothesia) {
-      alert("Παρακαλώ συμπληρώστε την τοποθεσία");
-      return;
-    }
-    
-    if (!newLocation.start) {
-      alert("Παρακαλώ επιλέξτε ημερομηνία έναρξης");
-      return;
-    }
-    
-    if (!newLocation.end) {
-      alert("Παρακαλώ επιλέξτε ημερομηνία λήξης");
-      return;
-    }
-    
-    if (new Date(newLocation.end) < new Date(newLocation.start)) {
-      alert("Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης");
-      return;
-    }
-    
-    const updatedLocations = [...locations, { ...newLocation, id: Date.now() }];
-    setLocations(updatedLocations);
-    setNewLocation({ 
+  // Βελτίωση του component LocationEditor
+  const LocationEditor = ({ value, onChange }) => {
+    const [locations, setLocations] = useState([]);
+    const [newLocation, setNewLocation] = useState({ 
       topothesia: "", 
       start: "", 
       end: "" 
     });
-    onChange(updatedLocations);
-  };
-  
-  // Ενημέρωση υπάρχουσας τοποθεσίας
-  const handleUpdateLocation = (id, field, value) => {
-    const updatedLocations = locations.map(loc => 
-      loc.id === id ? { ...loc, [field]: value } : loc
-    );
-    setLocations(updatedLocations);
-    onChange(updatedLocations);
-  };
-  
-  // Διαγραφή τοποθεσίας
-  const handleDeleteLocation = (id) => {
-    const updatedLocations = locations.filter(loc => loc.id !== id);
-    setLocations(updatedLocations);
-    onChange(updatedLocations);
-  };
-  
-  return (
-    <Box sx={{ border: '1px solid #e0e0e0', p: 2, borderRadius: 1 }}>
-      <Typography variant="subtitle1" sx={{ mb: 2 }}>Διαχείριση Τοποθεσιών</Typography>
+    
+    // Ενημέρωση των locations όταν αλλάζει το value από έξω
+    useEffect(() => {
+      console.log("LocationEditor received value:", value);
       
-      {/* Λίστα τοποθεσιών */}
-      {locations.length > 0 ? (
-        <TableContainer component={Paper} sx={{ mb: 2 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Τοποθεσία</TableCell>
-                <TableCell>Ημ/νία Έναρξης</TableCell>
-                <TableCell>Ημ/νία Λήξης</TableCell>
-                <TableCell>Ενέργειες</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {locations.map((loc) => (
-                // Fix: Always ensure each loc has a unique id
-                <TableRow key={loc.id !== undefined ? loc.id : `loc-${Date.now()}-${Math.random()}`}>
-                  <TableCell>
-                    <TextField
-                      size="small"
-                      value={loc.topothesia}
-                      onChange={(e) => handleUpdateLocation(loc.id, "topothesia", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      type="date"
-                      size="small"
-                      value={loc.start}
-                      inputProps={{ 
-                        max: loc.end || "9999-12-31"
-                      }}
-                      onChange={(e) => handleUpdateLocation(loc.id, "start", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      type="date"
-                      size="small"
-                      value={loc.end}
-                      inputProps={{ 
-                        min: loc.start || "0000-01-01"
-                      }}
-                      onChange={(e) => handleUpdateLocation(loc.id, "end", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <IconButton size="small" onClick={() => handleDeleteLocation(loc.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
+      // Αν έχουμε τιμή και είναι πίνακας
+      if (Array.isArray(value) && value.length > 0) {
+        // Διασφαλίζουμε ότι κάθε τοποθεσία έχει μοναδικό id και σωστά ονόματα πεδίων
+        setLocations(value.map((loc, idx) => ({
+          ...loc,
+          id: loc.id !== undefined ? loc.id : idx,
+          topothesia: loc.topothesia || "",
+          start: loc.start || loc.hmerominia_enarksis || "", 
+          end: loc.end || loc.hmerominia_liksis || ""
+        })));
+      } else {
+        // Αν δεν έχουμε αρχική τιμή, ξεκινάμε με άδειο πίνακα
+        setLocations([]);
+      }
+    }, [value]);
+    
+    // Προσθήκη νέας τοποθεσίας με validation
+    const handleAddLocation = () => {
+      if (!newLocation.topothesia) {
+        alert("Παρακαλώ συμπληρώστε την τοποθεσία");
+        return;
+      }
+      
+      if (!newLocation.start) {
+        alert("Παρακαλώ επιλέξτε ημερομηνία έναρξης");
+        return;
+      }
+      
+      if (!newLocation.end) {
+        alert("Παρακαλώ επιλέξτε ημερομηνία λήξης");
+        return;
+      }
+      
+      if (new Date(newLocation.end) < new Date(newLocation.start)) {
+        alert("Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης");
+        return;
+      }
+      
+      const updatedLocations = [...locations, { ...newLocation, id: Date.now() }];
+      setLocations(updatedLocations);
+      setNewLocation({ 
+        topothesia: "", 
+        start: "", 
+        end: "" 
+      });
+      onChange(updatedLocations);
+    };
+    
+    // Ενημέρωση υπάρχουσας τοποθεσίας
+    const handleUpdateLocation = (id, field, value) => {
+      const updatedLocations = locations.map(loc => 
+        loc.id === id ? { ...loc, [field]: value } : loc
+      );
+      setLocations(updatedLocations);
+      onChange(updatedLocations);
+    };
+    
+    // Διαγραφή τοποθεσίας
+    const handleDeleteLocation = (id) => {
+      const updatedLocations = locations.filter(loc => loc.id !== id);
+      setLocations(updatedLocations);
+      onChange(updatedLocations);
+    };
+    
+    return (
+      <Box sx={{ border: '1px solid #e0e0e0', p: 2, borderRadius: 1 }}>
+        <Typography variant="subtitle1" sx={{ mb: 2 }}>Διαχείριση Τοποθεσιών</Typography>
+        
+        {/* Λίστα τοποθεσιών */}
+        {locations.length > 0 ? (
+          <TableContainer component={Paper} sx={{ mb: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Τοποθεσία</TableCell>
+                  <TableCell>Ημ/νία Έναρξης</TableCell>
+                  <TableCell>Ημ/νία Λήξης</TableCell>
+                  <TableCell>Ενέργειες</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      ) : (
-        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-          Δεν έχουν προστεθεί τοποθεσίες.
-        </Typography>
-      )}
-      
-      {/* Φόρμα προσθήκης */}
-      <Grid container spacing={2} alignItems="center">
-        <Grid item xs={12} sm={4}>
-          <TextField
-            fullWidth
-            size="small"
-            label="Τοποθεσία"
-            value={newLocation.topothesia}
-            onChange={(e) => setNewLocation({
-              ...newLocation, 
-              topothesia: e.target.value
-            })}
-          />
+              </TableHead>
+              <TableBody>
+                {locations.map((loc) => (
+                  // Fix: Always ensure each loc has a unique id
+                  <TableRow key={loc.id !== undefined ? loc.id : `loc-${Date.now()}-${Math.random()}`}>
+                    <TableCell>
+                      <TextField
+                        size="small"
+                        value={loc.topothesia}
+                        onChange={(e) => handleUpdateLocation(loc.id, "topothesia", e.target.value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <DatePicker
+                        value={loc.start ? new Date(loc.start) : null}
+                        onChange={(newDate) => {
+                          if (newDate) {
+                            const isoDate = newDate.toISOString().split('T')[0];
+                            handleUpdateLocation(loc.id, "start", isoDate);
+                          }
+                        }}
+                        format="dd/MM/yyyy"
+                        slotProps={{ 
+                          textField: { 
+                            size: "small",
+                            fullWidth: true
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <DatePicker
+                        value={loc.end ? new Date(loc.end) : null}
+                        onChange={(newDate) => {
+                          if (newDate) {
+                            const isoDate = newDate.toISOString().split('T')[0];
+                            handleUpdateLocation(loc.id, "end", isoDate);
+                          }
+                        }}
+                        format="dd/MM/yyyy"
+                        slotProps={{ 
+                          textField: { 
+                            size: "small",
+                            fullWidth: true
+                          }
+                        }}
+                        minDate={loc.start ? new Date(loc.start) : undefined}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <IconButton size="small" onClick={() => handleDeleteLocation(loc.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+            Δεν έχουν προστεθεί τοποθεσίες.
+          </Typography>
+        )}
+        
+        {/* Φόρμα προσθήκης */}
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={4}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Τοποθεσία"
+              value={newLocation.topothesia}
+              onChange={(e) => setNewLocation({
+                ...newLocation, 
+                topothesia: e.target.value
+              })}
+            />
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <DatePicker
+              label="Ημ/νία Έναρξης"
+              value={newLocation.start ? new Date(newLocation.start) : null}
+              onChange={(newDate) => {
+                if (newDate) {
+                  const isoDate = newDate.toISOString().split('T')[0];
+                  setNewLocation({
+                    ...newLocation, 
+                    start: isoDate
+                  });
+                }
+              }}
+              format="dd/MM/yyyy"
+              slotProps={{ 
+                textField: { 
+                  size: "small",
+                  fullWidth: true 
+                } 
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <DatePicker
+              label="Ημ/νία Λήξης"
+              value={newLocation.end ? new Date(newLocation.end) : null}
+              onChange={(newDate) => {
+                if (newDate) {
+                  const isoDate = newDate.toISOString().split('T')[0];
+                  setNewLocation({
+                    ...newLocation, 
+                    end: isoDate
+                  });
+                }
+              }}
+              format="dd/MM/yyyy"
+              slotProps={{ 
+                textField: { 
+                  size: "small",
+                  fullWidth: true
+                }
+              }}
+              minDate={newLocation.start ? new Date(newLocation.start) : undefined}
+            />
+          </Grid>
+          <Grid item xs={12} sm={2}>
+            <Button 
+              fullWidth 
+              variant="contained" 
+              onClick={handleAddLocation}
+              disabled={!newLocation.topothesia || !newLocation.start || !newLocation.end}
+            >
+              Προσθήκη
+            </Button>
+          </Grid>
         </Grid>
-        <Grid item xs={12} sm={3}>
-          <TextField
-            fullWidth
-            type="date"
-            size="small"
-            label="Ημ/νία Έναρξης"
-            InputLabelProps={{ shrink: true }}
-            value={newLocation.start}
-            onChange={(e) => setNewLocation({
-              ...newLocation, 
-              start: e.target.value
-            })}
-          />
-        </Grid>
-        <Grid item xs={12} sm={3}>
-          <TextField
-            fullWidth
-            type="date"
-            size="small"
-            label="Ημ/νία Λήξης"
-            InputLabelProps={{ shrink: true }}
-            value={newLocation.end}
-            onChange={(e) => setNewLocation({
-              ...newLocation, 
-              end: e.target.value
-            })}
-          />
-        </Grid>
-        <Grid item xs={12} sm={2}>
-          <Button 
-            fullWidth 
-            variant="contained" 
-            onClick={handleAddLocation}
-            disabled={!newLocation.topothesia || !newLocation.start || !newLocation.end}
-          >
-            Προσθήκη
-          </Button>
-        </Grid>
-      </Grid>
-    </Box>
-  );
-};
-
+      </Box>
+    );
+  }; // Εδώ χρειάζεται το ελληνικό ερωτηματικό (;)
+  
   // Βελτιωμένη έκδοση του handleAddTopothesia
 const handleAddTopothesia = async (parentRow) => {
   try {
@@ -1778,8 +1846,7 @@ const handleEditEkpaideutiClick = async (row) => {
     }
   };
 
-  // Διαγραφή εκπαιδευτή
-// Διαγραφή εκπαιδευτή - εντελώς νέα έκδοση
+  // Διαγραφή εκπαιδευτή - εντελώς νέα έκδοση
 const handleDeleteEkpaideutis = async (rowOrId) => {
   try {
     console.log("Delete triggered with arg:", rowOrId);
@@ -1881,12 +1948,7 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
       e.id == numericId
     );
     
-    // ΒΗΜΑ 4: Επιβεβαίωση
-    if (!window.confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον εκπαιδευτή ${
-      instructor ? `"${instructor.onoma} ${instructor.epitheto}"` : `με ID ${numericId}`
-    };`)) {
-      return;
-    }
+    // ΒΗΜΑ 4: Αφαιρέθηκε η επιβεβαίωση που είναι περιττή αφού την παρέχει το DataTable
 
     // ΒΗΜΑ 5: Αφαίρεση από όλες τις σχολές πρώτα
     const schools = sxolesData.filter(school => 
@@ -1936,7 +1998,6 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
       }))
     );
     
-    alert("Ο εκπαιδευτής διαγράφηκε επιτυχώς.");
   } catch (error) {
     console.error("Error deleting instructor:", error);
     alert("Σφάλμα κατά τη διαγραφή εκπαιδευτή: " + (error.response?.data?.error || error.message));

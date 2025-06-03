@@ -1,27 +1,85 @@
-import React, { useState, useEffect } from "react";
-import { Box, Typography, Paper, TextField, IconButton, Button, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, TextField, Button, IconButton, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { DatePicker } from '@mui/x-date-pickers';
 
 const LocationEditor = ({ value, onChange }) => {
   const [locations, setLocations] = useState(value || []);
   const [newLocation, setNewLocation] = useState({ topothesia: "", start: "", end: "" });
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState(null);
   
-  // Ενημέρωση των locations όταν αλλάζει η external value
-  useEffect(() => {
-    if (Array.isArray(value)) {
-      setLocations(value);
+  // Parse date string to Date object
+  const parseDate = (dateString) => {
+    if (!dateString) return null;
+    try {
+      const date = new Date(dateString);
+      return isNaN(date.getTime()) ? null : date;
+    } catch (e) {
+      return null;
     }
-  }, [value]);
-  
-  const handleAddLocation = () => {
-    if (newLocation.topothesia && newLocation.start && newLocation.end) {
-      const updatedLocations = [...locations, { ...newLocation, id: Date.now() }];
-      setLocations(updatedLocations);
-      setNewLocation({ topothesia: "", start: "", end: "" });
-      onChange(updatedLocations);
+  };
+
+  // Convert Date to ISO string (YYYY-MM-DD)
+  const toISODateString = (date) => {
+    if (!date) return "";
+    try {
+      return date.toISOString().split('T')[0];
+    } catch (e) {
+      return "";
     }
   };
   
+  // Ensure each location has a unique ID when value changes
+  useEffect(() => {
+    if (Array.isArray(value) && value.length > 0) {
+      // Διασφαλίζουμε ότι κάθε τοποθεσία έχει μοναδικό id και σωστά ονόματα πεδίων
+      setLocations(value.map((loc, idx) => ({
+        ...loc,
+        id: loc.id !== undefined ? loc.id : idx,
+        topothesia: loc.topothesia || "",
+        start: loc.start || loc.hmerominia_enarksis || "", 
+        end: loc.end || loc.hmerominia_liksis || ""
+      })));
+    } else {
+      // Αν δεν έχουμε αρχική τιμή, ξεκινάμε με άδειο πίνακα
+      setLocations([]);
+    }
+  }, [value]);
+  
+  // Προσθήκη νέας τοποθεσίας με validation
+  const handleAddLocation = () => {
+    if (!newLocation.topothesia) {
+      alert("Παρακαλώ συμπληρώστε την τοποθεσία");
+      return;
+    }
+    
+    if (!newLocation.start) {
+      alert("Παρακαλώ επιλέξτε ημερομηνία έναρξης");
+      return;
+    }
+    
+    if (!newLocation.end) {
+      alert("Παρακαλώ επιλέξτε ημερομηνία λήξης");
+      return;
+    }
+    
+    if (new Date(newLocation.end) < new Date(newLocation.start)) {
+      alert("Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης");
+      return;
+    }
+    
+    const updatedLocations = [...locations, { ...newLocation, id: Date.now() }];
+    setLocations(updatedLocations);
+    setNewLocation({ 
+      topothesia: "", 
+      start: "", 
+      end: "" 
+    });
+    onChange(updatedLocations);
+  };
+  
+  // Ενημέρωση υπάρχουσας τοποθεσίας
   const handleUpdateLocation = (id, field, value) => {
     const updatedLocations = locations.map(loc => 
       loc.id === id ? { ...loc, [field]: value } : loc
@@ -30,17 +88,27 @@ const LocationEditor = ({ value, onChange }) => {
     onChange(updatedLocations);
   };
   
-  const handleDeleteLocation = (id) => {
-    const updatedLocations = locations.filter(loc => loc.id !== id);
+  // Διάλογος επιβεβαίωσης για διαγραφή τοποθεσίας
+  const confirmDeleteLocation = (id) => {
+    setLocationToDelete(id);
+    setOpenDeleteDialog(true);
+  };
+  
+  // Διαγραφή τοποθεσίας μετά από επιβεβαίωση
+  const handleDeleteLocation = () => {
+    if (locationToDelete === null) return;
+    
+    const updatedLocations = locations.filter(loc => loc.id !== locationToDelete);
     setLocations(updatedLocations);
     onChange(updatedLocations);
+    setOpenDeleteDialog(false);
+    setLocationToDelete(null);
   };
   
   return (
     <Box sx={{ border: '1px solid #e0e0e0', p: 2, borderRadius: 1 }}>
       <Typography variant="subtitle1" sx={{ mb: 2 }}>Διαχείριση Τοποθεσιών</Typography>
       
-      {/* Λίστα τοποθεσιών */}
       {locations.length > 0 ? (
         <TableContainer component={Paper} sx={{ mb: 2 }}>
           <Table size="small">
@@ -54,7 +122,7 @@ const LocationEditor = ({ value, onChange }) => {
             </TableHead>
             <TableBody>
               {locations.map((loc) => (
-                <TableRow key={loc.id}>
+                <TableRow key={loc.id !== undefined ? loc.id : `loc-${Date.now()}-${Math.random()}`}>
                   <TableCell>
                     <TextField
                       size="small"
@@ -63,23 +131,35 @@ const LocationEditor = ({ value, onChange }) => {
                     />
                   </TableCell>
                   <TableCell>
-                    <TextField
-                      type="date"
-                      size="small"
-                      value={loc.start}
-                      onChange={(e) => handleUpdateLocation(loc.id, "start", e.target.value)}
+                    <DatePicker
+                      format="dd/MM/yyyy"
+                      value={parseDate(loc.start)}
+                      onChange={(newDate) => handleUpdateLocation(loc.id, "start", toISODateString(newDate))}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true
+                        }
+                      }}
+                      maxDate={parseDate(loc.end) || undefined}
                     />
                   </TableCell>
                   <TableCell>
-                    <TextField
-                      type="date"
-                      size="small"
-                      value={loc.end}
-                      onChange={(e) => handleUpdateLocation(loc.id, "end", e.target.value)}
+                    <DatePicker
+                      format="dd/MM/yyyy"
+                      value={parseDate(loc.end)}
+                      onChange={(newDate) => handleUpdateLocation(loc.id, "end", toISODateString(newDate))}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true
+                        }
+                      }}
+                      minDate={parseDate(loc.start) || undefined}
                     />
                   </TableCell>
                   <TableCell>
-                    <IconButton size="small" onClick={() => handleDeleteLocation(loc.id)}>
+                    <IconButton size="small" onClick={() => confirmDeleteLocation(loc.id)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
@@ -94,7 +174,6 @@ const LocationEditor = ({ value, onChange }) => {
         </Typography>
       )}
       
-      {/* Φόρμα προσθήκης */}
       <Grid container spacing={2} alignItems="center">
         <Grid item xs={12} sm={4}>
           <TextField
@@ -102,29 +181,46 @@ const LocationEditor = ({ value, onChange }) => {
             size="small"
             label="Τοποθεσία"
             value={newLocation.topothesia}
-            onChange={(e) => setNewLocation({...newLocation, topothesia: e.target.value})}
+            onChange={(e) => setNewLocation({
+              ...newLocation, 
+              topothesia: e.target.value
+            })}
           />
         </Grid>
         <Grid item xs={12} sm={3}>
-          <TextField
-            fullWidth
-            type="date"
-            size="small"
+          <DatePicker
+            format="dd/MM/yyyy"
             label="Ημ/νία Έναρξης"
-            InputLabelProps={{ shrink: true }}
-            value={newLocation.start}
-            onChange={(e) => setNewLocation({...newLocation, start: e.target.value})}
+            value={parseDate(newLocation.start)}
+            onChange={(newDate) => setNewLocation({
+              ...newLocation, 
+              start: toISODateString(newDate)
+            })}
+            slotProps={{
+              textField: {
+                size: "small",
+                fullWidth: true
+              }
+            }}
+            maxDate={parseDate(newLocation.end) || undefined}
           />
         </Grid>
         <Grid item xs={12} sm={3}>
-          <TextField
-            fullWidth
-            type="date"
-            size="small"
+          <DatePicker
+            format="dd/MM/yyyy"
             label="Ημ/νία Λήξης"
-            InputLabelProps={{ shrink: true }}
-            value={newLocation.end}
-            onChange={(e) => setNewLocation({...newLocation, end: e.target.value})}
+            value={parseDate(newLocation.end)}
+            onChange={(newDate) => setNewLocation({
+              ...newLocation, 
+              end: toISODateString(newDate)
+            })}
+            slotProps={{
+              textField: {
+                size: "small",
+                fullWidth: true
+              }
+            }}
+            minDate={parseDate(newLocation.start) || undefined}
           />
         </Grid>
         <Grid item xs={12} sm={2}>
@@ -138,6 +234,27 @@ const LocationEditor = ({ value, onChange }) => {
           </Button>
         </Grid>
       </Grid>
+      
+      {/* Διάλογος επιβεβαίωσης διαγραφής */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={() => setOpenDeleteDialog(false)}
+      >
+        <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την τοποθεσία;
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeleteDialog(false)} color="primary">
+            Άκυρο
+          </Button>
+          <Button onClick={handleDeleteLocation} color="error" autoFocus>
+            Διαγραφή
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

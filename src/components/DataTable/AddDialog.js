@@ -7,9 +7,9 @@ import {
   FormLabel, FormGroup, FormControlLabel, Grid
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { el } from 'date-fns/locale';
+import el from 'date-fns/locale/el';
 import { format, parseISO } from 'date-fns';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
@@ -35,7 +35,8 @@ const AddDialog = ({
   title = "Προσθήκη Νέας Εγγραφής",
   additionalInfo,
   initialValues: externalInitialValues,
-  resourceData = {} // Added parameter for additional data needed by custom field types
+  resourceData = {},
+  fieldComponents = {} // Add this parameter to accept fieldComponents
 }) => {
   const [searchTexts, setSearchTexts] = useState({});
   const [paginationState, setPaginationState] = useState({});
@@ -127,20 +128,36 @@ const AddDialog = ({
   // Αντικείμενο που αντιστοιχίζει τύπους πεδίων με components
   const CUSTOM_COMPONENTS = {
     locationEditor: (field, formik) => (
-      <LocationEditor
-        value={formik.values[field.accessorKey] || []}
-        onChange={(newValue) => formik.setFieldValue(field.accessorKey, newValue)}
-      />
+      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
+        <LocationEditor
+          value={formik.values[field.accessorKey] || []}
+          onChange={(newValue) => formik.setFieldValue(field.accessorKey, newValue)}
+        />
+      </LocalizationProvider>
     )
   };
 
   const renderField = (field, index) => {
-    // Πρώτα, έλεγχος αν υπάρχει custom component για αυτόν τον τύπο
-    if (CUSTOM_COMPONENTS[field.type]) {
+    // First, check if there's a custom component for this field type in fieldComponents prop
+    if (field.type && fieldComponents && fieldComponents[field.type]) {
+      // Use the provided component from fieldComponents
+      const CustomComponent = fieldComponents[field.type];
+      return (
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
+          <CustomComponent
+            value={formik.values[field.accessorKey] || []}
+            onChange={(newValue) => formik.setFieldValue(field.accessorKey, newValue)}
+          />
+        </LocalizationProvider>
+      );
+    }
+    
+    // If no custom component from props, use the built-in CUSTOM_COMPONENTS
+    if (field.type && CUSTOM_COMPONENTS[field.type]) {
       return CUSTOM_COMPONENTS[field.type](field, formik);
     }
     
-    // Αν δεν υπάρχει, συνεχίστε με το υπάρχον switch
+    // If neither, continue with the existing switch
     switch (field.type) {
       case 'select':
         return (

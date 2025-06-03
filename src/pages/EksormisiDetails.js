@@ -131,7 +131,7 @@ const [ypefthynoi, setYpefthynoi] = useState([]);
     fetchData();
     fetchInternalMembers(); // Add this line
     fetchResponsiblePersons();
-  }, [id, refreshTrigger]);
+}, [id, refreshTrigger, participants.length]); // Add participants.length as a dependency
 
 const fetchResponsiblePersons = async () => {
   try {
@@ -302,22 +302,38 @@ const fetchResponsiblePersons = async () => {
         // Get all members (both internal and external)
         const membersResponse = await api.get("/melitousillogou/all");
         
-        // Create a Set of member IDs that already participate (CONVERT ALL TO STRINGS)
-        const existingMemberIds = new Set(
-          participants.map(p => String(p.id_melous || p.id))
-        );
+        // Create a Set of member IDs that already participate - use a more comprehensive approach
+        const existingMemberIds = new Set();
+        participants.forEach(p => {
+          // Add all possible ID fields for a participant's member ID
+          const ids = [
+            p.id_melous,
+            p.id, 
+            p.melos?.id_melous,
+            p.melos?.id
+          ].filter(Boolean).map(String);
+          
+          ids.forEach(id => existingMemberIds.add(id));
+        });
 
+        console.log("Existing member IDs:", [...existingMemberIds]);
 
         const filteredMembers = membersResponse.data
           .filter(member => {
-            // Extract ID and convert to string
-            const memberId = String(member.id_es_melous || member.id_ekso_melous || member.id);
+            // Extract all possible ID fields for a member
+            const ids = [
+              member.id_es_melous,
+              member.id_ekso_melous,
+              member.id,
+              member.melos?.id_melous,
+              member.melos?.id
+            ].filter(Boolean).map(String);
             
-            // Debug logging
-          
+            // Check if any of these IDs is in the existingMemberIds set
+            const isParticipating = ids.some(id => existingMemberIds.has(id));
             
             // Only include members that aren't already participants
-            return !existingMemberIds.has(memberId);
+            return !isParticipating;
           })
           .map(member => ({
             ...member,

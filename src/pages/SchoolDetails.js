@@ -5,7 +5,7 @@ import {
   Box, Typography, Paper, Container, Divider, Grid,
   IconButton, Button, TableContainer, Table, 
   TableHead, TableRow, TableCell, TableBody, 
-  CircularProgress, Alert, Chip, TextField, Dialog, DialogTitle, DialogContent, DialogActions
+  CircularProgress, Alert, Chip, TextField, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
 } from "@mui/material";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -20,12 +20,13 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PersonIcon from '@mui/icons-material/Person';
 import SchoolIcon from '@mui/icons-material/School';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-
 import DataTable from "../components/DataTable/DataTable";
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
 import * as yup from "yup";
 import "./App.css";
+
+import LocationEditor from "../components/LocationEditor"; // Import the new LocationEditor component
 
 export default function SchoolDetails() {
   const { id } = useParams();
@@ -47,7 +48,9 @@ export default function SchoolDetails() {
   const [availableMembers, setAvailableMembers] = useState([]);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [paymentParticipant, setPaymentParticipant] = useState(null);
-  
+  // Add these state variables with your other state declarations
+const [deleteTeacherDialog, setDeleteTeacherDialog] = useState(false);
+const [teacherToDelete, setTeacherToDelete] = useState(null);
   // Locations management - όπως στο sxoles.js
   const [newLocation, setNewLocation] = useState({ topothesia: "", start: "", end: "" });
   const [editLocationDialog, setEditLocationDialog] = useState(false);
@@ -122,14 +125,12 @@ try {
   
   // Φέρνουμε όλα τα μέλη (εσωτερικά και εξωτερικά) - ΑΛΛΑΓΗ ΕΔΩ
   const membersResponse = await api.get("/melitousillogou/all");
-  console.log("Όλα τα μέλη:", membersResponse.data);
   
   // Δημιουργία Set με τα IDs των μελών που είναι ήδη συμμετέχοντες (String μορφή)
   const existingMemberIds = new Set(
     existingParticipants.map(p => String(p.id_melous))
   );
   
-  console.log("IDs υπαρχόντων συμμετεχόντων:", [...existingMemberIds]);
   
   // Φιλτράρουμε για να πάρουμε μόνο τα μέλη που ΔΕΝ είναι ήδη συμμετέχοντες
   const filteredMembers = membersResponse.data.filter(member => {
@@ -145,7 +146,6 @@ try {
     return !existingMemberIds.has(memberId);
   });
   
-  console.log("Διαθέσιμα μέλη μετά το φιλτράρισμα:", filteredMembers.length);
   
   setAvailableMembers(filteredMembers);
   
@@ -179,7 +179,6 @@ try {
     try {
       // Αλλάζουμε το endpoint από /ekpaideutis σε /Repafes/ekpaideutes-me-sxoles
       const teachersResponse = await api.get("/Repafes/ekpaideutes-me-sxoles"); // ΣΩΣΤΟ endpoint όπως στο sxoles.js
-      console.log("Όλοι οι εκπαιδευτές:", teachersResponse.data);
       
       // Φιλτράρουμε για να πάρουμε μόνο τους εκπαιδευτές που ΔΕΝ διδάσκουν ήδη στη σχολή
       const currentTeacherIds = response.data.ekpaideutes ? 
@@ -189,7 +188,6 @@ try {
         !currentTeacherIds.includes(teacher.id_ekpaideuti || teacher.id)
       );
       
-      console.log("Διαθέσιμοι εκπαιδευτές:", availableTeachersList.length);
       setAvailableTeachers(availableTeachersList);
     } catch (err) {
       console.error("Σφάλμα φόρτωσης εκπαιδευτών:", err);
@@ -335,8 +333,6 @@ const handleSaveTeacher = async (selection) => {
     const selectedTeachers = Array.isArray(selection.id_ekpaideuti) ? 
       selection.id_ekpaideuti : [selection.id_ekpaideuti];
     
-    console.log("Προσθήκη εκπαιδευτών:", selectedTeachers);
-    
     const teachersToAdd = [];
     const failedTeachers = [];
     
@@ -403,13 +399,9 @@ const handleSaveTeacher = async (selection) => {
         })
       );
       
-      // Ενημέρωση χρήστη
-      if (failedTeachers.length > 0) {
-        alert(`Προστέθηκαν ${teachersToAdd.length} εκπαιδευτές, αλλά ${failedTeachers.length} απέτυχαν.`);
-      } else {
-        alert(`Προστέθηκαν επιτυχώς ${teachersToAdd.length} εκπαιδευτές.`);
-      }
-    } else {
+      // Removed success alerts from here
+    } else if (failedTeachers.length > 0) {
+      // Only show alert if there were failures
       alert("Δεν ήταν δυνατή η προσθήκη των εκπαιδευτών. Παρακαλώ δοκιμάστε ξανά.");
     }
     
@@ -422,22 +414,37 @@ const handleSaveTeacher = async (selection) => {
 
   // Handle deleting teacher with local state update
 const handleDeleteTeacher = async (teacherId) => {
-  if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον εκπαιδευτή;")) {
+  const teacherIdStr = String(teacherId);
+  
+  // First, find the complete teacher object BEFORE removal
+  const removedTeacher = school.ekpaideutes.find(t => 
+    String(t.id_ekpaideuti) === teacherIdStr || String(t.id) === teacherIdStr
+  );
+  
+  if (!removedTeacher) {
+    console.error(`Teacher with ID ${teacherId} not found in school's teachers`);
     return;
   }
-  
+
+  setTeacherToDelete({
+    id: teacherId,
+    name: `${removedTeacher.onoma || removedTeacher.firstName || ""} ${removedTeacher.epitheto || removedTeacher.lastName || ""}`.trim()
+  });
+  setDeleteTeacherDialog(true);
+};
+
+// Add this new function to handle the actual deletion after confirmation
+const handleConfirmTeacherDelete = async () => {
   try {
+    if (!teacherToDelete) return;
+    
+    const teacherId = teacherToDelete.id;
     const teacherIdStr = String(teacherId);
     
-    // First, find the complete teacher object BEFORE removal
+    // Find the teacher object again
     const removedTeacher = school.ekpaideutes.find(t => 
       String(t.id_ekpaideuti) === teacherIdStr || String(t.id) === teacherIdStr
     );
-    
-    if (!removedTeacher) {
-      console.error(`Teacher with ID ${teacherId} not found in school's teachers`);
-      return;
-    }
     
     // Build a complete teacher object for the available teachers list
     const teacherToAdd = {
@@ -458,13 +465,13 @@ const handleDeleteTeacher = async (teacherId) => {
     await api.delete(`/sxoles/${id}/ekpaideutis/${teacherId}`);
     
     // Update local state - FIRST remove from school's teachers
-setSchool(prevSchool => ({
-  ...prevSchool,
-  ekpaideutes: prevSchool.ekpaideutes.filter(t => {
-    // Κρατάμε αυτούς που ΚΑΝΕΝΑ από τα IDs τους δεν ταιριάζει με αυτό που αφαιρούμε
-    return String(t.id_ekpaideuti) !== teacherIdStr && String(t.id) !== teacherIdStr;
-  })
-}));
+    setSchool(prevSchool => ({
+      ...prevSchool,
+      ekpaideutes: prevSchool.ekpaideutes.filter(t => {
+        // Κρατάμε αυτούς που ΚΑΝΕΝΑ από τα IDs τους δεν ταιριάζει με αυτό που αφαιρούμε
+        return String(t.id_ekpaideuti) !== teacherIdStr && String(t.id) !== teacherIdStr;
+      })
+    }));
     
     // THEN add to available teachers if not already there
     setAvailableTeachers(prevTeachers => {
@@ -479,9 +486,13 @@ setSchool(prevSchool => ({
       }
     });
     
+    setDeleteTeacherDialog(false);
+    setTeacherToDelete(null);
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση εκπαιδευτή:", error);
     alert("Σφάλμα: " + error.message);
+    setDeleteTeacherDialog(false);
+    setTeacherToDelete(null);
   }
 };
 
@@ -574,7 +585,6 @@ const handleAddParticipant = async (formData) => {
       return;
     }
     
-    console.log("Adding members:", memberIds);
     
     const addedParticipants = [];
     
@@ -587,7 +597,6 @@ const handleAddParticipant = async (formData) => {
           katastasi: formData.katastasi || "Ενεργή"
         });
         
-        console.log(`Added participant with ID ${memberId}:`, response.data);
         
         // Βρίσκουμε τα πλήρη στοιχεία του μέλους
         const memberDetails = availableMembers.find(m => 
@@ -627,13 +636,6 @@ const handleAddParticipant = async (formData) => {
           return !memberIds.some(id => String(id) === memberIdStr);
         })
       );
-    }
-    
-    // Μήνυμα επιτυχίας ανάλογα με τον αριθμό μελών που προστέθηκαν
-    if (addedParticipants.length === 1) {
-      alert("Ο συμμετέχων προστέθηκε επιτυχώς");
-    } else if (addedParticipants.length > 1) {
-      alert(`${addedParticipants.length} συμμετέχοντες προστέθηκαν επιτυχώς`);
     } else {
       alert("Δεν προστέθηκαν συμμετέχοντες");
     }
@@ -664,7 +666,6 @@ const handleEditParticipant = async (updatedParticipant) => {
       return;
     }
     
-    console.log("Editing participant:", updatedParticipant);
     
     // Μετατροπή των δεδομένων σε σωστή μορφή
     const participantData = {
@@ -678,7 +679,6 @@ const handleEditParticipant = async (updatedParticipant) => {
       participantData
     );
     
-    console.log("Edit participant response:", response.data);
     
     // Ενημέρωση του τοπικού state
     setParticipants(prevParticipants => 
@@ -710,17 +710,11 @@ const handleEditParticipant = async (updatedParticipant) => {
 
   // Handle removing participant with local state update
 const handleRemoveParticipant = async (participantOrId) => {
-  if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον συμμετέχοντα;")) {
-    return;
-  }
-  
   try {
     // Εξαγωγή ID συμμετέχοντα είτε από αντικείμενο είτε απευθείας
     const participantId = typeof participantOrId === 'object' && participantOrId !== null
       ? participantOrId.id_parakolouthisis
       : participantOrId;
-    
-    console.log("Αφαίρεση συμμετέχοντα με ID:", participantId);
     
     if (!participantId && participantId !== 0) {
       throw new Error("Δεν ήταν δυνατή η εύρεση ID συμμετέχοντα");
@@ -732,7 +726,7 @@ const handleRemoveParticipant = async (participantOrId) => {
       prevParticipants.filter(p => p.id_parakolouthisis !== participantId)
     );
     
-    alert("Ο συμμετέχων αφαιρέθηκε επιτυχώς");
+    // Success alert removed
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση συμμετέχοντα:", error);
     alert("Σφάλμα: " + error.message);
@@ -743,7 +737,6 @@ const handleRemoveParticipant = async (participantOrId) => {
   
   // Handle opening payment dialog - ΔΙΟΡΘΩΜΕΝΗ ΕΚΔΟΣΗ (όπως στο EksormisiDetails.js)
 const handleOpenPaymentDialog = (participantOrId) => {
-  console.log("handleOpenPaymentDialog called with:", participantOrId);
   
   // Αν είναι ID και όχι αντικείμενο, βρίσκουμε τον συμμετέχοντα
   let participant;
@@ -771,7 +764,6 @@ const handleOpenPaymentDialog = (participantOrId) => {
     participant = { ...participant, id_parakolouthisis: participantId };
   }
   
-  console.log("Found participant:", participant);
   
   // Υπολογισμός συνολικού κόστους και πληρωμών
   const totalCost = participant.timi || 0;
@@ -790,7 +782,6 @@ const handleOpenPaymentDialog = (participantOrId) => {
       "Άγνωστο όνομα"
   };
   
-  console.log("Opening payment dialog for participant:", paymentInfo);
   setPaymentParticipant(paymentInfo);
   setPaymentDialog(true);
 }
@@ -811,7 +802,6 @@ const handleAddPayment = async (payment) => {
       return;
     }
 
-    console.log("Adding payment for participant:", participantId);
     
     const memberId = paymentParticipant.id_melous;
     
@@ -823,12 +813,10 @@ const handleAddPayment = async (payment) => {
       hmerominia_katavolhs: payment.hmerominia_katavolhs || new Date().toISOString().split('T')[0]
     };
 
-    console.log("Sending payment data:", formattedPayment);
 
     // Αποστολή στο API
     const response = await api.post(`/sxoles/${id}/parakolouthisi/${participantId}/payment`, formattedPayment);
     
-    console.log("Payment response:", response.data);
 
     // Ενημέρωση τοπικών δεδομένων
     setParticipants(prevParticipants => 
@@ -859,7 +847,6 @@ const handleAddPayment = async (payment) => {
     setPaymentDialog(false);
     setPaymentParticipant(null);
     
-    console.log("Payment added successfully");
     
   } catch (error) {
     console.error("Σφάλμα κατά την προσθήκη πληρωμής:", error);
@@ -870,7 +857,6 @@ const handleAddPayment = async (payment) => {
   // Handle removing payment
 const handleRemovePayment = async (paymentId, participantId) => {
   try {
-    console.log("Removing payment:", { paymentId, participantId });
     
     if (!paymentId || !participantId) {
       throw new Error("Μη έγκυρα IDs για πληρωμή ή συμμετέχοντα");
@@ -884,7 +870,6 @@ const handleRemovePayment = async (paymentId, participantId) => {
       throw new Error("Μη έγκυρα IDs για πληρωμή ή συμμετέχοντα");
     }
     
-    console.log(`Αποστολή αιτήματος διαγραφής πληρωμής: /sxoles/${id}/parakolouthisi/${numericParticipantId}/payment/${numericPaymentId}`);
     
     // Κλήση του API για διαγραφή
     await api.delete(`/sxoles/${id}/parakolouthisi/${numericParticipantId}/payment/${numericPaymentId}`);
@@ -1031,7 +1016,6 @@ const handleRemovePayment = async (paymentId, participantId) => {
       {
         title: "Ιστορικό Πληρωμών",
         getData: (row) => {
-          console.log("Getting payments for participant:", row);
           return (row.katavalei || []).map(payment => ({
             id: payment.id || payment.id_katavalei,
             id_katavalei: payment.id || payment.id_katavalei,
@@ -1344,8 +1328,7 @@ const calculateBalance = (participant) => {
               getPayload: (row) => row.original || row
             }}
             onRowExpand={(row) => {
-              console.log("Row expanded:", row);
-              // Απλώς log για debugging - δεν χρειαζόμαστε πλέον DOM manipulation
+              
             }}
      
             tableName="parakolouthiseis"
@@ -1523,149 +1506,41 @@ const calculateBalance = (participant) => {
         <DialogTitle>Διαχείριση Τοποθεσιών</DialogTitle>
         <DialogContent>
           <Box sx={{ p: 2 }}>
-            {/* Λίστα τοποθεσιών */}
-            {currentLocations.length > 0 ? (
-              <TableContainer component={Paper} sx={{ mb: 3 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Τοποθεσία</TableCell>
-                      <TableCell>Ημ/νία Έναρξης</TableCell>
-                      <TableCell>Ημ/νία Λήξης</TableCell>
-                      <TableCell>Ενέργειες</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {currentLocations.map((loc) => (
-                      <TableRow key={loc.id}>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            value={loc.topothesia}
-                            onChange={(e) => {
-                              const updated = currentLocations.map(item => 
-                                item.id === loc.id ? { ...item, topothesia: e.target.value } : item
-                              );
-                              setCurrentLocations(updated);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <DatePicker
-                            format="dd/MM/yyyy"
-                            slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                            value={loc.start ? new Date(loc.start) : null}
-                            onChange={(newValue) => {
-                              const updated = currentLocations.map(item => 
-                                item.id === loc.id ? { 
-                                  ...item, 
-                                  start: newValue ? newValue.toISOString().split('T')[0] : null 
-                                } : item
-                              );
-                              setCurrentLocations(updated);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <DatePicker
-                            format="dd/MM/yyyy"
-                            slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                            value={loc.end ? new Date(loc.end) : null}
-                            onChange={(newValue) => {
-                              const updated = currentLocations.map(item => 
-                                item.id === loc.id ? { 
-                                  ...item, 
-                                  end: newValue ? newValue.toISOString().split('T')[0] : null 
-                                } : item
-                              );
-                              setCurrentLocations(updated);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <IconButton size="small" onClick={() => {
-                            const updated = currentLocations.filter(item => item.id !== loc.id);
-                            setCurrentLocations(updated);
-                          }}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-                Δεν έχουν προστεθεί τοποθεσίες.
-              </Typography>
-            )}
-            
-            {/* Φόρμα προσθήκης */}
-            <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Τοποθεσία"
-                    value={newLocation.topothesia}
-                    onChange={(e) => setNewLocation({...newLocation, topothesia: e.target.value})}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <DatePicker
-                    format="dd/MM/yyyy"
-                    label="Ημ/νία Έναρξης"
-                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                    value={newLocation.start ? new Date(newLocation.start) : null}
-                    onChange={(newValue) => {
-                      setNewLocation({
-                        ...newLocation, 
-                        start: newValue ? newValue.toISOString().split('T')[0] : null
-                      });
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <DatePicker
-                    format="dd/MM/yyyy"
-                    label="Ημ/νία Λήξης"
-                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                    value={newLocation.end ? new Date(newLocation.end) : null}
-                    onChange={(newValue) => {
-                      setNewLocation({
-                        ...newLocation, 
-                        end: newValue ? newValue.toISOString().split('T')[0] : null
-                      });
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={2}>
-                  <Button 
-                    fullWidth 
-                    variant="contained" 
-                    onClick={() => {
-                      if (!newLocation.topothesia || !newLocation.start || !newLocation.end) {
-                        alert("Συμπληρώστε όλα τα πεδία");
-                        return;
-                      }
-                      const newLoc = { ...newLocation, id: Date.now() };
-                      setCurrentLocations([...currentLocations, newLoc]);
-                      setNewLocation({ topothesia: "", start: "", end: "" });
-                    }}
-                  >
-                    Προσθήκη
-                  </Button>
-                </Grid>
-              </Grid>
-            </Paper>
+            {/* Use the consistent LocationEditor component */}
+            <LocationEditor 
+              value={currentLocations} 
+              onChange={setCurrentLocations} 
+            />
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setLocationDialogOpen(false)}>Άκυρο</Button>
           <Button onClick={() => handleSaveLocations(currentLocations)} variant="contained" color="primary">
             Αποθήκευση
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Teacher deletion confirmation dialog */}
+      <Dialog 
+        open={deleteTeacherDialog} 
+        onClose={() => setDeleteTeacherDialog(false)}
+      >
+        <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {teacherToDelete ? 
+              `Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον εκπαιδευτή "${teacherToDelete.name}" από αυτή τη σχολή;` : 
+              "Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον εκπαιδευτή από αυτή τη σχολή;"
+            }
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTeacherDialog(false)} color="primary">
+            Ακύρωση
+          </Button>
+          <Button onClick={handleConfirmTeacherDelete} color="error" autoFocus>
+            Διαγραφή
           </Button>
         </DialogActions>
       </Dialog>
