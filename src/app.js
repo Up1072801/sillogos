@@ -19,59 +19,13 @@ import UserManagement from "./components/UserManagement"; // Θα δημιουρ
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const [checking, setChecking] = useState(true);
-  const [isAuth, setIsAuth] = useState(false);
-  const [isAdminUser, setIsAdminUser] = useState(false);
-  
-  useEffect(() => {
-    const checkAuth = () => {
-      try {
-        // Έλεγχος αυθεντικοποίησης
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setIsAuth(false);
-          setChecking(false);
-          return;
-        }
-        
-        // Έλεγχος δεδομένων χρήστη
-        const userStr = localStorage.getItem('user');
-        let user = null;
-        
-        if (userStr) {
-          user = JSON.parse(userStr);
-          console.log("User data in ProtectedRoute:", user);
-        }
-        
-        // Ενημέρωση καταστάσεων
-        setIsAuth(!!user);
-        setIsAdminUser(user?.role === 'admin');
-        
-        // Αναλυτική καταγραφή
-        console.log(`Authentication: ${!!user}, Admin: ${user?.role === 'admin'}`);
-      } catch (e) {
-        console.error("Error in authentication check:", e);
-        setIsAuth(false);
-        setIsAdminUser(false);
-      }
-      
-      setChecking(false);
-    };
-    
-    checkAuth();
-  }, []);
-  
-  if (checking) {
-    return <div>Έλεγχος πιστοποίησης...</div>;
-  }
-  
-  if (!isAuth) {
-    console.log("Redirecting to login - not authenticated");
+  // Αντί για έλεγχο με useState και useEffect, κάνουμε άμεσο έλεγχο
+  // χρησιμοποιώντας τις βοηθητικές συναρτήσεις που έχουμε εισάγει
+  if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
   
-  if (adminOnly && !isAdminUser) {
-    console.log("Redirecting to home - not admin");
+  if (adminOnly && !isAdmin()) {
     return <Navigate to="/" replace />;
   }
   
@@ -83,7 +37,6 @@ function App() {
   const navigate = useNavigate(); 
 
   useEffect(() => {
-    console.log("Checking authentication state on app load");
     
     // Αρχικοποίηση του auth
     initAuth();
@@ -93,14 +46,12 @@ function App() {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-        console.log("User loaded from localStorage:", parsedUser);
       } catch (error) {
         console.error("Error parsing user from localStorage:", error);
         localStorage.removeItem("user");
         localStorage.removeItem("token");
       }
     } else {
-      console.log("No user found in localStorage");
     }
   }, []);
 

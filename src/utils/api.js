@@ -11,7 +11,6 @@ if (!baseURL) {
   baseURL = process.env.NODE_ENV === 'production' ? '/api/' : 'http://localhost:10000/';
 }
 
-console.log('API Base URL:', baseURL);
 
 // Δημιουργία interceptor για αυτόματη διαχείριση σφαλμάτων δικτύου
 const api = axios.create({
@@ -27,9 +26,7 @@ api.interceptors.request.use(config => {
     
     // Εμφάνιση μόνο των πρώτων χαρακτήρων του token για λόγους ασφάλειας
     const tokenPreview = token.substring(0, 10) + '...';
-    console.log(`API Request: ${config.method?.toUpperCase() || 'GET'} ${config.url} (with token: ${tokenPreview})`);
   } else {
-    console.log(`API Request: ${config.method?.toUpperCase() || 'GET'} ${config.url} (NO token)`);
   }
   
   return config;
@@ -46,7 +43,6 @@ api.interceptors.response.use(
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       // Αν δεν είμαστε στη σελίδα login, ανακατευθύνουμε τον χρήστη εκεί
       if (window.location.pathname !== '/login') {
-        console.log('Διαπιστώθηκε μη έγκυρη συνεδρία. Ανακατεύθυνση στο login...');
         
         // Καθαρισμός των αποθηκευμένων τιμών
         localStorage.removeItem('token');
