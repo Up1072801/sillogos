@@ -11,33 +11,51 @@ import el from 'date-fns/locale/el';
 
 // Στήλες για τον πίνακα εξοπλισμού
 const columns = [
-  { accessorKey: "id", header: "ID", enableHiding: true },
   { accessorKey: "onoma", header: "Όνομα" },
   { accessorKey: "marka", header: "Μάρκα" },
   { accessorKey: "xroma", header: "Χρώμα" },
   { accessorKey: "megethos", header: "Μέγεθος" },
-  { accessorKey: "imerominiakataskeuis", header: "Ημερομηνία Κατασκευής", enableHiding: true },
+  { 
+    accessorKey: "hmerominia_kataskeuis", 
+    header: "Ημερομηνία Κατασκευής", 
+    enableHiding: true,
+    Cell: ({ cell }) => {
+      const value = cell.getValue();
+      return value ? new Date(value).toLocaleDateString('el-GR', { 
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) : "-";
+    }
+  },
 ];
 
 // Στήλες για τον πίνακα δανεισμών
 const daneismoiColumns = [
-  { accessorKey: "id", header: "ID", enableHiding: true },
   { accessorKey: "borrowerName", header: "Δανειζόμενος" },
   { accessorKey: "equipmentName", header: "Όνομα Εξοπλισμού" },
   { 
     accessorKey: "hmerominia_daneismou", 
-    header: "Ημερομηνία Δανεισμού",
+    header: "Ημ/νία Δανεισμού",
     Cell: ({ cell }) => {
       const value = cell.getValue();
-      return value ? new Date(value).toLocaleDateString("el-GR") : "-";
+      return value ? new Date(value).toLocaleDateString("el-GR", {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) : "-";
     }
   },
   { 
     accessorKey: "hmerominia_epistrofis", 
-    header: "Ημερομηνία Επιστροφής", 
+    header: "Ημ/νία Επιστροφής", 
     Cell: ({ cell }) => {
       const value = cell.getValue();
-      return value ? new Date(value).toLocaleDateString("el-GR") : "-";
+      return value ? new Date(value).toLocaleDateString("el-GR", {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) : "-";
     }
   },
   // Νέα στήλη για την κατάσταση του δανεισμού
@@ -661,7 +679,7 @@ const handleEditLoan = async (editedLoan) => {
   // Αντικαταστήστε την υπάρχουσα συνάρτηση handleEditLoanClick
 const handleEditLoanClick = (loan) => {
   
-  // Διασφάλιση των σωστών μορφών ημερομηνιών
+  // Διασφάλιση των σωστων μορφών ημερομηνιών
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     try {
@@ -868,17 +886,26 @@ const handleEditEquipment = async (editedEquipment) => {
 
   // Διόρθωση του loanDetailPanelConfig για πιο άμεση προσπέλαση των στοιχείων
 
+// Change date format in loan detail panel
 const loanDetailPanelConfig = {
   mainDetails: [
     { 
       accessor: "hmerominia_daneismou", 
       header: "Ημερομηνία Δανεισμού", 
-      format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-' 
+      format: (value) => value ? new Date(value).toLocaleDateString('el-GR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) : '-' 
     },
     { 
       accessor: "hmerominia_epistrofis", 
       header: "Ημερομηνία Επιστροφής", 
-      format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-' 
+      format: (value) => value ? new Date(value).toLocaleDateString('el-GR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) : '-' 
     }
   ],
   tables: [
@@ -958,6 +985,7 @@ const loanDetailPanelConfig = {
 };
 
   // Πλήρης αναδιάρθρωση του equipmentDetailPanelConfig
+// Change date format in equipment detail panel
 const equipmentDetailPanelConfig = {
   mainDetails: [
     { accessor: "onoma", header: "Όνομα" },
@@ -967,7 +995,11 @@ const equipmentDetailPanelConfig = {
     { 
       accessor: "hmerominia_kataskeuis", 
       header: "Ημερομηνία Κατασκευής",
-      format: (value) => value ? new Date(value).toLocaleDateString('el-GR') : '-' 
+      format: (value) => value ? new Date(value).toLocaleDateString('el-GR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) : '-' 
     }
   ],
   tables: [
@@ -978,13 +1010,21 @@ const equipmentDetailPanelConfig = {
         { accessor: "borrowerName", header: "Δανειζόμενος" },
         { 
           accessor: "hmerominia_daneismou", 
-          header: "Ημερομηνία Δανεισμού",
-          Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
+          header: "Ημ/νία Δανεισμού",
+          Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR", {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          }) : "-"
         },
         { 
           accessor: "hmerominia_epistrofis", 
-          header: "Ημερομηνία Επιστροφής",
-          Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR") : "-"
+          header: "Ημ/ία Επιστροφής",
+          Cell: ({ value }) => value ? new Date(value).toLocaleDateString("el-GR", {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          }) : "-"
         }
       ]
     }
@@ -995,7 +1035,7 @@ const equipmentDetailPanelConfig = {
 const loanStatusOptions = [
   { value: 'all', label: 'Όλοι οι δανεισμοί' },
   { value: 'active', label: 'Ενεργοί' },
-  { value: 'returned', label: 'Επιστραμμένοι' },
+  { value: 'returned', label: 'Επιστράμμένοι' },
   { value: 'overdue', label: 'Εκπρόθεσμοι' }
 ];
 
@@ -1152,7 +1192,9 @@ const updateAvailableEquipment = () => {
               columnVisibility: {
                 id: false,
               },
-              sorting: [{ id: 'hmerominia_daneismou', desc: true }]
+              sorting: [
+                { id: 'status', desc: false } // Sort by status with active items (Σε εκκρεμότητα) at the bottom
+              ]
             }}
             state={{ isLoading: loading }}
             enableExpand={true}

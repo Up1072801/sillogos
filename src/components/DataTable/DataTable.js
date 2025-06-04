@@ -41,7 +41,8 @@ const DataTable = React.memo(({
   enableAddNew = true,
   enableTopAddButton = true,
   enableRowActions = true,
-  getRowId = (row) => row.id
+  getRowId = (row) => row.id,
+  maxHeight = "600px" // Add default maxHeight
 }) => {
   // Όλα τα hook στην αρχή του component - μην τα μετακινείτε
   const [tableData, setTableData] = useState(data);
@@ -512,13 +513,58 @@ const DataTable = React.memo(({
     }
   };
 
+  const columnsWithSizing = useMemo(() => {
+    return columns.map(column => {
+      // If column already has size defined, preserve it as minWidth instead of fixed width
+      if (column.size) {
+        return { 
+          ...column,
+          minWidth: column.size,
+          maxWidth: column.size * 2.5 // Allow growing up to 2.5x the minimum size
+        };
+      }
+      
+      // Set reasonable minimum widths and flexible maximum widths based on content type
+      if (column.accessorKey === "id") {
+        return { ...column, minWidth: 60, maxWidth: 100 };
+      }
+      
+      // Names/titles need more space and flexibility
+      if (column.accessorKey?.toLowerCase().includes('name') || 
+          column.header?.toLowerCase().includes('όνομα') || 
+          column.header?.toLowerCase().includes('τίτλος')) {
+        return { ...column, minWidth: 180, maxWidth: 400 };
+      }
+      
+      // Dates need medium space
+      if (column.accessorKey?.toLowerCase().includes('date') || 
+          column.accessorKey?.toLowerCase().includes('hmerominia')) {
+        return { ...column, minWidth: 120, maxWidth: 200 };
+      }
+      
+      // Email addresses need space for longer content
+      if (column.accessorKey?.toLowerCase().includes('email')) {
+        return { ...column, minWidth: 160, maxWidth: 300 };
+      }
+      
+      // Phone numbers need medium space
+      if (column.accessorKey?.toLowerCase().includes('phone') || 
+          column.accessorKey?.toLowerCase().includes('tilefono')) {
+        return { ...column, minWidth: 120, maxWidth: 180 };
+      }
+      
+      // Default for other columns - allow flexibility
+      return { ...column, minWidth: 100, maxWidth: 250 };
+    });
+  }, [columns]);
+  
   const columnsWithActions = useMemo(() => {
     if (!enableRowActions) {
-      return columns;
+      return columnsWithSizing; // Use columnsWithSizing instead of columns
     }
     
     return [
-      ...columns,
+      ...columnsWithSizing, // Use columnsWithSizing instead of columns
       {
         accessorKey: "actions",
         header: "Ενέργειες",
@@ -537,7 +583,7 @@ const DataTable = React.memo(({
         size: 100
       }
     ];
-  }, [columns, enableEditMain, enableDelete, handleEditClick, handleDelete, enableRowActions]);
+  }, [columnsWithSizing, enableEditMain, enableDelete, handleEditClick, handleDelete, enableRowActions]);
 
   // Function to initialize column selection when starting an export (nothing pre-selected)
   const startExport = (type) => {
@@ -545,7 +591,8 @@ const DataTable = React.memo(({
       // Initialize column selection with nothing selected by default
       const initialSelection = {};
       columns.forEach(col => {
-        if (col.accessorKey && col.accessorKey !== 'actions') {
+        // Only include columns that aren't actions and aren't marked for hiding
+        if (col.accessorKey && col.accessorKey !== 'actions' && col.enableHiding !== true) {
           initialSelection[col.accessorKey] = false; // Default to unchecked
         }
       });
@@ -668,7 +715,9 @@ const DataTable = React.memo(({
             <Divider sx={{ my: 1 }} />
             
             {columns.map((column) => (
-              column.accessorKey && column.accessorKey !== 'actions' && (
+              column.accessorKey && 
+              column.accessorKey !== 'actions' && 
+              column.enableHiding !== true && (
                 <FormControlLabel
                   key={column.accessorKey}
                   control={
@@ -744,7 +793,7 @@ const DataTable = React.memo(({
         getRowId={getRowId}
         positionActionsColumn="last"
         muiTableProps={{
-          sx: { tableLayout: 'fixed' }
+          sx: { tableLayout: 'fixed' } // Forces fixed table layout
         }}
         muiTableHeadCellProps={{
           sx: {
@@ -753,8 +802,19 @@ const DataTable = React.memo(({
           }
         }}
         muiTableBodyCellProps={{
-          sx: { whiteSpace: 'nowrap' }
+          sx: { 
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }
         }}
+        muiTableContainerProps={{
+          sx: { 
+            maxHeight: maxHeight, 
+            overflowX: 'auto' // Enables horizontal scrolling
+          }
+        }}
+        density="compact" // Set compact density by default
         localization={{
           muiTablePagination: {
             labelRowsPerPage: 'Εγγραφές ανά σελίδα:',

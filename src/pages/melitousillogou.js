@@ -477,7 +477,12 @@ export default function Meloi() {
       "melos.vathmos_diskolias.epipedo": false,
       "odos": false,
       "tk": false,
-      "subscriptionEndDate": false
+      "subscriptionEndDate": false,
+      // Επιπλέον στήλες που θέλουμε να κρύψουμε
+      "arithmos_mitroou": false,
+      "hmerominia_gennhshs": false,
+      "hmerominia_egrafis": false,
+      "hmerominia_pliromis": false
     },
     sorting: [{ id: "fullName", desc: false }] // Προσθήκη αλφαβητικής ταξινόμησης
   }), []); // Το άδειο array εξαρτήσεων εξασφαλίζει ότι δημιουργείται μόνο μία φορά

@@ -429,8 +429,8 @@ const handleRemoveResponsiblePerson = async (id_ypefthynou) => {
     });
   }
 };
-// Ενημερωμένη έκδοση της handleAddResponsiblePersons που διατηρεί τους υπάρχοντες υπεύθυνους
-// Ενημερωμένη έκδοση της handleAddResponsiblePersons που διατηρεί τους υπάρχοντες υπεύθυνους
+// Ενημερωμένη έκδοση της handleAddResponsiblePersons που διατηρεί τους υπάρχοντες υπευθύνους
+// Ενημερωμένη έκδοση της handleAddResponsiblePersons που διατηρεί τους υπάρχοντες υπευθύνους
 const handleAddResponsiblePersons = async (selectedIds) => {
   try {
     // Δημιουργία λίστας με τα IDs των υπαρχόντων υπευθύνων
@@ -1546,10 +1546,11 @@ const drastiriotitesColumns = [
 
   // Ορίστε τις στήλες του πίνακα συμμετεχόντων με σαφείς accessors
 const participantsColumns = [
-  { accessorKey: "id_simmetoxis", header: "ID", enableHiding: true },
+  { accessorKey: "id_simmetoxis", header: "ID", enableHiding: true, size: 60 },
   { 
     accessorKey: "memberName", 
     header: "Ονοματεπώνυμο",
+    size: 200, // Give more space to name column
     Cell: ({ row }) => {
       const memberName = row.original.memberName || 
                         `${row.original.melos?.epafes?.epitheto || ''} ${row.original.melos?.epafes?.onoma || ''}`.trim() ||
@@ -1560,19 +1561,20 @@ const participantsColumns = [
   { 
     accessorKey: "melos.epafes.email", 
     header: "Email",
+    size: 180, // Keep reasonable space for email
     Cell: ({ row }) => row.original.melos?.epafes?.email || "-"
   },
   { 
     accessorKey: "melos.epafes.tilefono", 
     header: "Τηλέφωνο",
+    size: 120, // Smaller but sufficient for phone numbers
     Cell: ({ row }) => row.original.melos?.epafes?.tilefono || "-"
   },
   { 
     accessorKey: "ypoloipo", 
     header: "Υπόλοιπο",
+    size: 100, // Significantly reduced as requested
     Cell: ({ row }) => {
-      // For each member, use the first activity's price as the total price
-      // This ensures we're not summing up prices across activities
       const timi = row.original.timi || 0;
       const totalPaid = (row.original.plironei || []).reduce(
         (sum, payment) => sum + (payment.poso_pliromis || 0), 0
@@ -1595,6 +1597,7 @@ const participantsColumns = [
   { 
     accessorKey: "katastasi", 
     header: "Κατάσταση",
+    size: 100, // Significantly reduced as requested
     Cell: ({ row }) => (
       <Chip 
         label={row.original.katastasi || "Ενεργή"} 
@@ -1607,6 +1610,7 @@ const participantsColumns = [
   { 
     id: "payment",
     header: "Πληρωμή",
+    size: 80, // Very small since it's just an icon button
     Cell: ({ row }) => (
       <IconButton 
         size="small"

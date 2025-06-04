@@ -238,6 +238,7 @@ export default function Eksormiseis() {
     { 
       accessorKey: "titlos", 
       header: "Τίτλος",
+      size: 200, // Give title more space
       Cell: ({ row }) => {
         return (
           <Box 
@@ -261,11 +262,13 @@ export default function Eksormiseis() {
     { 
       accessorKey: "proorismos", 
       header: "Προορισμός",
+      size: 180, // Medium space for destination
       Cell: ({ row }) => row.original.proorismos || "-"
     },
     { 
       accessorKey: "hmerominia_anaxorisis", 
-      header: "Ημερομηνία Αναχώρησης",
+      header: "Ημ. Αναχώρησης",
+      size: 120, // Standard size for dates
       Cell: ({ row }) => {
         const value = row.original.hmerominia_anaxorisis;
         return value ? new Date(value).toLocaleDateString('el-GR') : "-";
@@ -273,7 +276,8 @@ export default function Eksormiseis() {
     },
     { 
       accessorKey: "hmerominia_afiksis", 
-      header: "Ημερομηνία Άφιξης",
+      header: "Ημ. Άφιξης",
+      size: 120, // Standard size for dates
       Cell: ({ row }) => {
         const value = row.original.hmerominia_afiksis;
         return value ? new Date(value).toLocaleDateString('el-GR') : "-";
@@ -282,6 +286,7 @@ export default function Eksormiseis() {
     { 
       accessorKey: "timi", 
       header: "Τιμή",
+      size: 80, // Reduced size for price
       Cell: ({ row }) => {
         const amount = Number(row.original.timi || 0);
         return (
@@ -294,6 +299,7 @@ export default function Eksormiseis() {
     { 
       accessorKey: "participantsCount", 
       header: "Συμμετέχοντες",
+      size: 80, // Reduced size for participants count
       Cell: ({ row }) => {
         const count = Number(row.original.participantsCount || 0);
         return (

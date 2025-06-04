@@ -907,10 +907,11 @@ const handleRemovePayment = async (paymentId, participantId) => {
 
   // Column definitions for participants table - διορθωμένο για να μην έχει duplicate keys
   const participantsColumns = [
-    { accessorKey: "id_parakolouthisis", header: "ID", enableHiding: true },
+    { accessorKey: "id_parakolouthisis", header: "ID", enableHiding: true, size: 60 },
     { 
       accessorKey: "memberName", 
       header: "Ονοματεπώνυμο",
+      size: 200, // Add explicit width
       Cell: ({ row }) => {
         const firstName = row.original.melos?.epafes?.onoma || '';
         const lastName = row.original.melos?.epafes?.epitheto || '';
@@ -920,16 +921,19 @@ const handleRemovePayment = async (paymentId, participantId) => {
     { 
       accessorKey: "melos.epafes.email", 
       header: "Email",
+      size: 160, // Add explicit width
       Cell: ({ row }) => row.original.melos?.epafes?.email || "-"
     },
     { 
       accessorKey: "melos.epafes.tilefono", 
       header: "Τηλέφωνο",
+      size: 120, // Add explicit width
       Cell: ({ row }) => row.original.melos?.epafes?.tilefono || "-"
     },
     { 
       accessorKey: "ypoloipo", 
       header: "Υπόλοιπο",
+      size: 120, // Add explicit width
       Cell: ({ row }) => {
         // Υπολογισμός υπολοίπου με σταθερό τρόπο
         const payments = row.original.katavalei || [];
@@ -953,6 +957,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
     { 
       accessorKey: "katastasi", 
       header: "Κατάσταση",
+      size: 120, // Add explicit width
       Cell: ({ value }) => (
         <Chip 
           label={value || "Ενεργή"} 
@@ -965,6 +970,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
     {
       id: 'payment',
       header: 'Πληρωμή',
+      size: 80, // Add explicit width
       Cell: ({ row }) => (
         <IconButton 
           color="primary" 

@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, TextField, Button, Paper, Container, InputAdornment, IconButton } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { 
+  Box, 
+  Typography, 
+  TextField, 
+  Button, 
+  Paper, 
+  Container, 
+  InputAdornment, 
+  IconButton,
+  Avatar,
+  Divider
+} from '@mui/material';
+import { Visibility, VisibilityOff, Terrain } from '@mui/icons-material';
 import api from '../utils/api';
 import { setToken } from '../utils/auth';
 
@@ -40,8 +51,6 @@ export default function Login({ setUser }) {
       const token = response.data.token;
       const userData = response.data.user;
       
-  
-      
       // 2. Αποθήκευση στο localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -69,87 +78,128 @@ export default function Login({ setUser }) {
   };
   
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%)',
+        backgroundImage: 'url("https://source.unsplash.com/random?mountains")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        padding: 2
+      }}
+    >
+      <Container component="main" maxWidth="sm">
         <Paper
-          elevation={3}
+          elevation={6}
           sx={{ 
-            padding: 4, 
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center'
+            padding: 4,
+            borderRadius: 2,
+            backdropFilter: 'blur(10px)',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
           }}
         >
-          <Typography component="h1" variant="h5">
-            Είσοδος
-          </Typography>
-          
-          {error && (
-            <Typography color="error" sx={{ mt: 2, mb: 1 }}>
-              {error}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            <Avatar sx={{ m: 2, bgcolor: '#1976d2', width: 70, height: 70 }}>
+              <Terrain sx={{ fontSize: 40 }} />
+            </Avatar>
+            
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold', color: '#1976d2', textAlign: 'center' }}>
+              Ελληνικός Ορειβατικός Σύλλογος Πατρών
             </Typography>
-          )}
-          
-          <Box component="form" onSubmit={handleLogin} sx={{ mt: 1, width: '100%' }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="username"
-              label="Όνομα χρήστη"
-              name="username"
-              autoComplete="username"
-              autoFocus
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
             
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Κωδικός"
-              type={showPassword ? 'text' : 'password'}
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
+            <Typography variant="subtitle1" sx={{ mb: 3, color: 'text.secondary', textAlign: 'center' }}>
+              Σύστημα Διαχείρισης
+            </Typography>
             
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
-            >
-              {loading ? 'Σύνδεση...' : 'Σύνδεση'}
-            </Button>
+            <Divider sx={{ width: '100%', mb: 3 }} />
+
+            <Typography component="h2" variant="h5" fontWeight="500" sx={{ mb: 3, color: '#1976d2' }}>
+              Είσοδος Χρήστη
+            </Typography>
+            
+            {error && (
+              <Typography color="error" sx={{ mt: 1, mb: 2 }} variant="body2">
+                {error}
+              </Typography>
+            )}
+            
+            <Box component="form" onSubmit={handleLogin} sx={{ mt: 1, width: '100%' }}>
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                id="username"
+                label="Όνομα χρήστη"
+                name="username"
+                autoComplete="username"
+                autoFocus
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                variant="outlined"
+                sx={{ mb: 2 }}
+              />
+              
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                name="password"
+                label="Κωδικός"
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                variant="outlined"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+                sx={{ mb: 3 }}
+              />
+              
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                color="primary"
+                sx={{ 
+                  mt: 2, 
+                  mb: 2, 
+                  py: 1.5, 
+                  fontWeight: 'bold',
+                  fontSize: '1rem',
+                  backgroundColor: '#1976d2',
+                  '&:hover': {
+                    backgroundColor: '#0d47a1', 
+                  }
+                }}
+                disabled={loading}
+              >
+                {loading ? 'Σύνδεση...' : 'ΣΥΝΔΕΣΗ'}
+              </Button>
+            </Box>
           </Box>
         </Paper>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 }
