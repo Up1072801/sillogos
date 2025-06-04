@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Box, Toolbar, Breadcrumbs, Link, Typography, Button, Chip, Tooltip } from "@mui/material";
-import { useLocation, Link as RouterLink } from "react-router-dom";
+import { useLocation, Link as RouterLink, useParams } from "react-router-dom";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Navbar from "./navbar";
 import "../pages/App.css";
@@ -18,7 +18,7 @@ const routeNameMap = {
   "katafigio": "Καταφύγιο",
   "sxoles": "Σχολές",
   "admin": "Διαχειριστής",
-  "eksormisi": "Εξόρμηση",
+  "eksormisi": "Εξορμήσεις", // Changed to be more descriptive
   "drastiriotita": "Δραστηριότητα"
 };
 
@@ -27,6 +27,28 @@ const Layout = ({ children, user, onLogout }) => {
   const pathnames = location.pathname.split("/").filter((x) => x);
   const [tokenStatus, setTokenStatus] = useState("active");
   const [refreshing, setRefreshing] = useState(false);
+  const [expeditionData, setExpeditionData] = useState({});
+
+  // Load expedition details for breadcrumbs when needed
+  useEffect(() => {
+    const fetchExpeditionData = async () => {
+      // Check if we're on an expedition details page (URL like /eksormisi/123)
+      if (pathnames.length >= 2 && pathnames[0] === 'eksormisi' && !isNaN(pathnames[1])) {
+        try {
+          const id = pathnames[1];
+          const response = await api.get(`/eksormiseis/${id}`);
+          setExpeditionData(prev => ({ 
+            ...prev, 
+            [id]: response.data 
+          }));
+        } catch (error) {
+          console.error("Error fetching expedition data for breadcrumbs:", error);
+        }
+      }
+    };
+    
+    fetchExpeditionData();
+  }, [location.pathname]);
 
   // Έλεγχος κατάστασης token κάθε 30 δευτερόλεπτα
   useEffect(() => {
@@ -197,14 +219,32 @@ const Layout = ({ children, user, onLogout }) => {
               {pathnames.map((value, index) => {
                 const last = index === pathnames.length - 1;
                 const to = `/${pathnames.slice(0, index + 1).join("/")}`;
-                const name = routeNameMap[value] || decodeURIComponent(value);
+                
+                // Special handling for expedition details
+                let name = routeNameMap[value] || decodeURIComponent(value);
+                let linkTo = to;
+                
+                // Fix the link for "Εξόρμηση" to point to the expeditions list
+                if (value === 'eksormisi') {
+                  linkTo = '/eksormiseis'; // Always link to the expeditions list
+                }
+                
+                // Show destination for expedition IDs
+                if (pathnames[0] === 'eksormisi' && index === 1 && !isNaN(value)) {
+                  const expedition = expeditionData[value];
+                  if (expedition) {
+                    name = expedition.proorismos || expedition.titlos || `Εξόρμηση #${value}`;
+                  } else {
+                    name = `Εξόρμηση #${value}`;
+                  }
+                }
 
                 return last ? (
                   <Typography key={to} sx={{ color: "text.primary" }}>
                     {name}
                   </Typography>
                 ) : (
-                  <Link underline="hover" color="inherit" component={RouterLink} to={to} key={to}>
+                  <Link underline="hover" color="inherit" component={RouterLink} to={linkTo} key={to}>
                     {name}
                   </Link>
                 );

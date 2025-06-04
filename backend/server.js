@@ -41,6 +41,7 @@ app.get("/health", (_req, res) => {
 // Διαδρομές τόσο με όσο και χωρίς το /api/ prefix
 app.use('/api/auth', authRoutes); 
 app.use("/api",authRoutes);
+app.use("/auth", authRoutes); // Add this line to register /auth/* routes
 app.use("/Repafes", epafesRoutes);
 app.use("/api/Repafes", epafesRoutes);
 app.use("/melitousillogou", melitousillogouRoutes);
