@@ -78,7 +78,17 @@ const AddDialog = ({
     enableReinitialize: false, // Σημαντικό: Μην ενεργοποιήσετε αυτό!
   });
 
-  // Προσθέστε μετά την αρχικοποίηση του formik (περίπου γραμμή 60)
+  // Handler για το Enter key press
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      // Αποτροπή προεπιλεγμένης συμπεριφοράς για να αποφύγουμε άλλες ενέργειες
+      event.preventDefault();
+      // Εκτέλεση του submit αν η φόρμα είναι έγκυρη
+      if (formik.isValid && !formik.isSubmitting) {
+        formik.handleSubmit();
+      }
+    }
+  };
 
   // State για την αποθήκευση του υπολογισμένου κόστους
   const [calculatedCost, setCalculatedCost] = useState(null);
@@ -605,6 +615,7 @@ const AddDialog = ({
       onClose={handleClose} 
       maxWidth={hasTableSelects ? "md" : "sm"} 
       fullWidth
+      onKeyDown={handleKeyDown} // Add keyDown handler here for dialog-level Enter key handling
     >
       <form onSubmit={formik.handleSubmit}>
         <DialogTitle>{title}</DialogTitle>

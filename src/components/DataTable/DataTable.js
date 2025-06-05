@@ -320,9 +320,12 @@ const DataTable = React.memo(({
     if (value === null || value === undefined || value === '') 
       return '';
     
-    // Check if it's a date string by trying to parse it
-    const dateObj = new Date(value);
-    if (!isNaN(dateObj.getTime())) {
+    // Use improved date detection
+    if (isLikelyADate(value)) {
+      const dateObj = value instanceof Date ? value : new Date(value);
+      // Return empty string for Unix epoch (1970) dates
+      if (dateObj.getFullYear() === 1970) return '';
+      
       // Format as DD/MM/YYYY
       return dateObj.toLocaleDateString("el-GR", {
         day: '2-digit',
@@ -361,8 +364,20 @@ const DataTable = React.memo(({
             cellValue = row[col.accessorKey];
           }
           
-          // Format dates and use header as column name
-          newRow[col.header] = formatDateIfNeeded(cellValue);
+          // Handle null values and 1970 dates
+          if (cellValue === null || cellValue === undefined) {
+            newRow[col.header] = '';
+          } else if (cellValue instanceof Date || (typeof cellValue === 'string' && !isNaN(new Date(cellValue).getTime()))) {
+            const dateObj = cellValue instanceof Date ? cellValue : new Date(cellValue);
+            // Check for Unix epoch dates (1970)
+            if (dateObj.getFullYear() === 1970) {
+              newRow[col.header] = '';
+            } else {
+              newRow[col.header] = formatDateIfNeeded(cellValue);
+            }
+          } else {
+            newRow[col.header] = formatDateIfNeeded(cellValue);
+          }
         });
         
         return newRow;
@@ -591,9 +606,16 @@ const DataTable = React.memo(({
       // Initialize column selection with nothing selected by default
       const initialSelection = {};
       columns.forEach(col => {
-        // Only include columns that aren't actions and aren't marked for hiding
-        if (col.accessorKey && col.accessorKey !== 'actions' && col.enableHiding !== true) {
+        // Only include columns that aren't actions, IDs, or marked for hiding
+        if (col.accessorKey && 
+            col.accessorKey !== 'actions' && 
+            !col.accessorKey.toLowerCase().includes('id_') && 
+            col.accessorKey !== 'id' && 
+            col.enableHiding !== true) {
           initialSelection[col.accessorKey] = false; // Default to unchecked
+        } else if (col.accessorKey) {
+          // Explicitly set ID columns to false - won't appear in dialog but prevents bugs
+          initialSelection[col.accessorKey] = false;
         }
       });
       
@@ -653,15 +675,29 @@ const DataTable = React.memo(({
       }
     }, [open, selectedColumns]);
     
-    const allColumnsCount = columns.filter(col => col.accessorKey && col.accessorKey !== 'actions').length;
+    // Filter out ID-related columns for export
+    const exportableColumns = columns.filter(col => 
+      col.accessorKey && 
+      col.accessorKey !== 'actions' &&
+      !col.accessorKey.toLowerCase().includes('id_') &&
+      col.accessorKey !== 'id' &&
+      col.enableHiding !== true
+    );
+    
+    const allColumnsCount = exportableColumns.length;
     const selectedCount = Object.values(localSelectedColumns).filter(Boolean).length;
     const allSelected = selectedCount === allColumnsCount && allColumnsCount > 0;
     
     const handleSelectAll = (checked) => {
       const newSelection = {};
       columns.forEach(col => {
-        if (col.accessorKey && col.accessorKey !== 'actions') {
-          newSelection[col.accessorKey] = checked;
+        if (col.accessorKey) {
+          // Only set to true if it's an exportable column
+          const isExportable = !col.accessorKey.toLowerCase().includes('id_') && 
+                              col.accessorKey !== 'id' &&
+                              col.accessorKey !== 'actions' &&
+                              col.enableHiding !== true;
+          newSelection[col.accessorKey] = checked && isExportable;
         }
       });
       setLocalSelectedColumns(newSelection);
@@ -714,21 +750,18 @@ const DataTable = React.memo(({
             />
             <Divider sx={{ my: 1 }} />
             
-            {columns.map((column) => (
-              column.accessorKey && 
-              column.accessorKey !== 'actions' && 
-              column.enableHiding !== true && (
-                <FormControlLabel
-                  key={column.accessorKey}
-                  control={
-                    <Checkbox
-                      checked={!!localSelectedColumns[column.accessorKey]}
-                      onChange={(e) => handleCheckboxChange(column.accessorKey, e.target.checked)}
-                    />
-                  }
-                  label={column.header}
-                />
-              )
+            {/* Only show exportable columns in the dialog */}
+            {exportableColumns.map((column) => (
+              <FormControlLabel
+                key={column.accessorKey}
+                control={
+                  <Checkbox
+                    checked={!!localSelectedColumns[column.accessorKey]}
+                    onChange={(e) => handleCheckboxChange(column.accessorKey, e.target.checked)}
+                  />
+                }
+                label={column.header}
+              />
             ))}
           </FormGroup>
         </DialogContent>
@@ -745,6 +778,21 @@ const DataTable = React.memo(({
       </Dialog>
     );
   });
+
+  // Add this improved date detection function
+  const isLikelyADate = (value) => {
+    if (value instanceof Date) return true;
+    
+    // Only process strings that look like dates
+    if (typeof value === 'string') {
+      // Check if it has date separators
+      if (value.includes('-') || value.includes('/') || value.includes('T')) {
+        const dateObj = new Date(value);
+        return !isNaN(dateObj.getTime());
+      }
+    }
+    return false;
+  };
 
   return (
     <Box sx={{ p: 2 }}>
@@ -806,7 +854,41 @@ const DataTable = React.memo(({
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis'
-          }
+          },
+          // Add custom cell formatting for all cells
+          muiTableBodyCellProps: ({ cell }) => ({
+            sx: {
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            },
+            // This ensures consistent handling of empty/null values across the table
+            children: () => {
+              const value = cell.getValue();
+              
+              // Handle null, undefined, or empty values
+              if (value === null || value === undefined || value === '') 
+                return '';
+              
+              // Use the improved date detection function
+              if (isLikelyADate(value)) {
+                const dateObj = value instanceof Date ? value : new Date(value);
+                // Check for Unix epoch dates (1970)
+                if (dateObj.getFullYear() === 1970) {
+                  return '';
+                }
+                // Format dates properly
+                return dateObj.toLocaleDateString("el-GR", {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric'
+                });
+              }
+              
+              // For non-dates, just return the value as is
+              return value;
+            }
+          })
         }}
         muiTableContainerProps={{
           sx: { 

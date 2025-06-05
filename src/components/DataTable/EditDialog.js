@@ -474,8 +474,26 @@ const EditDialog = ({
   // Determine if there are any tableSelect fields
   const hasTableSelects = fields.some(field => field.type === 'tableSelect');
 
+  // Add this handler for Enter key press
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      // Prevent default to avoid unexpected behavior
+      event.preventDefault();
+      // Submit the form if valid
+      if (Object.keys(formik.errors).length === 0 && !formik.isSubmitting) {
+        formik.handleSubmit();
+      }
+    }
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth={hasTableSelects ? "md" : "sm"} fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth={hasTableSelects ? "md" : "sm"} 
+      fullWidth
+      onKeyDown={handleKeyDown} // Add keyDown handler here
+    >
       <form onSubmit={formik.handleSubmit}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>

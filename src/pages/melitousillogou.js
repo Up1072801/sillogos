@@ -39,10 +39,10 @@ const fields = [
   { 
     accessorKey: "melos.epafes.tilefono", 
     header: "Τηλέφωνο", 
-    validation: yup.string().nullable().test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+    validation: yup.string().nullable().test('valid-phone', 'Επιτρέπονται μόνο αριθμοί και το σύμβολο +', function(value) {
       if (!value || value === '') return true;
-      return /^[0-9]{10}$/.test(value);
-    }) // Αφαίρεση .required()
+      return /^[0-9+]+$/.test(value);
+    })
   },
   { 
     accessorKey: "status", 
@@ -885,10 +885,10 @@ export default function Meloi() {
       { 
         accessorKey: "tilefono", 
         header: "Τηλέφωνο", 
-        validation: yup.string().nullable().test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+        validation: yup.string().nullable().test('valid-phone', 'Επιτρέπονται μόνο αριθμοί και το σύμβολο +', function(value) {
           if (!value || value === '') return true;
-          return /^[0-9]{10}$/.test(value);
-        }) // Αφαίρεση .required()
+          return /^[0-9+]+$/.test(value);
+        })
       },
       { 
         accessorKey: "hmerominia_gennhshs", 
@@ -1313,10 +1313,10 @@ const parseDate = (dateValue) => {
             { 
               accessorKey: "tilefono", 
               header: "Τηλέφωνο", 
-              validation: yup.string().nullable().test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+              validation: yup.string().nullable().test('valid-phone', 'Επιτρέπονται μόνο αριθμοί και το σύμβολο +', function(value) {
                 if (!value || value === '') return true;
-                return /^[0-9]{10}$/.test(value);
-              }) // Αφαίρεση .required()
+                return /^[0-9+]+$/.test(value);
+              })
             },
             { 
               accessorKey: "hmerominia_gennhshs", 
