@@ -468,6 +468,9 @@ const getStatusStyle = (status) => {
 };
 
 export default function Meloi() {
+  // Add this feature flag at the beginning of your component
+  const SHOW_EXCEL_IMPORT = false; // Set to true when you want to enable it again
+  
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openAddDialog, setOpenAddDialog] = useState(false);
@@ -542,13 +545,13 @@ export default function Meloi() {
               ...member,
               id: member.id_es_melous,
               fullName: `${member.melos?.epafes?.epitheto || ""} ${member.melos?.epafes?.onoma || ""}`.trim(),
-              email: member.melos?.epafes?.email || "-",
-              tilefono: member.melos?.epafes?.tilefono || "-",
-              odos: member.odos || "-",
-              tk: member.tk || "-",
-              arithmos_mitroou: member.arithmos_mitroou || "-",
-              eidosSindromis: member.eidosSindromis || "-",
-              status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || "-",
+              email: member.melos?.epafes?.email || "",
+              tilefono: member.melos?.epafes?.tilefono || "",
+              odos: member.odos || "",
+              tk: member.tk || "",
+              arithmos_mitroou: member.arithmos_mitroou || "",
+              eidosSindromis: member.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "",
+              status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || "",
               
               // Διατηρούμε τις αρχικές ημερομηνίες για εσωτερική χρήση
               _hmerominia_gennhshs: birthDate,
@@ -648,15 +651,19 @@ export default function Meloi() {
           ...response.data,
           id: response.data.id_es_melous,
           fullName: `${response.data.melos?.epafes?.epitheto || ""} ${response.data.melos?.epafes?.onoma || ""}`.trim(),
-          email: response.data.melos?.epafes?.email || null,
+          email: response.data.melos?.epafes?.email || "",
           tilefono: response.data.melos?.epafes?.tilefono || "",
-          status: "Ενεργή",
-          // Keep the original dates from the import
-          hmerominia_egrafis: member.hmerominia_egrafis,
-          hmerominia_pliromis: member.hmerominia_pliromis,
-          // Only calculate subscription end date if there's a payment date
-          subscriptionEndDate: member.hmerominia_pliromis ? 
-            calculateSubscriptionEndDate(member.hmerominia_egrafis, member.hmerominia_pliromis) : 
+          odos: response.data.odos || "",  // Use empty string instead of "-"
+          tk: response.data.tk || "",      // Use empty string instead of "-"
+          arithmos_mitroou: response.data.arithmos_mitroou || "",  // Use empty string instead of "-"
+          eidosSindromis: response.data.eidosSindromis || "",  // Use empty string instead of "-"
+          status: calculatedStatus, // Use the calculated status
+          // Use the formatted dates we already have
+          hmerominia_egrafis: formattedStartDate,
+          hmerominia_pliromis: formattedPaymentDate,
+          // Calculate subscription end date with our formatted dates
+          subscriptionEndDate: formattedPaymentDate ? 
+            calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate) : 
             null,
         };
         
@@ -1234,14 +1241,17 @@ const parseDate = (dateValue) => {
         </Typography>
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Button 
-            variant="contained" 
-            component="label" 
-            startIcon={<CloudUploadIcon />}
-          >
-            Εισαγωγή από Excel
-            <input type="file" hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
-          </Button>
+          {/* Only render the button if SHOW_EXCEL_IMPORT is true */}
+          {SHOW_EXCEL_IMPORT && (
+            <Button 
+              variant="contained" 
+              component="label" 
+              startIcon={<CloudUploadIcon />}
+            >
+              Εισαγωγή από Excel
+              <input type="file" hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
+            </Button>
+          )}
         </Box>
         
         <DataTable
