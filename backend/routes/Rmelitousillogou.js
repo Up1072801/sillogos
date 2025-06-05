@@ -203,24 +203,29 @@ router.post("/", async (req, res) => {
     
     // Χρήση transaction για να διασφαλίσουμε την ατομικότητα των λειτουργιών
     const result = await prisma.$transaction(async (prismaTransaction) => {
-      if (epafes?.tilefono) {
+      // Χειρισμός τηλεφώνου
+      if (epafes?.tilefono && epafes.tilefono.toString().trim() !== "") {
         epafes.tilefono = BigInt(epafes.tilefono);
+      } else {
+        epafes.tilefono = null;
       }
 
-      // 1. Δημιουργία της επαφής
+      // 1. Δημιουργία της επαφής με κενά πεδία
       const newEpafi = await prismaTransaction.epafes.create({
-        data: epafes
+        data: {
+          onoma: epafes?.onoma || "",
+          epitheto: epafes?.epitheto || "",
+          email: epafes?.email || "",
+          tilefono: epafes?.tilefono,
+        }
       });
 
-      // Στο backend, αρχείο Rmelitousillogou.js
-      // Στο σημείο δημιουργίας του μέλους:
-
       // Έλεγχος για έγκυρο ID βαθμού δυσκολίας
-      const vathmosId = melos.vathmos_diskolias?.id_vathmou_diskolias || 1; // Προεπιλογή στο 1
+      const vathmosId = melos?.vathmos_diskolias?.id_vathmou_diskolias || 1; // Προεπιλογή στο 1
 
       const newMelos = await prismaTransaction.melos.create({
         data: {
-          tipo_melous: melos.tipo_melous || "esoteriko",
+          tipo_melous: melos?.tipo_melous || "esoteriko",
           epafes: {
             connect: { id_epafis: newEpafi.id_epafis }
           },
@@ -232,64 +237,65 @@ router.post("/", async (req, res) => {
         }
       });
 
-      // 3. Δημιουργία του εσωτερικού μέλους
+      // 3. Δημιουργία του εσωτερικού μέλους με κενά πεδία
       const newEsoterikoMelos = await prismaTransaction.esoteriko_melos.create({
         data: {
-          ...esoteriko_melos,
-          id_es_melous: newMelos.id_melous
+          id_es_melous: newMelos.id_melous,
+          hmerominia_gennhshs: esoteriko_melos?.hmerominia_gennhshs || null,
+          patronimo: esoteriko_melos?.patronimo || "",
+          odos: esoteriko_melos?.odos || "",
+          tk: esoteriko_melos?.tk ? parseInt(esoteriko_melos.tk) : null,
+          arithmos_mitroou: esoteriko_melos?.arithmos_mitroou ? parseInt(esoteriko_melos.arithmos_mitroou) : null,
         }
       });
 
-      // Προσθέστε αυτό πριν τη δημιουργία του sindromitis
-      const startDate = new Date(sindromitis.exei.sindromi.hmerominia_enarksis);
-      const isExtendedSubscription = isAfterJuneFirst(startDate);
-      const subscriptionStatus = sindromitis.katastasi_sindromis || "Ενεργή"; // Πάντα ξεκινάει ως ενεργή
-      
-      // 4. Δημιουργία του συνδρομητή
-      const newSindromitis = await prismaTransaction.sindromitis.create({
-        data: {
-          id_sindromiti: newEsoterikoMelos.id_es_melous,
-          katastasi_sindromis: subscriptionStatus
-          // Αφαιρέστε το πεδίο sxolia που δημιουργεί το σφάλμα
-        }
-      });
+      // Υπόλοιπος κώδικας για συνδρομή μόνο αν υπάρχουν δεδομένα συνδρομής
+      if (sindromitis && sindromitis.exei && sindromitis.exei.sindromi) {
+        const startDate = new Date(sindromitis.exei.sindromi.hmerominia_enarksis);
+        const subscriptionStatus = sindromitis.katastasi_sindromis || "Ενεργή";
+        
+        // 4. Δημιουργία του συνδρομητή
+        const newSindromitis = await prismaTransaction.sindromitis.create({
+          data: {
+            id_sindromiti: newEsoterikoMelos.id_es_melous,
+            katastasi_sindromis: subscriptionStatus
+          }
+        });
 
-      // 5. Αναζήτηση του είδους συνδρομής
-      const eidosSindromisRecord = await prismaTransaction.eidos_sindromis.findFirst({
-        where: {
-          titlos: sindromitis.exei.sindromi.eidos_sindromis
-        }
-      });
+        // 5. Αναζήτηση του είδους συνδρομής
+        const eidosSindromisRecord = await prismaTransaction.eidos_sindromis.findFirst({
+          where: {
+            titlos: sindromitis.exei.sindromi.eidos_sindromis
+          }
+        });
 
-      if (!eidosSindromisRecord) {
-        throw new Error(`Δεν βρέθηκε είδος συνδρομής με τίτλο: ${sindromitis.exei.sindromi.eidos_sindromis}`);
+        if (eidosSindromisRecord) {
+          // 6. Δημιουργία της συνδρομής
+          const maxIdResult = await prismaTransaction.sindromi.aggregate({
+            _max: {
+              id_sindromis: true,
+            },
+          });
+          const newId = (maxIdResult._max.id_sindromis || 0) + 1;
+
+          const newSindromi = await prismaTransaction.sindromi.create({
+            data: {
+              id_sindromis: newId,
+              hmerominia_enarksis: new Date(sindromitis.exei.sindromi.hmerominia_enarksis),
+              id_eidous_sindromis: eidosSindromisRecord.id_eidous_sindromis
+            }
+          });
+
+          // 7. Δημιουργία της σχέσης "exei"
+          await prismaTransaction.exei.create({
+            data: {
+              id_sindromiti: newSindromitis.id_sindromiti,
+              id_sindromis: newSindromi.id_sindromis,
+              hmerominia_pliromis: new Date(sindromitis.exei.hmerominia_pliromis)
+            }
+          });
+        }
       }
-
-// 6. Δημιουργία της συνδρομής - χρήση χειροκίνητης αρίθμησης
-// Πρώτα βρίσκουμε το μέγιστο id_sindromis στη βάση
-const maxIdResult = await prismaTransaction.sindromi.aggregate({
-  _max: {
-    id_sindromis: true,
-  },
-});
-const newId = (maxIdResult._max.id_sindromis || 0) + 1;
-
-// Δημιουργία με συγκεκριμένο ID
-const newSindromi = await prismaTransaction.sindromi.create({
-  data: {
-    id_sindromis: newId,
-    hmerominia_enarksis: new Date(sindromitis.exei.sindromi.hmerominia_enarksis),
-    id_eidous_sindromis: eidosSindromisRecord.id_eidous_sindromis
-  }
-});
-      // 7. Δημιουργία της σχέσης "exei"
-      await prismaTransaction.exei.create({
-        data: {
-          id_sindromiti: newSindromitis.id_sindromiti,
-          id_sindromis: newSindromi.id_sindromis,
-          hmerominia_pliromis: new Date(sindromitis.exei.hmerominia_pliromis)
-        }
-      });
 
       // 8. Ανάκτηση του πλήρους νέου μέλους για την απάντηση
       const completeMember = await prismaTransaction.esoteriko_melos.findUnique({

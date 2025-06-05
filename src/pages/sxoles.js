@@ -383,32 +383,40 @@ const extractId = (obj) => {
     { 
       accessorKey: "onoma", 
       header: "Όνομα",
-      validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
+      validation: yup.string() // Removed required
     },
     { 
       accessorKey: "epitheto", 
       header: "Επώνυμο",
-      validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
+      validation: yup.string() // Removed required
     },
     { 
       accessorKey: "email", 
       header: "Email",
-      validation: yup.string().email("Μη έγκυρο email").required("Το email είναι υποχρεωτικό")
+      validation: yup.string().email("Μη έγκυρο email")
+        .test('optional-email', 'Μη έγκυρο email', function(value) {
+          if (!value || value === '') return true; // Allow empty values
+          return yup.string().email().isValidSync(value);
+        })
     },
     { 
       accessorKey: "tilefono", 
       header: "Τηλέφωνο",
-      validation: yup.string().matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία")
+      validation: yup.string()
+        .test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+          if (!value || value === '') return true; // Allow empty values
+          return /^[0-9]{10}$/.test(value);
+        })
     },
     { 
       accessorKey: "epipedo", 
       header: "Επίπεδο",
-      validation: yup.string().required("Το επίπεδο είναι υποχρεωτικό")
+      validation: yup.string() // Removed required
     },
     { 
       accessorKey: "klados", 
       header: "Κλάδος",
-      validation: yup.string().required("Ο κλάδος είναι υποχρεωτικός")
+      validation: yup.string() // Removed required
     }
   ];
 
@@ -1503,7 +1511,6 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
   // Επεξεργασία υπάρχουσας σχολής
   const handleEditSxoli = async (editedSxoli) => {
     try {
-      
       if (!currentSxoliId) {
         throw new Error("Δεν υπάρχει ID σχολής για επεξεργασία");
       }
@@ -1529,33 +1536,43 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
       }
 
       // Αποστολή στο API
-      await api.put(`/sxoles/${currentSxoliId}`, formattedSxoli);
+      const response = await api.put(`/sxoles/${currentSxoliId}`, formattedSxoli);
+      
+      // Κατασκευή του πλήρους ενημερωμένου αντικειμένου σχολής
+ // Κατασκευή του πλήρους ενημερωμένου αντικειμένου σχολής
+const updatedSchool = {
+  ...formattedSxoli,
+  id: currentSxoliId,
+  id_sxolis: currentSxoliId,
+  // Δυναμικός υπολογισμός του ονόματος από τα ενημερωμένα πεδία
+  onoma: `${formattedSxoli.klados || ""} ${formattedSxoli.epipedo || ""} ${formattedSxoli.etos || ""}`.trim()
+};
       
       // Τοπικές ενημερώσεις καταστάσεων
       // 1. Ενημέρωση της σχολής στο sxolesData
       setSxolesData(prev => {
-        return prev.map(sxoli => 
-          sxoli.id_sxolis === currentSxoliId || sxoli.id === currentSxoliId
+        const updatedSxolesData = prev.map(sxoli => 
+          (sxoli.id_sxolis === currentSxoliId || sxoli.id === currentSxoliId)
             ? { 
                 ...sxoli, 
-                ...formattedSxoli, 
-                id_sxolis: currentSxoliId,
+                ...updatedSchool,
                 // Διατήρηση υπαρχόντων εκπαιδευτών
-                ekpaideutes: sxoli.ekpaideutes || []
+                ekpaideutes: sxoli.ekpaideutes || [],
+                // Ensure simmetoxes property is preserved
+                simmetoxes: sxoli.simmetoxes
               }
             : sxoli
         );
+        return updatedSxolesData;
       });
       
       // 2. Ενημέρωση της αναφοράς σχολής στα δεδομένα εκπαιδευτών
       setEkpaideutesData(prev => {
         return prev.map(ekpaideutis => {
-          // Έλεγχος αν αυτός ο εκπαιδευτής έχει τη σχολή που ενημερώνουμε
           if (ekpaideutis.sxoles && Array.isArray(ekpaideutis.sxoles)) {
-            // Ενημέρωση των στοιχείων της σχολής στη λίστα σχολών του εκπαιδευτή
             const updatedSxoles = ekpaideutis.sxoles.map(sxoli => 
               (sxoli.id_sxolis === currentSxoliId || sxoli.id === currentSxoliId)
-                ? { ...sxoli, ...formattedSxoli, id_sxolis: currentSxoliId }
+                ? { ...sxoli, ...updatedSchool }
                 : sxoli
             );
             
@@ -1565,16 +1582,18 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
         });
       });
       
-      // 3. Ενημέρωση διαθέσιμων ετών αν χρειάζεται (επανυπολογισμός με βάση τις υπόλοιπες σχολές)
-      const remainingYears = [...new Set(
-        sxolesData
+      // 3. Ενημέρωση διαθέσιμων ετών με τον νέο χρόνο συμπεριλαμβανόμενο
+      const allYears = [...new Set([
+        ...(formattedSxoli.etos ? [formattedSxoli.etos] : []), 
+        ...sxolesData
           .filter(sxoli => sxoli.id_sxolis !== currentSxoliId && sxoli.id !== currentSxoliId)
           .map(s => s.etos)
           .filter(year => year !== null && year !== undefined)
-      )].sort((a, b) => b - a);
+      ])].sort((a, b) => b - a);
       
-      setAvailableYears(remainingYears);
+      setAvailableYears(allYears);
       
+      // Κλείσιμο διαλόγου και καθαρισμός καταστάσεων
       setEditSxoliDialogOpen(false);
       setEditSxoliData(null);
       setCurrentSxoliId(null);
@@ -1587,15 +1606,15 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
   // Διαγραφή σχολής
   const handleDeleteSxoli = async (id) => {
     try {
-      
       if (!id) {
         alert("Δεν υπάρχει ID σχολής για διαγραφή");
         return;
       }
       
-      if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή τη σχολή;")) {
-        return;
-      }
+      // Remove this redundant confirmation since DataTable already confirms deletion
+      // if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή τη σχολή;")) {
+      //   return;
+      // }
       
       // Απευθείας κλήση του API
       await api.delete(`/sxoles/${id}`);

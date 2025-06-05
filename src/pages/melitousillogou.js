@@ -4,10 +4,12 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { el } from "date-fns/locale";
 import api from '../utils/api';
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
 import * as yup from "yup";
+import * as XLSX from 'xlsx';
 
 const fields = [
   { 
@@ -15,30 +17,43 @@ const fields = [
     header: "Ονοματεπώνυμο", 
     Cell: ({ row }) => `${row.original.melos?.epafes?.epitheto || ''} ${row.original.melos?.epafes?.onoma || ''}`,
     filterFn: (row, id, filterValue) => {
-      const name = `${row.original.melos?.epafes?.epitheto || ''} ${row.original.melos?.epafes?.onoma || ''}`.toLowerCase();
-      return name.includes(filterValue.toLowerCase());
+      const fullName = `${row.original.melos?.epafes?.epitheto || ''} ${row.original.melos?.epafes?.onoma || ''}`;
+      return fullName.toLowerCase().includes(filterValue.toLowerCase());
     }
   },
-  { accessorKey: "patronimo", header: "Πατρώνυμο", validation: yup.string().required("Υποχρεωτικό") },
+  { accessorKey: "patronimo", header: "Πατρώνυμο", validation: yup.string() }, // Αφαίρεση .required()
   { accessorKey: "arithmos_mitroou", header: "Αριθμός Μητρώου" },
-  { accessorKey: "odos", header: "Οδός", validation: yup.string().required("Υποχρεωτικό") },
-  { accessorKey: "tk", header: "ΤΚ", validation: yup.number().required("Υποχρεωτικό") },
+  { accessorKey: "odos", header: "Οδός", validation: yup.string() }, // Αφαίρεση .required()
+  { accessorKey: "tk", header: "ΤΚ", validation: yup.number().nullable().transform((value, originalValue) => {
+      if (originalValue === '' || originalValue === null) return null;
+      return value;
+    }).typeError("Πρέπει να είναι αριθμός") }, // Αφαίρεση .required()
   { 
     accessorKey: "melos.epafes.email", 
     header: "Email", 
-    validation: yup.string().email("Μη έγκυρο email").required("Υποχρεωτικό") 
+    validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
+      if (!value || value === '') return true;
+      return yup.string().email().isValidSync(value);
+    }) // Αφαίρεση .required()
   },
   { 
     accessorKey: "melos.epafes.tilefono", 
     header: "Τηλέφωνο", 
-    validation: yup.string().matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία").required("Υποχρεωτικό") 
+    validation: yup.string().nullable().test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+      if (!value || value === '') return true;
+      return /^[0-9]{10}$/.test(value);
+    }) // Αφαίρεση .required()
   },
   { 
     accessorKey: "status", 
     header: "Κατάσταση", 
     Cell: ({ row }) => {
-      const status = row.original.athlitis ? "Αθλητής" : row.original.sindromitis?.katastasi_sindromis || '-';
-      return <div style={getStatusStyle(status)}>{status}</div>;
+      const status = row.original.athlitis ? "Αθλητής" : row.original.status;
+      return (
+        <span style={getStatusStyle(status)}>
+          {status}
+        </span>
+      );
     } 
   },
   { 
@@ -251,6 +266,7 @@ const detailPanelConfig = {
 };
 
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
+// Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
 const calculateSubscriptionEndDate = (registrationDateStr, paymentDateStr) => {
   if (!paymentDateStr) return "Άγνωστη";
   
@@ -263,15 +279,15 @@ const calculateSubscriptionEndDate = (registrationDateStr, paymentDateStr) => {
     // Χρησιμοποιούμε το έτος της ημερομηνίας πληρωμής ως βάση
     const paymentYear = paymentDate.getFullYear();
     
-    // Εξετάζουμε αν η εγγραφή έγινε το ίδιο έτος με την πληρωμή και μετά την 1η Ιουνίου
+    // Εξετάζουμε αν η εγγραφή έγινε το ίδιο έτος με την πληρωμή και μετά την 1η Σεπτεμβρίου
     if (registrationDate && !isNaN(registrationDate.getTime())) {
       const registrationYear = registrationDate.getFullYear();
       
       if (registrationYear === paymentYear) {
-        const juneFirst = new Date(paymentYear, 5, 1); // Ιούνιος = μήνας 5 (0-11)
+        const septFirst = new Date(paymentYear, 8, 1); // Σεπτέμβριος = μήνας 8 (0-11)
         
-        if (registrationDate >= juneFirst) {
-          // Αν η εγγραφή έγινε μετά την 1η Ιουνίου του έτους πληρωμής, 
+        if (registrationDate >= septFirst) {
+          // Αν η εγγραφή έγινε μετά την 1η Σεπτεμβρίου του έτους πληρωμής, 
           // λήγει στην αρχή του μεθεπόμενου έτους
           return `1/1/${paymentYear + 2}`;
         }
@@ -288,19 +304,21 @@ const calculateSubscriptionEndDate = (registrationDateStr, paymentDateStr) => {
 
 // Βελτιωμένη συνάρτηση μορφοποίησης ημερομηνιών - πάντα επιστρέφει DD/MM/YYYY
 const formatDate = (dateStr) => {
-  if (!dateStr) return "-";
+  if (!dateStr) return "";
   
   try {
-    // Αν είναι ISO string με 'T' και 'Z', το κόβουμε μέχρι το 'T'
+    // If it's ISO string with 'T' and 'Z', trim to date portion
     if (typeof dateStr === 'string' && dateStr.includes('T')) {
       dateStr = dateStr.split('T')[0];
     }
     
-    // Έλεγχος αν το dateStr είναι ήδη Date object
+    // Check if dateStr is already Date object
     const date = dateStr instanceof Date ? dateStr : new Date(dateStr);
-    if (isNaN(date.getTime())) return "-"; // Έλεγχος για invalid date
     
-    // Μορφοποίηση σε ημέρα/μήνας/έτος (DD/MM/YYYY)
+    // Check for invalid date or Unix epoch (which often indicates a null value was converted)
+    if (isNaN(date.getTime()) || date.getFullYear() === 1970) return "";
+    
+    // Format to day/month/year (DD/MM/YYYY)
     return date.toLocaleDateString("el-GR", {
       day: '2-digit',
       month: '2-digit',
@@ -308,12 +326,11 @@ const formatDate = (dateStr) => {
     });
   } catch (e) {
     console.error("Σφάλμα μορφοποίησης ημερομηνίας:", e, dateStr);
-    return "-";
+    return "";
   }
 };
 
 // Updated toISODate function that returns a full ISO datetime string
-
 const toISODate = (dateStr) => {
   if (!dateStr) return null;
   
@@ -328,11 +345,19 @@ const toISODate = (dateStr) => {
     }
     
     // Μετατροπή σε Date
-    const date = dateStr instanceof Date ? dateStr : new Date(dateStr);
+    let date;
+    if (dateStr instanceof Date) {
+      date = new Date(dateStr);
+    } else {
+      // For string date, use the local timezone interpretation
+      const [year, month, day] = dateStr.split('-').map(Number);
+      date = new Date(year, month-1, day, 12, 0, 0);
+    }
+    
     if (isNaN(date.getTime())) return null; // Έλεγχος για invalid date
     
-    // Επιστροφή πλήρους ISO string (με ώρα)
-    return date.toISOString();
+    // Return date-only portion of ISO string with time at noon UTC
+    return date.toISOString().split('T')[0] + 'T12:00:00.000Z';
   } catch (e) {
     return null;
   }
@@ -379,7 +404,7 @@ const determineSubscriptionStatus = (registrationDate, paymentDate, currentStatu
   
   const currentYear = new Date().getFullYear();
   const startOfCurrentYear = new Date(`${currentYear}-01-01`);
-  const startOfLastJune = new Date(`${currentYear-1}-06-01`);
+  const startOfLastSept = new Date(`${currentYear-1}-09-01`); // Changed from 06-01 (June) to 09-01 (September)
 
   // Λογική αντίστοιχη με αυτή του middleware στο backend
   if (
@@ -387,8 +412,8 @@ const determineSubscriptionStatus = (registrationDate, paymentDate, currentStatu
     regDate < startOfCurrentYear && 
     // Η πληρωμή έγινε πριν την αρχή του τρέχοντος έτους
     payDate < startOfCurrentYear &&
-    // Δεν είναι ειδική περίπτωση (εγγραφή μετά 1 Ιουνίου του προηγούμενου έτους)
-    !(regDate >= startOfLastJune && regDate < startOfCurrentYear)
+    // Δεν είναι ειδική περίπτωση (εγγραφή μετά 1 Σεπτεμβρίου του προηγούμενου έτους)
+    !(regDate >= startOfLastSept && regDate < startOfCurrentYear)
   ) {
     return "Ληγμένη";
   } 
@@ -623,22 +648,18 @@ export default function Meloi() {
           ...response.data,
           id: response.data.id_es_melous,
           fullName: `${response.data.melos?.epafes?.epitheto || ""} ${response.data.melos?.epafes?.onoma || ""}`.trim(),
-          email: response.data.melos?.epafes?.email || "-",
-          tilefono: response.data.melos?.epafes?.tilefono || "-",
-          odos: response.data.odos || "-",
-          tk: response.data.tk || "-",
-          arithmos_mitroou: response.data.arithmos_mitroou || "-",
-          eidosSindromis: newRow.eidosSindromis || "-",
-          status: calculatedStatus, // Χρησιμοποιούμε την υπολογισμένη κατάσταση
-          // ΕΔΩ: Βάλε το ISO string για να δουλεύει το safeFormatDate
-          hmerominia_gennhshs: formattedBirthDate,
-          hmerominia_egrafis: formattedStartDate,
-          hmerominia_pliromis: formattedPaymentDate,
-          // Ενημέρωση κλήσης της συνάρτησης με δύο παραμέτρους
-          subscriptionEndDate: calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate),
+          email: response.data.melos?.epafes?.email || null,
+          tilefono: response.data.melos?.epafes?.tilefono || "",
+          status: "Ενεργή",
+          // Keep the original dates from the import
+          hmerominia_egrafis: member.hmerominia_egrafis,
+          hmerominia_pliromis: member.hmerominia_pliromis,
+          // Only calculate subscription end date if there's a payment date
+          subscriptionEndDate: member.hmerominia_pliromis ? 
+            calculateSubscriptionEndDate(member.hmerominia_egrafis, member.hmerominia_pliromis) : 
+            null,
         };
         
-        // Προσθήκη στα υπάρχοντα δεδομένα
         setData(prevData => [...prevData, newMember]);
       }
       
@@ -806,7 +827,7 @@ export default function Meloi() {
     } catch (error) {
       console.error("Σφάλμα ενημέρωσης:", error);
       // Εμφάνιση λεπτομερών πληροφοριών σφάλματος
-      if (error.response?.data) {
+        if (error.response?.data) {
         alert(`Σφάλμα: ${JSON.stringify(error.response.data)}`);
       } else {
         alert("Σφάλμα κατά την ενημέρωση του μέλους.");
@@ -830,63 +851,71 @@ export default function Meloi() {
 
   // Δημιουργία των fields για το AddDialog με useMemo για να αποφύγουμε άπειρους επανασχεδιασμούς
   const addFields = useMemo(() => {
-    if (difficultyLevels.length === 0 || subscriptionTypes.length === 0) {
-      return [];
-    }
-
     return [
       { 
         accessorKey: "onoma", 
         header: "Όνομα", 
-        validation: yup.string().required("Υποχρεωτικό") 
+        validation: yup.string()
       },
       { 
         accessorKey: "epitheto", 
         header: "Επώνυμο", 
-        validation: yup.string().required("Υποχρεωτικό") 
+        validation: yup.string() // Αφαίρεση .required()
       },
       { 
         accessorKey: "patronimo", 
         header: "Πατρώνυμο", 
-        validation: yup.string().required("Υποχρεωτικό") 
+        validation: yup.string() // Αφαίρεση .required()
       },
       { 
         accessorKey: "email", 
         header: "Email", 
-        validation: yup.string().email("Μη έγκυρο email").required("Υποχρεωτικό") 
+        validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
+          if (!value || value === '') return true;
+          return yup.string().email().isValidSync(value);
+        }) // Αφαίρεση .required()
       },
       { 
         accessorKey: "tilefono", 
         header: "Τηλέφωνο", 
-        validation: yup.string().matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία").required("Υποχρεωτικό") 
+        validation: yup.string().nullable().test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+          if (!value || value === '') return true;
+          return /^[0-9]{10}$/.test(value);
+        }) // Αφαίρεση .required()
       },
       { 
         accessorKey: "hmerominia_gennhshs", 
         header: "Ημερομηνία Γέννησης", 
         type: "date",
-        validation: yup.date().required("Υποχρεωτικό")
+        validation: yup.date().nullable() // Αφαίρεση .required()
       },
       { 
         accessorKey: "odos", 
         header: "Οδός", 
-        validation: yup.string().required("Υποχρεωτικό") 
+        validation: yup.string() // Αφαίρεση .required()
       },
       { 
         accessorKey: "tk", 
         header: "ΤΚ", 
-        validation: yup.number().required("Υποχρεωτικό") 
+        validation: yup.number().nullable().transform((value, originalValue) => {
+          if (originalValue === '' || originalValue === null) return null;
+          return value;
+        }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
       },
       { 
         accessorKey: "arithmos_mitroou", 
         header: "Αριθμός Μητρώου", 
-        validation: yup.number().required("Υποχρεωτικό") 
+        validation: yup.number().nullable().transform((value, originalValue) => {
+          if (originalValue === '' || originalValue === null) return null;
+          return value;
+        }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
       },
       { 
         accessorKey: "eidosSindromis", 
         header: "Είδος Συνδρομής",
         type: "select",
         options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
-        validation: yup.string().required("Υποχρεωτικό")
+        validation: yup.string() // Αφαίρεση .required()
       },
       { 
         accessorKey: "katastasi_sindromis", 
@@ -894,40 +923,308 @@ export default function Meloi() {
         type: "select",
         options: subscriptionStatuses,
         defaultValue: "Ενεργή",
-        validation: yup.string().required("Υποχρεωτικό")
+        validation: yup.string() // Αφαίρεση .required()
       },
       { 
         accessorKey: "hmerominia_enarksis", 
         header: "Ημερομηνία Έναρξης Συνδρομής", 
         type: "date",
         defaultValue: new Date().toISOString().split('T')[0],
-        validation: yup.date()
-          .required("Υποχρεωτικό")
-          .test('not-after-payment', 'Η ημερομηνία έναρξης δεν μπορεί να είναι μεταγενέστερη της ημερομηνίας πληρωμής', 
-            function(value) {
-              const { hmerominia_pliromis } = this.parent;
-              return validateDates(value, hmerominia_pliromis);
-            })
+        validation: yup.date().nullable() // Αφαίρεση .required() και του test
       },
       { 
         accessorKey: "hmerominia_pliromis", 
         header: "Ημερομηνία Πληρωμής", 
         type: "date",
         defaultValue: new Date().toISOString().split('T')[0],
-        validation: yup.date().required("Υποχρεωτικό")
+        validation: yup.date().nullable() // Αφαίρεση .required()
       },
-      { 
-        accessorKey: "epipedo", 
-        header: "Βαθμός Δυσκολίας", 
-        type: "select",
-        options: difficultyLevels.map(level => ({ 
-          value: level.id_vathmou_diskolias, 
-          label: `Βαθμός ${level.epipedo}` 
-        })),
-        validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1")
-      }
+ { 
+  accessorKey: "epipedo", 
+  header: "Βαθμός Δυσκολίας", 
+  type: "select",
+  options: difficultyLevels.map(level => ({ 
+    value: level.id_vathmou_diskolias, 
+    label: `Βαθμός ${level.epipedo}` 
+  })),
+  defaultValue: difficultyLevels.find(level => level.id_vathmou_diskolias === 1)?.id_vathmou_diskolias || difficultyLevels[0]?.id_vathmou_diskolias || 1,
+  validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1")
+}
     ];
   }, [difficultyLevels, subscriptionTypes, subscriptionStatuses]);
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+      setLoading(true);
+      const data = await readExcel(file);
+      await importMembers(data);
+      setLoading(false);
+    } catch (error) {
+      console.error("Σφάλμα κατά την εισαγωγή από Excel:", error);
+      alert("Σφάλμα κατά την εισαγωγή από Excel: " + error.message);
+      setLoading(false);
+    }
+    
+    // Καθαρισμός του input file
+    event.target.value = null;
+  };
+
+const readExcel = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        
+        // Skip header row (assuming first row is headers)
+        const dataRows = jsonData.slice(1);
+        
+        const processedData = dataRows
+          .filter(row => row && row.length >= 4) // Need at least member number and name
+          .map(row => {
+            try {
+              // Extract data from specific columns based on the Excel structure
+              // Column 1 (index 0) is registration date, column 6 (index 5) is payment date
+              const registrationDate = row[0] ? parseDate(row[0]) : null;
+              const memberNumber = row[1] ? row[1].toString() : "";
+              const lastName = row[2] ? row[2].toString().trim() : "";
+              const firstName = row[3] ? row[3].toString().trim() : "";
+              const subscriptionFee = row[4] ? parseInt(row[4]) : null;
+              const paymentDate = row[5] ? parseDate(row[5]) : null;
+              const phoneNumber = row[6] ? row[6].toString().replace(/\D/g, '') : "";
+              
+              // Safely convert dates to ISO strings with validation
+              const regDateIso = registrationDate && isValidDate(registrationDate) ? 
+                registrationDate.toISOString().split('T')[0] + 'T12:00:00.000Z' : null;
+              
+              const payDateIso = paymentDate && isValidDate(paymentDate) ? 
+                paymentDate.toISOString().split('T')[0] + 'T12:00:00.000Z' : null;
+              
+              return {
+                arithmos_mitroou: memberNumber || null, // Use null for empty fields
+                epitheto: lastName || "", 
+                onoma: firstName || "",
+                tilefono: phoneNumber || "", // Empty string instead of default
+                hmerominia_pliromis: payDateIso, // These can be null
+                hmerominia_egrafis: regDateIso, // These can be null
+                timi: subscriptionFee
+              };
+            } catch (rowError) {
+              console.error("Error processing row:", row, rowError);
+              return null;
+            }
+          })
+          .filter(item => item !== null && (item.epitheto || item.onoma));
+        
+        resolve(processedData);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+};
+
+  // Helper function to check if a Date object is valid
+const isValidDate = (date) => {
+  return date instanceof Date && !isNaN(date.getTime());
+};
+
+  // Helper function to parse dates in various formats
+const parseDate = (dateValue) => {
+  // Return null for empty or undefined values
+  if (!dateValue) return null;
+  
+  try {
+    // If it's already a Date object
+    if (dateValue instanceof Date) {
+      return isValidDate(dateValue) ? dateValue : null;
+    } 
+    
+    // If it's a string
+    if (typeof dateValue === 'string') {
+      // Try DD/MM/YYYY format
+      if (dateValue.includes('/')) {
+        const parts = dateValue.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1; // JS months are 0-indexed
+          const year = parseInt(parts[2]);
+          
+          // Set time to 12:00 noon to avoid timezone issues
+          const date = new Date(year, month, day, 12, 0, 0);
+          return isValidDate(date) ? date : null;
+        }
+      }
+      
+      // Try standard date parsing but set to noon
+      const date = new Date(dateValue);
+      if (isValidDate(date)) {
+        // Set the time to noon
+        date.setHours(12, 0, 0, 0);
+        return date;
+      }
+      return null;
+    }
+    
+    // If it's a number (Excel stores dates as numbers)
+    if (typeof dateValue === 'number') {
+      // Convert Excel date number to JavaScript date
+      const excelBaseDate = new Date(1900, 0, 1);
+      const date = new Date(excelBaseDate);
+      date.setDate(excelBaseDate.getDate() + dateValue - 2);
+      // Set the time to noon
+      date.setHours(12, 0, 0, 0);
+      return isValidDate(date) ? date : null;
+    }
+  } catch (e) {
+    console.error("Error parsing date:", dateValue, e);
+  }
+  
+  return null;
+};
+
+ const importMembers = async (membersData) => {
+  if (!membersData || membersData.length === 0) {
+    alert("Δεν βρέθηκαν έγκυρα δεδομένα για εισαγωγή!");
+    return;
+  }
+  
+  const results = {
+    success: 0,
+    failed: 0,
+    errors: []
+  };
+  
+  // Get subscription types to match subscription fee
+  let subscriptionTypes = [];
+  let difficultyLevelsData = [];
+  
+  try {
+    // Fetch both subscription types and difficulty levels
+    const [subscriptionRes, difficultyRes] = await Promise.all([
+      api.get("/eidi-sindromis"),
+      api.get("/vathmoi-diskolias")
+    ]);
+    
+    subscriptionTypes = subscriptionRes.data;
+    difficultyLevelsData = difficultyRes.data;
+    
+    // Make sure we have at least one difficulty level
+    if (!difficultyLevelsData || difficultyLevelsData.length === 0) {
+      throw new Error("Δεν βρέθηκαν επίπεδα δυσκολίας στο σύστημα");
+    }
+  } catch (error) {
+    console.error("Could not fetch required data:", error);
+    alert("Σφάλμα: Δεν ήταν δυνατή η ανάκτηση των απαραίτητων δεδομένων");
+    return;
+  }
+  
+  // Find a valid difficulty ID - use the first available one
+  const validDifficultyId = difficultyLevelsData[0].id_vathmou_diskolias;
+  
+  // Process each member
+  for (const member of membersData) {
+    try {
+      // Handle phone
+    const validPhone = member.tilefono && member.tilefono.length > 0 ? member.tilefono : "";
+    
+    // Find subscription type that matches the fee (if provided)
+    let subscriptionType = null;
+    if (member.timi && subscriptionTypes.length > 0) {
+      subscriptionType = subscriptionTypes.find(type => type.timi === member.timi);
+    }
+    
+    const requestData = {
+      epafes: {
+        onoma: member.onoma || "",
+        epitheto: member.epitheto || "",
+        email: null, // Use null for empty fields
+        tilefono: validPhone, // Now this will be "" if empty
+      },
+      melos: {
+        tipo_melous: "esoteriko",
+        vathmos_diskolias: {
+          id_vathmou_diskolias: validDifficultyId
+        }
+      },
+      esoteriko_melos: {
+        hmerominia_gennhshs: null,
+        patronimo: "",
+        odos: "",
+        tk: null,
+        arithmos_mitroou: member.arithmos_mitroou ? parseInt(member.arithmos_mitroou) : null,
+      }
+    };
+
+    // Only add sindromitis if we have payment date OR registration date OR subscription fee
+    if (member.hmerominia_pliromis || member.hmerominia_egrafis || member.timi) {
+      requestData.sindromitis = {
+        katastasi_sindromis: "Ενεργή",
+        exei: {
+          hmerominia_pliromis: member.hmerominia_pliromis || null,
+          sindromi: {
+            hmerominia_enarksis: member.hmerominia_egrafis || null,
+            eidos_sindromis: subscriptionType ? subscriptionType.titlos : (subscriptionTypes[0]?.titlos || null),
+          },
+        },
+      };
+    }
+    
+    // Call the API to create the member
+    const response = await api.post("/melitousillogou", requestData);
+    
+    // Add the new member to the data state
+    if (response.data) {
+      const newMember = {
+        ...response.data,
+        id: response.data.id_es_melous,
+        fullName: `${response.data.melos?.epafes?.epitheto || ""} ${response.data.melos?.epafes?.onoma || ""}`.trim(),
+        email: response.data.melos?.epafes?.email || null,
+        tilefono: response.data.melos?.epafes?.tilefono || "",
+        status: "Ενεργή",
+        // Keep the original dates from the import
+        hmerominia_egrafis: member.hmerominia_egrafis,
+        hmerominia_pliromis: member.hmerominia_pliromis,
+        // Only calculate subscription end date if there's a payment date
+        subscriptionEndDate: member.hmerominia_pliromis ? 
+          calculateSubscriptionEndDate(member.hmerominia_egrafis, member.hmerominia_pliromis) : 
+          null,
+      };
+      
+      setData(prevData => [...prevData, newMember]);
+      results.success++;
+    }
+      
+    } catch (error) {
+      console.error("Error importing member:", member, error);
+      results.failed++;
+      results.errors.push({
+        member: `${member.epitheto} ${member.onoma}`,
+        error: error.response?.data?.error || error.message
+      });
+    }
+  }
+  
+  // Show results to the user
+  const successMessage = results.success > 0 ? `${results.success} μέλη εισήχθησαν επιτυχώς.` : '';
+  const failureMessage = results.failed > 0 ? `${results.failed} μέλη απέτυχαν.` : '';
+  
+  alert(`Ολοκλήρωση εισαγωγής: ${successMessage} ${failureMessage}`);
+  
+  if (results.errors.length > 0) {
+    console.error("Import errors:", results.errors);
+  }
+  
+  return results;
+};
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
@@ -935,24 +1232,45 @@ export default function Meloi() {
         <Typography variant="h4" gutterBottom>
           Μέλη Συλλόγου ({data.length})
         </Typography>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+          <Button 
+            variant="contained" 
+            component="label" 
+            startIcon={<CloudUploadIcon />}
+          >
+            Εισαγωγή από Excel
+            <input type="file" hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
+          </Button>
+        </Box>
+        
         <DataTable
           data={data}
           columns={fields}
           detailPanelConfig={detailPanelConfig}
           getRowId={(row) => row.id_es_melous}
           tableName="melitousillogou"
-          initialState={tableInitialState} // <-- Χρήση του useMemo αντικειμένου
+          initialState={tableInitialState}
           state={{ isLoading: loading }}
-          onAddNew={() => setOpenAddDialog(true)}
+          enableAddNew={true}
+          enableTopAddButton={true}  // Add this line
+          onAddNew={() => {
+            console.log('Κουμπί πατήθηκε!');
+            setOpenAddDialog(true);
+            console.log('openAddDialog τέθηκε σε:', true);
+          }}
           handleEditClick={handleEditClick}
           handleDelete={handleDelete}
         />
+        
         <AddDialog
           open={openAddDialog}
           onClose={() => setOpenAddDialog(false)}
           handleAddSave={handleAddSave}
           fields={addFields}
         />
+        
+        {/* Υπόλοιπος κώδικας παραμένει ως έχει */}
         <EditDialog
           open={openEditDialog}
           onClose={() => setOpenEditDialog(false)}
@@ -962,48 +1280,60 @@ export default function Meloi() {
             { 
               accessorKey: "onoma", 
               header: "Όνομα", 
-              validation: yup.string().required("Υποχρεωτικό") 
+              validation: yup.string() // Αφαίρεση .required()
             },
             { 
               accessorKey: "epitheto", 
               header: "Επώνυμο", 
-              validation: yup.string().required("Υποχρεωτικό") 
+              validation: yup.string() // Αφαίρεση .required()
             },
             { 
               accessorKey: "patronimo", 
               header: "Πατρώνυμο", 
-              validation: yup.string().required("Υποχρεωτικό") 
+              validation: yup.string() // Αφαίρεση .required()
             },
             { 
               accessorKey: "email", 
               header: "Email", 
-              validation: yup.string().email("Μη έγκυρο email").required("Υποχρεωτικό") 
+              validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
+                if (!value || value === '') return true;
+                return yup.string().email().isValidSync(value);
+              }) // Αφαίρεση .required()
             },
             { 
               accessorKey: "tilefono", 
               header: "Τηλέφωνο", 
-              validation: yup.string().matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία").required("Υποχρεωτικό") 
+              validation: yup.string().nullable().test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+                if (!value || value === '') return true;
+                return /^[0-9]{10}$/.test(value);
+              }) // Αφαίρεση .required()
             },
             { 
               accessorKey: "hmerominia_gennhshs", 
               header: "Ημερομηνία Γέννησης", 
               type: "date",
-              validation: yup.date().required("Υποχρεωτικό")
+              validation: yup.date().nullable() // Αφαίρεση .required()
             },
             { 
               accessorKey: "odos", 
               header: "Οδός", 
-              validation: yup.string().required("Υποχρεωτικό") 
+              validation: yup.string() // Αφαίρεση .required()
             },
             { 
               accessorKey: "tk", 
               header: "ΤΚ", 
-              validation: yup.number().required("Υποχρεωτικό") 
+              validation: yup.number().nullable().transform((value, originalValue) => {
+                if (originalValue === '' || originalValue === null) return null;
+                return value;
+              }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
             },
             { 
               accessorKey: "arithmos_mitroou", 
               header: "Αριθμός Μητρώου", 
-              validation: yup.number()
+              validation: yup.number().nullable().transform((value, originalValue) => {
+                if (originalValue === '' || originalValue === null) return null;
+                return value;
+              }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
             },
             // Πεδία συνδρομής - εμφανίζονται μόνο αν δεν είναι αθλητής
             ...(!editValues.isAthlete ? [
@@ -1012,46 +1342,42 @@ export default function Meloi() {
                 header: "Είδος Συνδρομής",
                 type: "select",
                 options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
-                validation: yup.string().required("Υποχρεωτικό")
+                validation: yup.string() // Αφαίρεση .required()
               },
               { 
                 accessorKey: "katastasi_sindromis", 
                 header: "Κατάσταση Συνδρομής",
                 type: "select",
                 options: subscriptionStatuses,
-                validation: yup.string().required("Υποχρεωτικό")
+                validation: yup.string() // Αφαίρεση .required()
               },
               { 
                 accessorKey: "hmerominia_enarksis", 
                 header: "Ημερομηνία Έναρξης Συνδρομής", 
                 type: "date",
-                validation: yup.date()
-                  .test('not-after-payment', 'Η ημερομηνία έναρξης δεν μπορεί να είναι μεταγενέστερη της ημερομηνίας πληρωμής', 
-                    function(value) {
-                      const { hmerominia_pliromis } = this.parent;
-                      return validateDates(value, hmerominia_pliromis);
-                    })
+                validation: yup.date().nullable() // Αφαίρεση .required() και test
               },
               { 
                 accessorKey: "hmerominia_pliromis", 
                 header: "Ημερομηνία Πληρωμής", 
                 type: "date",
-                validation: yup.date()
+                validation: yup.date().nullable() // Αφαίρεση .required()
               }
             ] : []),
-            { 
-              accessorKey: "epipedo", 
-              header: "Βαθμός Δυσκολίας", 
-              type: "select",
-              options: difficultyLevels.map(level => ({ 
-                value: level.id_vathmou_diskolias, 
-                label: `Βαθμός ${level.epipedo}` 
-              })),
-              validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1") 
-            }
+     { 
+  accessorKey: "epipedo", 
+  header: "Βαθμός Δυσκολίας", 
+  type: "select",
+  options: difficultyLevels.map(level => ({ 
+    value: level.id_vathmou_diskolias, 
+    label: `Βαθμός ${level.epipedo}` 
+  })),
+  validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1") 
+}
           ]}
         />
       </Box>
     </LocalizationProvider>
   );
 }
+

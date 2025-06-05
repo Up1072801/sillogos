@@ -1128,23 +1128,29 @@ const handleDeleteCompetition = async (competitionId) => {
     setOpenAddCompetitionDialog(true); // Άνοιγμα απευθείας του κύριου διαλόγου
   };
 
-  // Χειρισμός προσθήκης αθλητή
+  // Χειρισμός προσθήκης αθλητή - διορθωμένη έκδοση
   const handleAddAthlete = async (newAthlete) => {
     try {
+      // Βεβαιωθείτε ότι έχουμε έγκυρο βαθμό δυσκολίας
+      const validDifficultyId = newAthlete.vathmos_diskolias && 
+        difficultyLevels.find(level => level.id_vathmou_diskolias === parseInt(newAthlete.vathmos_diskolias))
+        ? parseInt(newAthlete.vathmos_diskolias)
+        : difficultyLevels[0]?.id_vathmou_diskolias || 1;
+
       const requestData = {
         epafes: {
-          onoma: newAthlete.firstName,
-          epitheto: newAthlete.lastName,
-          email: newAthlete.email,
-          tilefono: newAthlete.phone,
+          onoma: newAthlete.firstName || "",
+          epitheto: newAthlete.lastName || "",
+          email: newAthlete.email || "",
+          tilefono: newAthlete.phone || "",
         },
         vathmos_diskolias: {
-          id_vathmou_diskolias: parseInt(newAthlete.vathmos_diskolias) || 1,
+          id_vathmou_diskolias: validDifficultyId,
         },
         esoteriko_melos: {
           hmerominia_gennhshs: newAthlete.birthDate ? convertDateFormat(newAthlete.birthDate) : null,
-          patronimo: newAthlete.patronimo,
-          odos: newAthlete.odos,
+          patronimo: newAthlete.patronimo || "",
+          odos: newAthlete.odos || "",
           tk: newAthlete.tk ? parseInt(newAthlete.tk) : null,
           arithmos_mitroou: newAthlete.arithmos_mitroou ? parseInt(newAthlete.arithmos_mitroou) : null,
         },
@@ -1153,8 +1159,12 @@ const handleDeleteCompetition = async (competitionId) => {
           hmerominia_enarksis_deltiou: newAthlete.hmerominiaenarksis ? convertDateFormat(newAthlete.hmerominiaenarksis) : null,
           hmerominia_liksis_deltiou: newAthlete.hmerominialiksis ? convertDateFormat(newAthlete.hmerominialiksis) : null,
         },
-        athlimata: newAthlete.athlimata ? newAthlete.athlimata.map(id => parseInt(id)) : [],
+        athlimata: newAthlete.athlimata && Array.isArray(newAthlete.athlimata) 
+          ? newAthlete.athlimata.map(id => parseInt(id)).filter(id => !isNaN(id))
+          : [],
       };
+
+      console.log("Αποστολή δεδομένων:", requestData);
 
       const response = await api.post("/athlites/athlete", requestData);
       
@@ -1185,7 +1195,8 @@ const handleDeleteCompetition = async (competitionId) => {
       await refreshData();
     } catch (error) {
       console.error("Σφάλμα προσθήκης αθλητή:", error);
-      alert("Σφάλμα κατά την προσθήκη του αθλητή. Παρακαλώ δοκιμάστε ξανά.");
+      const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message;
+      alert(`Σφάλμα κατά την προσθήκη του αθλητή: ${errorMessage}`);
     }
   };
 
@@ -1230,27 +1241,37 @@ const convertDateFormat = (dateString) => {
     { 
       accessorKey: "lastName", 
       header: "Επώνυμο", 
-      validation: yup.string().required("Υποχρεωτικό πεδίο") 
+      validation: yup.string() // Αφαίρεση του .required()
     },
     { 
       accessorKey: "firstName", 
       header: "Όνομα", 
-      validation: yup.string().required("Υποχρεωτικό πεδίο") 
+      validation: yup.string() // Αφαίρεση του .required()
     },
     { 
       accessorKey: "patronimo", 
-      header: "Πατρώνυμο" ,
-      validation: yup.string().required("Υποχρεωτικό πεδίο") 
+      header: "Πατρώνυμο",
+      validation: yup.string() // Αφαίρεση του .required()
     },
     { 
       accessorKey: "email", 
       header: "Email", 
-      validation: yup.string().email("Μη έγκυρο email") 
+      validation: yup
+        .string()
+        .test('email-format', 'Μη έγκυρο email', function(value) {
+          if (!value || value === '') return true; // Επιτρέπει κενές τιμές
+          return yup.string().email().isValidSync(value);
+        })
     },
     { 
       accessorKey: "phone", 
       header: "Τηλέφωνο", 
-      validation: yup.string().matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία") 
+      validation: yup
+        .string()
+        .test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+          if (!value || value === '') return true; // Επιτρέπει κενές τιμές
+          return /^[0-9]{10}$/.test(value);
+        })
     },
     { 
       accessorKey: "odos", 
@@ -1259,12 +1280,26 @@ const convertDateFormat = (dateString) => {
     { 
       accessorKey: "tk", 
       header: "ΤΚ", 
-      validation: yup.number().typeError("Πρέπει να είναι αριθμός") 
+      validation: yup
+        .number()
+        .nullable()
+        .transform((value, originalValue) => {
+          if (originalValue === '' || originalValue === null) return null;
+          return value;
+        })
+        .typeError("Πρέπει να είναι αριθμός")
     },
     { 
       accessorKey: "arithmos_mitroou", 
       header: "Αριθμός Μητρώου", 
-      validation: yup.number().required("Υποχρεωτικό πεδίο").typeError("Πρέπει να είναι αριθμός") 
+      validation: yup
+        .number()
+        .nullable()
+        .transform((value, originalValue) => {
+          if (originalValue === '' || originalValue === null) return null;
+          return value;
+        })
+        .typeError("Πρέπει να είναι αριθμός")
     },
     { 
       accessorKey: "vathmos_diskolias", 
@@ -1275,7 +1310,14 @@ const convertDateFormat = (dateString) => {
     { 
       accessorKey: "arithmosdeltiou", 
       header: "Αριθμός Δελτίου", 
-      validation: yup.number().required("Υποχρεωτικό πεδίο").typeError("Πρέπει να είναι αριθμός") 
+      validation: yup
+        .number()
+        .nullable()
+        .transform((value, originalValue) => {
+          if (originalValue === '' || originalValue === null) return null;
+          return value;
+        })
+        .typeError("Πρέπει να είναι αριθμός")
     },
     { 
       accessorKey: "hmerominiaenarksis", 
@@ -1289,30 +1331,28 @@ const convertDateFormat = (dateString) => {
       type: "date", 
       dateFormat: "dd/MM/yyyy",
     },
- // Replace the existing "athlimata" field in athleteFormFields
-{ 
-  accessorKey: "athlimata", 
-  header: "Αθλήματα", 
-  type: "custom",
-  validation: yup.array().min(1, "Πρέπει να επιλέξετε τουλάχιστον ένα άθλημα"),
-  renderInput: ({ field, fieldState }) => (
-    <CheckboxSportsSelector
-      options={sportsListData.map(sport => ({ 
-        value: sport.id_athlimatos, 
-        label: sport.onoma 
-      }))}
-      value={field.value || []}
-      onChange={field.onChange}
-      error={fieldState.error?.message}
-    />
-  )
-},
+    { 
+      accessorKey: "athlimata", 
+      header: "Αθλήματα", 
+      type: "custom",
+      validation: yup.array(), // Αφαίρεση του .min(1, "...")
+      renderInput: ({ field, fieldState }) => (
+        <CheckboxSportsSelector
+          options={sportsListData.map(sport => ({ 
+            value: sport.id_athlimatos, 
+            label: sport.onoma 
+          }))}
+          value={field.value || []}
+          onChange={field.onChange}
+          error={fieldState.error?.message}
+        />
+      )
+    },
   ], [difficultyLevels, sportsListData]);
 
   // Πεδία φόρμας για προσθήκη/επεξεργασία αγώνα
   const competitionFormFields = useMemo(() => [
     { 
-      // Πρώτα το άθλημα
       accessorKey: "sportId", 
       header: "Άθλημα", 
       type: "select",
@@ -1320,10 +1360,9 @@ const convertDateFormat = (dateString) => {
         value: sport.id_athlimatos, 
         label: sport.onoma 
       })),
-      validation: yup.string().required("Παρακαλώ επιλέξτε άθλημα"),
-      disabled: editCompetitionData !== null, // Disable when editing
+      validation: yup.string(), // Αφαίρεση του .required() αν θέλετε
+      disabled: editCompetitionData !== null,
       onChangeCallback: (value) => {
-        // Όταν αλλάζει το άθλημα, φόρτωσε τους αθλητές για αυτό το άθλημα
         if (value) {
           fetchAthletesBySport(value);
         }
@@ -1332,7 +1371,7 @@ const convertDateFormat = (dateString) => {
     { 
       accessorKey: "onoma", 
       header: "Όνομα Αγώνα", 
-      validation: yup.string().required("Υποχρεωτικό πεδίο")
+      validation: yup.string() // Αφαίρεση του .required()
     },
     { 
       accessorKey: "perigrafi", 
@@ -1343,14 +1382,14 @@ const convertDateFormat = (dateString) => {
       header: "Ημερομηνία", 
       type: "date",
       dateFormat: "dd/MM/yyyy",
-      validation: yup.date().required("Υποχρεωτικό πεδίο")
+      validation: yup.date().nullable() // Αφαίρεση του .required()
     },
     {
       accessorKey: "athleteIds",
       header: "Συμμετέχοντες Αθλητές",
       type: "tableSelect",
       dataKey: "athletesBySport",
-      validation: yup.array(), // Αφαιρέστε το .min(1, "...")
+      validation: yup.array(), // Ήδη χωρίς .required()
       columns: [
         {
           field: "fullName",
@@ -1368,7 +1407,6 @@ const convertDateFormat = (dateString) => {
   // Modified competitionFormFields without athleteIds field
 const competitionFormFieldsWithoutAthletes = useMemo(() => [
   { 
-    // Πρώτα το άθλημα
     accessorKey: "sportId", 
     header: "Άθλημα", 
     type: "select",
@@ -1376,10 +1414,9 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
       value: sport.id_athlimatos, 
       label: sport.onoma 
     })),
-    validation: yup.string().required("Παρακαλώ επιλέξτε άθλημα"),
-    disabled: editCompetitionData !== null, // Disable when editing
+    validation: yup.string(), // Αφαίρεση του .required() αν θέλετε
+    disabled: editCompetitionData !== null,
     onChangeCallback: (value) => {
-      // Όταν αλλάζει το άθλημα, φόρτωσε τους αθλητές για αυτό το άθλημα
       if (value) {
         fetchAthletesBySport(value);
       }
@@ -1388,7 +1425,7 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
   { 
     accessorKey: "onoma", 
     header: "Όνομα Αγώνα", 
-    validation: yup.string().required("Υποχρεωτικό πεδίο")
+    validation: yup.string() // Αφαίρεση του .required()
   },
   { 
     accessorKey: "perigrafi", 
@@ -1399,7 +1436,7 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
     header: "Ημερομηνία", 
     type: "date",
     dateFormat: "dd/MM/yyyy",
-    validation: yup.date().required("Υποχρεωτικό πεδίο")
+    validation: yup.date().nullable() // Αφαίρεση του .required()
   }
 ], [sportsListData, editCompetitionData]);
 
@@ -1877,7 +1914,7 @@ const showDeleteConfirmation = (item, type, callback) => {
           enableExpand={true}
           enableRowActions={true}
           handleEditClick={handleEditCompetition}
-          handleDelete={(competition) => handleConfirmDelete(competition, null, 'competition')}
+          handleDelete={handleDeleteCompetition}
         />
       </Box>
 
@@ -1904,7 +1941,7 @@ const showDeleteConfirmation = (item, type, callback) => {
         title={editCompetitionData ? "Επεξεργασία Αγώνα" : "Προσθήκη Νέου Αγώνα"}
         initialValues={memoizedInitialValues}
         onChange={(values) => {
-          // Όταν αλλάζει το sportId, φόρτωσε τους αντίστοιχους αθλητές
+          // Όταν αλλάζει το άθλημα, φόρτωσε τους αντίστοιχους αθλητές
           if (values.sportId && values.sportId !== dialogSelectedSport) {
             setDialogSelectedSport(values.sportId);
             

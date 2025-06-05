@@ -129,6 +129,7 @@ export default function MeliAllwn() {
   const [editValues, setEditValues] = useState({});
   const [difficultyLevels, setDifficultyLevels] = useState([]);
 
+  // Ενημέρωση του useEffect για να διαμορφώσει καλύτερα τα δεδομένα
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -140,16 +141,24 @@ export default function MeliAllwn() {
         setDifficultyLevels(difficultyRes.data);
         
         // Διαμόρφωση των δεδομένων για την καλύτερη αξιοποίηση τους στο UI
-        const formattedData = membersRes.data.map(member => ({
-          ...member,
-          fullName: `${member.lastName || ""} ${member.firstName || ""}`.trim(),
-          id: member.id,
-          // Βεβαιωθείτε ότι το melos περιέχει τα απαραίτητα δεδομένα
-          melos: member.melos || {
-            simmetoxi: member.melos?.simmetoxi || [],
-            parakolouthisi: member.melos?.parakolouthisi || []
-          }
-        }));
+        const formattedData = membersRes.data.map(member => {
+          // Εύρεση του ονόματος του βαθμού δυσκολίας
+          const difficultyLevel = difficultyRes.data.find(
+            level => level.id_vathmou_diskolias === member.melos?.vathmos_diskolias?.id_vathmou_diskolias
+          );
+          
+          return {
+            ...member,
+            fullName: `${member.lastName || ""} ${member.firstName || ""}`.trim(),
+            id: member.id,
+            vathmos_diskolias: difficultyLevel ? `Βαθμός ${difficultyLevel.epipedo}` : "Βαθμός 1", // Εμφάνιση ονόματος
+            // Βεβαιωθείτε ότι το melos περιέχει τα απαραίτητα δεδομένα
+            melos: member.melos || {
+              simmetoxi: member.melos?.simmetoxi || [],
+              parakolouthisi: member.melos?.parakolouthisi || []
+            }
+          };
+        });
         
         setData(formattedData);
         setLoading(false);
@@ -163,17 +172,18 @@ export default function MeliAllwn() {
 
   const handleAddSave = async (newRow) => {
     try {
-      // Εύρεση του αντικειμένου βαθμού δυσκολίας με βάση το ID
+      // Διασφάλιση ότι έχουμε έγκυρο βαθμό δυσκολίας
+      const vathmosDiskolias = newRow.vathmos_diskolias || 1;
       const selectedDifficultyLevel = difficultyLevels.find(
-        level => level.id_vathmou_diskolias === parseInt(newRow.vathmos_diskolias)
-      );
+        level => level.id_vathmou_diskolias === parseInt(vathmosDiskolias)
+      ) || difficultyLevels.find(level => level.id_vathmou_diskolias === 1);
 
       const requestData = {
         epafes: {
-          onoma: newRow.firstName,
-          epitheto: newRow.lastName,
-          email: newRow.email,
-          tilefono: newRow.phone,
+          onoma: newRow.firstName || "",
+          epitheto: newRow.lastName || "",
+          email: newRow.email || "",
+          tilefono: newRow.phone || "",
         },
         melos: {
           tipo_melous: "eksoteriko",
@@ -182,8 +192,8 @@ export default function MeliAllwn() {
           },
         },
         eksoteriko_melos: {
-          onoma_sillogou: newRow.onomasillogou,
-          arithmos_mitroou: parseInt(newRow.arithmosmitroou),
+          onoma_sillogou: newRow.onomasillogou || "",
+          arithmos_mitroou: newRow.arithmosmitroou ? parseInt(newRow.arithmosmitroou) : null,
         },
       };
 
@@ -206,42 +216,44 @@ export default function MeliAllwn() {
       setData(prevData => [...prevData, newMember]);
     } catch (error) {
       console.error("Σφάλμα προσθήκης:", error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message;
+      alert(`Σφάλμα κατά την προσθήκη του μέλους: ${errorMessage}`);
     }
   };
 
   const handleEditClick = (row) => {
-
-    
     // Εξαγωγή των ακριβών τιμών που χρειάζονται για την επεξεργασία
+    const difficultyId = row.melos?.vathmos_diskolias?.id_vathmou_diskolias || 1;
+    
     const editData = {
       id: row.id,
       firstName: row.firstName || row.melos?.epafes?.onoma || "",
       lastName: row.lastName || row.melos?.epafes?.epitheto || "",
       email: row.email || row.melos?.epafes?.email || "",
       phone: row.phone || row.melos?.epafes?.tilefono || "",
-      vathmos_diskolias: row.vathmos_diskolias || row.melos?.vathmos_diskolias?.id_vathmou_diskolias || "",
+      vathmos_diskolias: difficultyId,
       arithmosmitroou: row.arithmosmitroou || row.arithmos_mitroou || "",
       onomasillogou: row.onomasillogou || row.onoma_sillogou || ""
     };
     
-
     setEditValues(editData);
     setOpenEditDialog(true);
   };
 
   const handleEditSave = async (updatedRow) => {
     try {
-      // Εύρεση του αντικειμένου βαθμού δυσκολίας με βάση το ID
+      // Διασφάλιση ότι έχουμε έγκυρο βαθμό δυσκολίας
+      const vathmosDiskolias = updatedRow.vathmos_diskolias || 1;
       const selectedDifficultyLevel = difficultyLevels.find(
-        level => level.id_vathmou_diskolias === parseInt(updatedRow.vathmos_diskolias)
-      );
+        level => level.id_vathmou_diskolias === parseInt(vathmosDiskolias)
+      ) || difficultyLevels.find(level => level.id_vathmou_diskolias === 1);
 
       const requestData = {
         epafes: {
-          onoma: updatedRow.firstName,
-          epitheto: updatedRow.lastName,
-          email: updatedRow.email,
-          tilefono: updatedRow.phone,
+          onoma: updatedRow.firstName || "",
+          epitheto: updatedRow.lastName || "",
+          email: updatedRow.email || "",
+          tilefono: updatedRow.phone || "",
         },
         melos: {
           tipo_melous: "eksoteriko",
@@ -250,8 +262,8 @@ export default function MeliAllwn() {
           },
         },
         eksoteriko_melos: {
-          onoma_sillogou: updatedRow.onomasillogou,
-          arithmos_mitroou: parseInt(updatedRow.arithmosmitroou),
+          onoma_sillogou: updatedRow.onomasillogou || "",
+          arithmos_mitroou: updatedRow.arithmosmitroou ? parseInt(updatedRow.arithmosmitroou) : null,
         },
       };
 
@@ -276,12 +288,8 @@ export default function MeliAllwn() {
       setOpenEditDialog(false);
     } catch (error) {
       console.error("Σφάλμα ενημέρωσης:", error);
-      // Εμφάνιση λεπτομερειών σφάλματος
-      if (error.response?.data) {
-        alert(`Σφάλμα: ${error.response.data.error || JSON.stringify(error.response.data)}`);
-      } else {
-        alert(`Σφάλμα: ${error.message}`);
-      }
+      const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message;
+      alert(`Σφάλμα κατά την ενημέρωση του μέλους: ${errorMessage}`);
     }
   };
 
@@ -309,22 +317,32 @@ export default function MeliAllwn() {
       { 
         accessorKey: "firstName", 
         header: "Όνομα", 
-        validation: yup.string().required("Υποχρεωτικό") 
+        validation: yup.string()
       },
       { 
         accessorKey: "lastName", 
         header: "Επώνυμο", 
-        validation: yup.string().required("Υποχρεωτικό") 
+        validation: yup.string()
       },
       { 
         accessorKey: "email", 
         header: "Email", 
-        validation: yup.string().email("Μη έγκυρο email").required("Υποχρεωτικό") 
+        validation: yup
+          .string()
+          .test('email-format', 'Μη έγκυρο email', function(value) {
+            if (!value || value === '') return true;
+            return yup.string().email().isValidSync(value);
+          })
       },
       { 
         accessorKey: "phone", 
         header: "Τηλέφωνο", 
-        validation: yup.string().matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία").required("Υποχρεωτικό") 
+        validation: yup
+          .string()
+          .test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+            if (!value || value === '') return true;
+            return /^[0-9]{10}$/.test(value);
+          })
       },
       { 
         accessorKey: "vathmos_diskolias", 
@@ -334,17 +352,25 @@ export default function MeliAllwn() {
           value: level.id_vathmou_diskolias, 
           label: `Βαθμός ${level.epipedo}` 
         })),
+        defaultValue: difficultyLevels.find(level => level.id_vathmou_diskolias === 1)?.id_vathmou_diskolias || difficultyLevels[0]?.id_vathmou_diskolias || 1,
         validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1")
       },
       { 
         accessorKey: "arithmosmitroou", 
         header: "Αριθμός Μητρώου", 
-        validation: yup.number().required("Υποχρεωτικό") 
+        validation: yup
+          .number()
+          .nullable()
+          .transform((value, originalValue) => {
+            if (originalValue === '' || originalValue === null) return null;
+            return value;
+          })
+          .typeError("Πρέπει να είναι αριθμός")
       },
       { 
         accessorKey: "onomasillogou", 
         header: "Όνομα Συλλόγου", 
-        validation: yup.string().required("Υποχρεωτικό") 
+        validation: yup.string()
       }
     ];
   }, [difficultyLevels]);

@@ -97,7 +97,7 @@ router.post("/", async (req, res) => {
     }
 
     // Επανέφερε την ακολουθία ID πριν την εισαγωγή
-    await prisma.$executeRaw`SELECT setval('"Eksoplismos_id_eksoplismou_seq"', coalesce((SELECT MAX(id_eksoplismou) FROM "Eksoplismos"), 0))`;
+    await prisma.$executeRaw`SELECT setval('"Eksoplismos_id_eksoplismou_seq"', GREATEST(coalesce((SELECT MAX(id_eksoplismou) FROM "Eksoplismos"), 0), 1))`;
     
     const newEksoplismos = await prisma.eksoplismos.create({
       data: {

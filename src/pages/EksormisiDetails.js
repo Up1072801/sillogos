@@ -2489,6 +2489,33 @@ const updateParticipantActivityLists = (deletedActivityId) => {
           />
         )}
         
+{/* Responsible Person Deletion Confirmation Dialog */}
+<Dialog
+  open={openDeleteResponsibleDialog}
+  onClose={() => setOpenDeleteResponsibleDialog(false)}
+>
+  <DialogTitle>Διαγραφή Υπεύθυνου</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον υπεύθυνο;
+    </DialogContentText>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpenDeleteResponsibleDialog(false)}>Άκυρο</Button>
+    <Button 
+      onClick={() => {
+        confirmRemoveResponsiblePerson(personToDelete);
+        setOpenDeleteResponsibleDialog(false);
+      }}
+      color="error" 
+      autoFocus
+    >
+      Διαγραφή
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
         <AddDialog
           open={addDrastiriotitaDialog}
           onClose={() => setAddDrastiriotitaDialog(false)}
@@ -2626,104 +2653,92 @@ const updateParticipantActivityLists = (deletedActivityId) => {
     }}
   />
 )}
-        {/* Responsible Person Selection Dialog */}
-<SelectionDialog
+{/* Replace the SelectionDialog with AddDialog similar to participant selection */}
+<AddDialog
   open={responsiblePersonDialog}
   onClose={() => setResponsiblePersonDialog(false)}
+  handleAddSave={(formData) => {
+    // Convert tableSelect result to array of IDs for handleAddResponsiblePersons
+    const selectedIds = Array.isArray(formData.id_ypefthynon) 
+      ? formData.id_ypefthynon 
+      : [formData.id_ypefthynon];
+    handleAddResponsiblePersons(selectedIds);
+  }}
   title="Επιλογή Υπεύθυνων Εξόρμησης"
-  subtitle="Επιλέξτε εσωτερικά μέλη ως υπεύθυνους για την εξόρμηση"
-  data={internalMembers
-    .filter(member => {
-      const memberId = member.id_es_melous || member.id;
-      return !ypefthynoi.some(y => 
-        y.id_ypefthynou === memberId || 
-        y.id_es_melous === memberId || 
-        y.id === memberId
-      );
-    })
-    .map(member => {
-      // Extract name parts with fallbacks
-      const onoma = member.onoma || 
-                  member.firstName || 
-                  member.melos?.epafes?.onoma || 
-                  member.epafes?.onoma || '';
-                  
-      const epitheto = member.epitheto || 
-                      member.lastName || 
-                      member.melos?.epafes?.epitheto || 
-                      member.epafes?.epitheto || '';
-      
-      // Create fullName with proper order
-      const fullName = `${epitheto} ${onoma}`.trim() || member.fullName || "Άγνωστο όνομα";
-      
-      // Get email with fallbacks
-      const email = member.email || 
-                  member.melos?.epafes?.email || 
-                  member.epafes?.email || '-';
-      
-      // Get phone with fallbacks
-      const tilefono = member.tilefono || 
-                      member.melos?.epafes?.tilefono || 
-                      member.epafes?.tilefono || '-';
-      
-      return {
-        id: member.id_es_melous || member.id,
-        fullName,
-        email,
-        tilefono
-      };
-    })}
-  columns={[
-    { field: "fullName", header: "Ονοματεπώνυμο" },
-    { field: "email", header: "Email" },
-    { field: "tilefono", header: "Τηλέφωνο" }
+  fields={[
+    { 
+      accessorKey: "id_ypefthynon", 
+      header: "Μέλη",
+      required: true,
+      type: "tableSelect",               
+      dataKey: "internalMembersList",           
+      multiSelect: true,                
+      pageSize: 5,                       
+      columns: [                         
+        { field: "fullName", header: "Ονοματεπώνυμο" },
+        { field: "email", header: "Email" },
+        { field: "tilefono", header: "Τηλέφωνο" }
+      ],
+      searchFields: ["fullName"], 
+      noDataMessage: "Δεν βρέθηκαν μέλη",
+      validation: yup.array().min(1, "Επιλέξτε τουλάχιστον ένα μέλος").required("Παρακαλώ επιλέξτε μέλη")
+    }
   ]}
-  selectedIds={[]}
-  onConfirm={handleAddResponsiblePersons}
-  pageSize={10}
-  enablePagination={true}
-  multiSelect={true}
-  enableSearch={true}
-  searchPlaceholder="Αναζήτηση μέλους..."
-  searchFields={["fullName", "email", "tilefono"]} // Add this line to enable search
+  resourceData={{
+    internalMembersList: internalMembers
+      .filter(member => {
+        const memberId = member.id_es_melous || member.id;
+        return !ypefthynoi.some(y => 
+          y.id_ypefthynou === memberId || 
+          y.id_es_melous === memberId || 
+          y.id === memberId
+        );
+      })
+      .map(member => {
+        const onoma = member.onoma || 
+                    member.firstName || 
+                    member.melos?.epafes?.onoma || 
+                    member.epafes?.onoma || '';
+                    
+        const epitheto = member.epitheto || 
+                        member.lastName || 
+                        member.melos?.epafes?.epitheto || 
+                        member.epafes?.epitheto || '';
+        
+        const fullName = `${epitheto} ${onoma}`.trim() || member.fullName || "Άγνωστο όνομα";
+        
+        const email = member.email || 
+                    member.melos?.epafes?.email || 
+                    member.epafes?.email || '-';
+        
+        const tilefono = member.tilefono || 
+                        member.melos?.epafes?.tilefono || 
+                        member.epafes?.tilefono || '-';
+        
+        return {
+          id: member.id_es_melous || member.id,
+          fullName,
+          email,
+          tilefono
+        };
+      })
+  }}
 />
-        {paymentParticipant && (
-          <AddDialog
-            open={paymentDialog}
-            onClose={() => {
-              setPaymentDialog(false);
-              setPaymentParticipant(null);
-            }}
-            handleAddSave={handleAddPayment}
-            title={`Καταχώρηση Πληρωμής για ${paymentParticipant.memberName || ''}`}
-            additionalInfo={`Υπόλοιπο: ${paymentParticipant.ypoloipo || 0}€`}
-            fields={paymentFormFields}
-          />
-        )}
-<Dialog
-  open={openDeleteResponsibleDialog}
-  onClose={() => setOpenDeleteResponsibleDialog(false)}
->
-  <DialogTitle>Διαγραφή Υπεύθυνου</DialogTitle>
-  <DialogContent>
-    <DialogContentText>
-      Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον υπεύθυνο;
-    </DialogContentText>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setOpenDeleteResponsibleDialog(false)}>Άκυρο</Button>
-    <Button 
-      onClick={() => {
-        confirmRemoveResponsiblePerson(personToDelete);
-        setOpenDeleteResponsibleDialog(false);
-      }}
-      color="error" 
-      autoFocus
-    >
-      Διαγραφή
-    </Button>
-  </DialogActions>
-</Dialog>
+
+{/* Payment Dialog */}
+{paymentParticipant && (
+  <AddDialog
+    open={paymentDialog}
+    onClose={() => {
+      setPaymentDialog(false);
+      setPaymentParticipant(null);
+    }}
+    handleAddSave={handleAddPayment}
+    title={`Καταχώρηση Πληρωμής για ${paymentParticipant.memberName || ''}`}
+    additionalInfo={`Υπόλοιπο: ${paymentParticipant.ypoloipo || 0}€`}
+    fields={paymentFormFields}
+  />
+)}
 
 {/* Payment Deletion Confirmation Dialog */}
 <Dialog
@@ -2818,4 +2833,3 @@ const updateParticipantActivityLists = (deletedActivityId) => {
     </LocalizationProvider>
   );
 }
-

@@ -45,7 +45,7 @@ router.post("/athlites/sport", async (req, res) => {
     }
 
     // Επαναφορά της ακολουθίας ID
-    await prisma.$executeRaw`SELECT setval('"Athlima_id_athlimatos_seq"', coalesce((SELECT MAX(id_athlimatos) FROM "Athlima"), 0))`;
+    await prisma.$executeRaw`SELECT setval('"Athlima_id_athlimatos_seq"', GREATEST(coalesce((SELECT MAX(id_athlimatos) FROM "Athlima"), 0), 1))`;
 
     // Δημιουργία νέου αθλήματος
     const newSport = await prisma.athlima.create({
@@ -179,7 +179,7 @@ router.post("/vathmoi-diskolias", async (req, res) => {
     }
 
     // Επαναφορά της ακολουθίας ID
-    await prisma.$executeRaw`SELECT setval('"VathmosDiskolias_id_vathmou_diskolias_seq"', coalesce((SELECT MAX(id_vathmou_diskolias) FROM "VathmosDiskolias"), 0))`;
+    await prisma.$executeRaw`SELECT setval('"VathmosDiskolias_id_vathmou_diskolias_seq"', GREATEST(coalesce((SELECT MAX(id_vathmou_diskolias) FROM "VathmosDiskolias"), 0), 1))`;
 
     // Δημιουργία νέου βαθμού δυσκολίας
     const newLevel = await prisma.vathmos_diskolias.create({
@@ -343,7 +343,7 @@ router.post("/eidi-sindromis", async (req, res) => {
     }
 
     // Επαναφορά της ακολουθίας ID
-    await prisma.$executeRaw`SELECT setval('"EidosSindromis_id_eidous_sindromis_seq"', coalesce((SELECT MAX(id_eidous_sindromis) FROM "EidosSindromis"), 0))`;
+    await prisma.$executeRaw`SELECT setval('"EidosSindromis_id_eidous_sindromis_seq"', GREATEST(coalesce((SELECT MAX(id_eidous_sindromis) FROM "EidosSindromis"), 0), 1))`;
 
     // Δημιουργία νέου είδους συνδρομής
     const newSubscriptionType = await prisma.eidos_sindromis.create({
@@ -507,7 +507,7 @@ router.post("/katafigio/katafygia", async (req, res) => {
     }
 
     // Επαναφορά της ακολουθίας ID
-    await prisma.$executeRaw`SELECT setval('"Katafigio_id_katafigiou_seq"', coalesce((SELECT MAX(id_katafigiou) FROM "Katafigio"), 0))`;
+    await prisma.$executeRaw`SELECT setval('"Katafigio_id_katafigiou_seq"', GREATEST(coalesce((SELECT MAX(id_katafigiou) FROM "Katafigio"), 0), 1))`;
 
     // Δημιουργία νέου καταφυγίου
     const newRefuge = await prisma.katafigio.create({

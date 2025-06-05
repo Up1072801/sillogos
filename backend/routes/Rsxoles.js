@@ -170,7 +170,7 @@ router.post("/", async (req, res) => {
     } = req.body;
 
     // Επανέφερε την ακολουθία ID πριν την εισαγωγή για να αποφευχθεί το σφάλμα μοναδικότητας
-    await prisma.$executeRaw`SELECT setval('"Sxoli_id_sxolis_seq"', coalesce((SELECT MAX(id_sxolis) FROM "Sxoli"), 0))`;
+    await prisma.$executeRaw`SELECT setval('"Sxoli_id_sxolis_seq"', GREATEST(coalesce((SELECT MAX(id_sxolis) FROM "Sxoli"), 0), 1))`;
     
     // Δημιουργούμε τη σχολή
     const newSxoli = await prisma.sxoli.create({

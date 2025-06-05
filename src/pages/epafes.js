@@ -9,30 +9,37 @@ const fields = [
   {
     accessorKey: "onoma",
     header: "Όνομα",
-    validation: yup.string().required("Το όνομα είναι υποχρεωτικό"),
+    validation: yup.string(), // Αφαίρεση του .required()
   },
   {
-    accessorKey: "epitheto",
+    accessorKey: "epitheto", 
     header: "Επώνυμο",
-    validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό"),
+    validation: yup.string(), // Αφαίρεση του .required()
   },
   {
     accessorKey: "email",
-    header: "Email",
-    validation: yup.string().email("Μη έγκυρο email").required("Το email είναι υποχρεωτικό"),
+    header: "Email", 
+    validation: yup
+      .string()
+      .test('email-format', 'Μη έγκυρο email', function(value) {
+        if (!value || value === '') return true; // Επιτρέπει κενές τιμές
+        return yup.string().email().isValidSync(value);
+      }),
   },
   {
     accessorKey: "tilefono",
     header: "Τηλέφωνο",
     validation: yup
       .string()
-      .matches(/^[0-9]{10}$/, "Το τηλέφωνο πρέπει να έχει 10 ψηφία")
-      .required("Το τηλέφωνο είναι υποχρεωτικό"),
+      .test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+        if (!value || value === '') return true; // Επιτρέπει κενές τιμές
+        return /^[0-9]{10}$/.test(value);
+      }),
   },
   {
     accessorKey: "idiotita",
-    header: "Ιδιότητα",
-    validation: yup.string().required("Η ιδιότητα είναι υποχρεωτική"),
+    header: "Ιδιότητα", 
+    validation: yup.string(), // Αφαίρεση του .required()
   },
 ];
 

@@ -186,37 +186,58 @@ router.post("/", async (req, res) => {
   try {
     const { epafes, melos, eksoteriko_melos } = req.body;
     
+    // Έλεγχος ότι έχουμε έγκυρο βαθμό δυσκολίας
+    const vathmosId = melos?.vathmos_diskolias?.id_vathmou_diskolias || 1;
+    
+    // Έλεγχος ότι ο βαθμός δυσκολίας υπάρχει
+    const difficultyExists = await prisma.vathmos_diskolias.findUnique({
+      where: { id_vathmou_diskolias: vathmosId }
+    });
+
+    if (!difficultyExists) {
+      return res.status(400).json({ 
+        error: "Μη έγκυρος βαθμός δυσκολίας" 
+      });
+    }
+    
     // Χρήση transaction για να διασφαλίσουμε την ατομικότητα των λειτουργιών
     const result = await prisma.$transaction(async (prismaTransaction) => {
-      if (epafes?.tilefono) {
-        epafes.tilefono = BigInt(epafes.tilefono);
+      // Μετατροπή τηλεφώνου σε BigInt αν υπάρχει και δεν είναι κενό
+      let processedPhone = null;
+      if (epafes?.tilefono && epafes.tilefono.toString().trim() !== "") {
+        processedPhone = BigInt(epafes.tilefono);
       }
 
       // 1. Δημιουργία της επαφής
       const newEpafi = await prismaTransaction.epafes.create({
-        data: epafes
-      });
-
-      // 2. Δημιουργία του μέλους
-      const newMelos = await prismaTransaction.melos.create({
         data: {
-          tipo_melous: "eksoteriko",
-          epafes: {
-            connect: { id_epafis: newEpafi.id_epafis }
-          },
-          vathmos_diskolias: {
-            connect: { 
-              id_vathmou_diskolias: melos.vathmos_diskolias.id_vathmou_diskolias 
-            }
-          }
+          onoma: epafes?.onoma || "",
+          epitheto: epafes?.epitheto || "",
+          email: epafes?.email || "",
+          tilefono: processedPhone,
         }
       });
 
-      // 3. Δημιουργία του εξωτερικού μέλους
+      // 2. Δημιουργία του μέλους με σύνδεση στην επαφή
+      const newMelos = await prismaTransaction.melos.create({
+        data: {
+          id_melous: newEpafi.id_epafis,
+          tipo_melous: "eksoteriko",
+          id_vathmou_diskolias: vathmosId,
+        }
+      });
+
+      // 3. Δημιουργία του εξωτερικού μέλους με σύνδεση στο μέλος
       const newEksoterikoMelos = await prismaTransaction.eksoteriko_melos.create({
         data: {
-          ...eksoteriko_melos,
-          id_ekso_melous: newMelos.id_melous
+          id_ekso_melous: newMelos.id_melous, // Χρήση του ίδιου ID
+          onoma_sillogou: eksoteriko_melos?.onoma_sillogou || "",
+          // Αριθμός μητρώου μπορεί να είναι null
+          arithmos_mitroou: eksoteriko_melos?.arithmos_mitroou && 
+                            eksoteriko_melos.arithmos_mitroou !== "" && 
+                            !isNaN(eksoteriko_melos.arithmos_mitroou) 
+                            ? parseInt(eksoteriko_melos.arithmos_mitroou) 
+                            : null,
         }
       });
 
@@ -230,7 +251,7 @@ router.post("/", async (req, res) => {
               vathmos_diskolias: true,
               simmetoxi: {
                 include: {
-                  simmetoxi_drastiriotites: {  // Use this instead of drastiriotita directly
+                  simmetoxi_drastiriotites: {
                     include: {
                       drastiriotita: {
                         include: {
@@ -260,10 +281,12 @@ router.post("/", async (req, res) => {
         lastName: completeMember.melos?.epafes?.epitheto || "",
         phone: completeMember.melos?.epafes?.tilefono ? completeMember.melos.epafes.tilefono.toString() : "",
         email: completeMember.melos?.epafes?.email || "",
-        arithmosmitroou: completeMember.arithmos_mitroou,
+        arithmosmitroou: completeMember.arithmos_mitroou || null, // Μπορεί να είναι null
         onomasillogou: completeMember.onoma_sillogou || "",
         vathmos_diskolias: completeMember.melos?.vathmos_diskolias?.epipedo || 1,
         melos: {
+          epafes: completeMember.melos?.epafes || {},
+          vathmos_diskolias: completeMember.melos?.vathmos_diskolias || {},
           simmetoxi: completeMember.melos?.simmetoxi || [],
           parakolouthisi: completeMember.melos?.parakolouthisi || []
         }
@@ -280,22 +303,29 @@ router.post("/", async (req, res) => {
 // PUT: Ενημέρωση μέλους άλλου συλλόγου
 router.put("/:id", async (req, res) => {
   try {
-    const { epafes, vathmos_diskolias, ...memberData } = req.body;
+    const { epafes, eksoteriko_melos } = req.body;
     const id = parseInt(req.params.id);
 
     if (isNaN(id)) {
       return res.status(400).json({ error: "Invalid ID format" });
     }
 
-    if (epafes?.tilefono) {
+    // Προετοιμασία τηλεφώνου
+    if (epafes?.tilefono && epafes.tilefono.toString().trim() !== "") {
       epafes.tilefono = BigInt(epafes.tilefono);
+    } else {
+      epafes.tilefono = null;
     }
 
     // Έλεγχος ότι το μέλος υπάρχει
     const currentMember = await prisma.eksoteriko_melos.findUnique({
       where: { id_ekso_melous: id },
       include: {
-        melos: true
+        melos: {
+          include: {
+            epafes: true
+          }
+        }
       }
     });
 
@@ -303,99 +333,95 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ error: "Member not found" });
     }
 
-    // Ενημέρωση του μέλους με όλα τα συσχετιζόμενα δεδομένα
-    const updateData = {
-      onoma_sillogou: memberData.onomasillogou,
-      arithmos_mitroou: parseInt(memberData.arithmosmitroou),
-      melos: {
-        update: {
-          epafes: epafes ? { 
-            update: {
-              onoma: epafes.onoma,
-              epitheto: epafes.epitheto,
-              email: epafes.email,
-              tilefono: epafes.tilefono
-            } 
-          } : undefined,
-          vathmos_diskolias: vathmos_diskolias ? {
-            connect: { 
-              id_vathmou_diskolias: vathmos_diskolias.id_vathmou_diskolias 
-            }
-          } : undefined,
-        }
+    // Ενημέρωση με transaction
+    const result = await prisma.$transaction(async (prismaTransaction) => {
+      // Ενημέρωση επαφής
+      if (epafes) {
+        await prismaTransaction.epafes.update({
+          where: { id_epafis: currentMember.melos.epafes.id_epafis },
+          data: {
+            onoma: epafes.onoma || currentMember.melos.epafes.onoma,
+            epitheto: epafes.epitheto || currentMember.melos.epafes.epitheto,
+            email: epafes.email || currentMember.melos.epafes.email,
+            tilefono: epafes.tilefono !== undefined ? epafes.tilefono : currentMember.melos.epafes.tilefono,
+          }
+        });
       }
-    };
 
-    const updatedMember = await prisma.eksoteriko_melos.update({
-      where: { id_ekso_melous: id },
-      data: updateData,
-      include: {
-        melos: {
-          include: {
-            epafes: true,
-            vathmos_diskolias: true,
-            simmetoxi: {
-              include: {
-                simmetoxi_drastiriotites: {  // Same fix here
-                  include: {
-                    drastiriotita: {
-                      include: {
-                        vathmos_diskolias: true,
-                        eksormisi: true
+      // Ενημέρωση εξωτερικού μέλους - ΑΡΙΘΜΟΣ ΜΗΤΡΩΟΥ ΜΗ ΥΠΟΧΡΕΩΤΙΚΟΣ
+      if (eksoteriko_melos) {
+        await prismaTransaction.eksoteriko_melos.update({
+          where: { id_ekso_melous: id },
+          data: {
+            onoma_sillogou: eksoteriko_melos.onoma_sillogou || currentMember.onoma_sillogou,
+            // Χειρισμός αριθμού μητρώου - μπορεί να είναι null
+            arithmos_mitroou: eksoteriko_melos.arithmos_mitroou !== undefined 
+              ? (eksoteriko_melos.arithmos_mitroou && 
+                 eksoteriko_melos.arithmos_mitroou !== "" && 
+                 !isNaN(eksoteriko_melos.arithmos_mitroou)
+                 ? parseInt(eksoteriko_melos.arithmos_mitroou) 
+                 : null)
+              : currentMember.arithmos_mitroou,
+          }
+        });
+      }
+
+      // Ανάκτηση ενημερωμένου μέλους
+      return await prismaTransaction.eksoteriko_melos.findUnique({
+        where: { id_ekso_melous: id },
+        include: {
+          melos: {
+            include: {
+              epafes: true,
+              vathmos_diskolias: true,
+              simmetoxi: {
+                include: {
+                  simmetoxi_drastiriotites: {
+                    include: {
+                      drastiriotita: {
+                        include: {
+                          vathmos_diskolias: true,
+                          eksormisi: true
+                        }
                       }
                     }
-                  }
-                },
-                eksormisi: true
-              }
-            },
-            parakolouthisi: {
-              include: {
-                sxoli: true
+                  },
+                  eksormisi: true
+                }
+              },
+              parakolouthisi: {
+                include: {
+                  sxoli: true
+                }
               }
             }
           }
-        }
-      },
+        },
+      });
     });
 
-    const responseMember = {
-      id: updatedMember.id_ekso_melous,
-      firstName: updatedMember.melos?.epafes?.onoma || "",
-      lastName: updatedMember.melos?.epafes?.epitheto || "",
-      phone: updatedMember.melos?.epafes?.tilefono ? updatedMember.melos.epafes.tilefono.toString() : "",
-      email: updatedMember.melos?.epafes?.email || "",
-      arithmosmitroou: updatedMember.arithmos_mitroou,
-      onomasillogou: updatedMember.onoma_sillogou || "",
-      vathmos_diskolias: updatedMember.melos?.vathmos_diskolias?.epipedo || 1,
+    // Διαμόρφωση απάντησης
+    const formattedResult = {
+      id: result.id_ekso_melous,
+      firstName: result.melos?.epafes?.onoma || "",
+      lastName: result.melos?.epafes?.epitheto || "",
+      phone: result.melos?.epafes?.tilefono ? result.melos.epafes.tilefono.toString() : "",
+      email: result.melos?.epafes?.email || "",
+      arithmosmitroou: result.arithmos_mitroou || null, // Μπορεί να είναι null
+      onomasillogou: result.onoma_sillogou || "",
+      vathmos_diskolias: result.melos?.vathmos_diskolias?.epipedo || 1,
       melos: {
-        simmetoxi: updatedMember.melos?.simmetoxi
-          ?.filter(s => s.katastasi === "Ενεργή")
-          ?.map(s => ({
-            ...s,
-            // Access drastiriotita through simmetoxi_drastiriotites
-            simmetoxi_drastiriotites: (s.simmetoxi_drastiriotites || []).map(rel => ({
-              ...rel,
-              drastiriotita: rel.drastiriotita ? {
-                ...rel.drastiriotita,
-                hmerominia: formatDateGR(rel.drastiriotita?.hmerominia),
-              } : null
-            })),
-            hmerominia_dilosis: formatDateGR(s.hmerominia_dilosis)
-          })) || [],
-        parakolouthisi: updatedMember.melos?.parakolouthisi
-          ?.filter(p => p.katastasi === "Ενεργή")
-          ?.map(p => ({
-            ...p,
-            hmerominia_dilosis: formatDateGR(p.hmerominia_dilosis)
-          })) || []
+        epafes: result.melos?.epafes || {},
+        vathmos_diskolias: result.melos?.vathmos_diskolias || {},
+        simmetoxi: result.melos?.simmetoxi || [],
+        parakolouthisi: result.melos?.parakolouthisi || []
       }
     };
 
-    res.json(responseMember);
+    res.json(formattedResult);
   } catch (error) {
     console.error("Error updating external member:", error);
-    res.status(400).json({ 
+    res.status(500).json({ 
       error: "Error updating external member", 
       details: error.message 
     });

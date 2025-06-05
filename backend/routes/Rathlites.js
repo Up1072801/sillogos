@@ -186,12 +186,32 @@ router.post("/athlete", async (req, res) => {
       athlimata 
     } = req.body;
 
+    // Έλεγχος ότι έχουμε τουλάχιστον τα βασικά στοιχεία
+    if (!vathmos_diskolias?.id_vathmou_diskolias) {
+      return res.status(400).json({ 
+        error: "Ο βαθμός δυσκολίας είναι υποχρεωτικός" 
+      });
+    }
+
+    // Έλεγχος ότι ο βαθμός δυσκολίας υπάρχει
+    const difficultyExists = await prisma.vathmos_diskolias.findUnique({
+      where: { id_vathmou_diskolias: vathmos_diskolias.id_vathmou_diskolias }
+    });
+
+    if (!difficultyExists) {
+      return res.status(400).json({ 
+        error: "Μη έγκυρος βαθμός δυσκολίας" 
+      });
+    }
+
     const result = await prisma.$transaction(async (prismaTransaction) => {
       // 1. Δημιουργία επαφής
       const newEpafi = await prismaTransaction.epafes.create({
         data: {
-          ...epafes,
-          tilefono: epafes.tilefono ? BigInt(epafes.tilefono) : null,
+          onoma: epafes?.onoma || "",
+          epitheto: epafes?.epitheto || "",
+          email: epafes?.email || "",
+          tilefono: epafes?.tilefono ? BigInt(epafes.tilefono) : null,
         }
       });
 
@@ -204,11 +224,17 @@ router.post("/athlete", async (req, res) => {
         }
       });
 
-      // 3. Δημιουργία εσωτερικού μέλους
+      // 3. Δημιουργία εσωτερικού μέλους με σωστή σύνδεση
       const newEsoterikoMelos = await prismaTransaction.esoteriko_melos.create({
         data: {
           id_es_melous: newMelos.id_melous,
-          ...esoteriko_melos
+          hmerominia_gennhshs: esoteriko_melos?.hmerominia_gennhshs || null,
+          patronimo: esoteriko_melos?.patronimo || "",
+          odos: esoteriko_melos?.odos || "",
+          tk: esoteriko_melos?.tk || null,
+          arithmos_mitroou: esoteriko_melos?.arithmos_mitroou || null,
+          // Η σύνδεση με το melos γίνεται αυτόματα μέσω του id_es_melous
+          // που είναι το ίδιο με το id_melous
         }
       });
 
@@ -216,19 +242,28 @@ router.post("/athlete", async (req, res) => {
       const newAthlitis = await prismaTransaction.athlitis.create({
         data: {
           id_athliti: newEsoterikoMelos.id_es_melous,
-          ...athlitis
+          arithmos_deltiou: athlitis?.arithmos_deltiou || null,
+          hmerominia_enarksis_deltiou: athlitis?.hmerominia_enarksis_deltiou || null,
+          hmerominia_liksis_deltiou: athlitis?.hmerominia_liksis_deltiou || null,
         }
       });
 
-      // 5. Συσχέτιση με αθλήματα
-      if (athlimata && athlimata.length > 0) {
+      // 5. Συσχέτιση με αθλήματα (μόνο αν υπάρχουν)
+      if (athlimata && Array.isArray(athlimata) && athlimata.length > 0) {
         for (const athleteId of athlimata) {
-          await prismaTransaction.asxoleitai.create({
-            data: {
-              id_athliti: newAthlitis.id_athliti,
-              id_athlimatos: athleteId
-            }
+          // Έλεγχος ότι το άθλημα υπάρχει
+          const sportExists = await prismaTransaction.athlima.findUnique({
+            where: { id_athlimatos: parseInt(athleteId) }
           });
+          
+          if (sportExists) {
+            await prismaTransaction.asxoleitai.create({
+              data: {
+                id_athliti: newAthlitis.id_athliti,
+                id_athlimatos: parseInt(athleteId)
+              }
+            });
+          }
         }
       }
 
@@ -241,7 +276,7 @@ router.post("/athlete", async (req, res) => {
               melos: {
                 include: {
                   epafes: true,
-                  vathmos_diskolias: true,
+                  vathmos_diskolias: true
                 }
               }
             }
@@ -250,28 +285,11 @@ router.post("/athlete", async (req, res) => {
             include: {
               athlima: true
             }
-          },
-          agonizetai: {
-            include: {
-              agones: true
-            }
           }
         }
       });
 
-      return {
-        ...completeAthlete,
-        esoteriko_melos: {
-          ...completeAthlete.esoteriko_melos,
-          melos: {
-            ...completeAthlete.esoteriko_melos.melos,
-            epafes: {
-              ...completeAthlete.esoteriko_melos.melos.epafes,
-              tilefono: completeAthlete.esoteriko_melos.melos.epafes.tilefono?.toString()
-            }
-          }
-        }
-      };
+      return completeAthlete;
     });
 
     res.status(201).json(result);

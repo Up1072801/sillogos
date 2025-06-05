@@ -6,7 +6,7 @@ async function deleteAllData() {
   try {
     // Διαγραφή δεδομένων από child tables
     await prisma.katavalei.deleteMany();
-        await prisma.simmetoxi_drastiriotita.deleteMany({}); // ΝΕΟΣ ΠΙΝΑΚΑΣ - πρώτος στη διαγραφή
+    await prisma.simmetoxi_drastiriotita.deleteMany({}); // ΝΕΟΣ ΠΙΝΑΚΑΣ - πρώτος στη διαγραφή
 
     await prisma.plironei.deleteMany();
     await prisma.simmetoxi.deleteMany();
@@ -68,20 +68,24 @@ async function deleteAllData() {
       "Sindromitis_id_sindromiti_seq",
       "EsoterikoMelos_id_es_melous_seq",
       "EksoterikoMelos_id_ekso_melous_seq",
-      "Ekpaideutis_id_ekpaideuti_seq"
+      "Ekpaideutis_id_ekpaideuti_seq",
+      "Katafigio_id_katafigiou_seq",  // Αυτό έλειπε
+      "Athlima_id_athlimatos_seq"     // Αυτό έλειπε
     ];
 
+    console.log('Επαναφορά sequences...');
     for (const sequence of sequences) {
       try {
         await prisma.$executeRawUnsafe(`ALTER SEQUENCE "${sequence}" RESTART WITH 1`);
+        console.log(`✓ Επαναφέρθηκε η ακολουθία: ${sequence}`);
       } catch (error) {
-        console.warn(`Η ακολουθία "${sequence}" δεν υπάρχει:`, error.message);
+        console.warn(`⚠ Η ακολουθία "${sequence}" δεν υπάρχει ή υπήρξε σφάλμα:`, error.message);
       }
     }
 
-    console.log('Όλοι οι αριθμητές (sequences) επανεκκινήθηκαν επιτυχώς!');
+    console.log('✅ Όλοι οι αριθμητές (sequences) επανεκκινήθηκαν επιτυχώς!');
   } catch (error) {
-    console.error('Σφάλμα κατά τη διαγραφή δεδομένων:', error);
+    console.error('❌ Σφάλμα κατά τη διαγραφή δεδομένων:', error);
   } finally {
     await prisma.$disconnect();
   }

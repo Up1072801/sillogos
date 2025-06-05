@@ -382,7 +382,7 @@ router.post("/", async (req, res) => {
     }
 
     // Reset the sequence to the max existing ID
-    await prisma.$executeRaw`SELECT setval('"Eksormisi_id_eksormisis_seq"', coalesce((SELECT MAX(id_eksormisis) FROM "Eksormisi"), 0))`;
+    await prisma.$executeRaw`SELECT setval('"Eksormisi_id_eksormisis_seq"', GREATEST(coalesce((SELECT MAX(id_eksormisis) FROM "Eksormisi"), 0), 1))`;
 
     const newEksormisi = await prisma.eksormisi.create({
       data: {

@@ -57,7 +57,7 @@ model esoteriko_melos {
   patronimo           String?
   odos                String?
   tk                  Int?
-  arithmos_mitroou    Int              @unique
+  arithmos_mitroou    Int?            
   melos               melos            @relation(fields: [id_es_melous], references: [id_melous], onDelete: Cascade)
   athlitis            athlitis?
   sindromitis         sindromitis?
@@ -71,7 +71,7 @@ model esoteriko_melos {
 model eksoteriko_melos {
   id_ekso_melous   Int     @id @map("id_melous") // Το id_ekso_melous είναι το ίδιο με το id_melous
   onoma_sillogou   String?
-  arithmos_mitroou Int     @unique
+  arithmos_mitroou Int?   
   melos            melos   @relation(fields: [id_ekso_melous], references: [id_melous], onDelete: Cascade)
 
   @@map("EksoterikoMelos")

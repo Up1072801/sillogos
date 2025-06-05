@@ -124,12 +124,12 @@ const equipmentFormFields = [
   { 
     accessorKey: "onoma", 
     header: "Όνομα Εξοπλισμού", 
-    validation: yup.string().required("Το όνομα είναι υποχρεωτικό") 
+    validation: yup.string() // Removed required validation
   },
   { 
     accessorKey: "marka", 
     header: "Μάρκα", 
-    validation: yup.string().required("Η μάρκα είναι υποχρεωτική") 
+    validation: yup.string() // Removed required validation
   },
   { 
     accessorKey: "xroma", 
