@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, Dialog, DialogTitle, DialogContent, 
   DialogActions, TextField, Select, MenuItem, FormControl, InputLabel,
-  IconButton, Tooltip, CircularProgress
+  IconButton, Tooltip, CircularProgress, DialogContentText
 } from '@mui/material';
 import { Delete, LockReset } from '@mui/icons-material';
 import api from '../utils/api';
@@ -15,6 +15,8 @@ export default function UserManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState('new'); // 'new', 'reset'
   const [selectedUser, setSelectedUser] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
   
   const [newUser, setNewUser] = useState({
     username: '',
@@ -131,19 +133,22 @@ export default function UserManagement() {
     }
   };
   
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον χρήστη;')) {
-      return;
-    }
-    
-    try {
-      await api.delete(`/auth/users/${userId}`);
-      await fetchUsers();
-    } catch (err) {
-      console.error('Σφάλμα κατά τη διαγραφή:', err);
-      setError(err.response?.data?.error || 'Σφάλμα κατά τη διαγραφή');
-    }
-  };
+  const confirmDeleteUser = async () => {
+  try {
+    await api.delete(`/auth/users/${userToDelete}`);
+    await fetchUsers();
+    setDeleteDialog(false);
+    setUserToDelete(null);
+  } catch (err) {
+    console.error('Σφάλμα κατά τη διαγραφή χρήστη:', err);
+    setError(err.response?.data?.error || 'Σφάλμα κατά τη διαγραφή χρήστη');
+  }
+};
+
+const handleDeleteUser = (userId) => {
+  setUserToDelete(userId);
+  setDeleteDialog(true);
+};
   
   // Έλεγχος αν είναι ο τρέχων χρήστης
   const currentUser = JSON.parse(localStorage.getItem('user'));
@@ -291,7 +296,7 @@ export default function UserManagement() {
             </FormControl>
           )}
         </DialogContent>
-        
+
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Άκυρο</Button>
           <Button 
@@ -299,6 +304,27 @@ export default function UserManagement() {
             onClick={handleSubmit}
           >
             {dialogMode === 'new' ? 'Δημιουργία' : 'Αποθήκευση'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog επιβεβαίωσης διαγραφής χρήστη */}
+      <Dialog
+        open={deleteDialog}
+        onClose={() => setDeleteDialog(false)}
+      >
+        <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον χρήστη;
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)} color="primary">
+            Ακύρωση
+          </Button>
+          <Button onClick={confirmDeleteUser} color="error" autoFocus>
+            Διαγραφή
           </Button>
         </DialogActions>
       </Dialog>

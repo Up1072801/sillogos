@@ -29,7 +29,8 @@ export default function AdminPage() {
   const [difficultyLevels, setDifficultyLevels] = useState([]);
   const [subscriptionTypes, setSubscriptionTypes] = useState([]);
   const [refugePrices, setRefugePrices] = useState([]);
-
+const [deleteDialog, setDeleteDialog] = useState(false);
+const [userToDelete, setUserToDelete] = useState(null);
   // State για διαλόγους
   const [sportDialog, setSportDialog] = useState({ open: false, data: null, isEdit: false });
   const [difficultyDialog, setDifficultyDialog] = useState({ open: false, data: null, isEdit: false });
