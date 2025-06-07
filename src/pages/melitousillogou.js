@@ -481,7 +481,7 @@ const getStatusStyle = (status) => {
 
 export default function Meloi() {
   // Add this feature flag at the beginning of your component
-  const SHOW_EXCEL_IMPORT = true; // Set to true when you want to enable it again
+  const SHOW_EXCEL_IMPORT = false; // Set to true when you want to enable it again
   
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
