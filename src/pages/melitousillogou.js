@@ -391,34 +391,46 @@ const validateDates = (registrationDate, paymentDate) => {
   return regDate <= payDate;
 };
 
-// Συνάρτηση που καθορίζει την κατάσταση συνδρομής με βάση τις ημερομηνίες
+// Συνάρτηση που καθορίζει την κατάσταση συνδρομής με βάση την ημερομηνία λήξης
 const determineSubscriptionStatus = (registrationDate, paymentDate, currentStatus) => {
   // Αν δεν έχει οριστεί μια από τις δύο ημερομηνίες, διατηρούμε την τρέχουσα κατάσταση
   if (!registrationDate || !paymentDate) return currentStatus;
   
-  const regDate = new Date(registrationDate);
-  const payDate = new Date(paymentDate);
-  
-  // Έλεγχος για μη έγκυρες ημερομηνίες
-  if (isNaN(regDate.getTime()) || isNaN(payDate.getTime())) return currentStatus;
-  
-  const currentYear = new Date().getFullYear();
-  const startOfCurrentYear = new Date(`${currentYear}-01-01`);
-  const startOfLastSept = new Date(`${currentYear-1}-09-01`); // Changed from 06-01 (June) to 09-01 (September)
-
-  // Λογική αντίστοιχη με αυτή του middleware στο backend
-  if (
-    // Η εγγραφή έγινε πριν την αρχή του τρέχοντος έτους
-    regDate < startOfCurrentYear && 
-    // Η πληρωμή έγινε πριν την αρχή του τρέχοντος έτους
-    payDate < startOfCurrentYear &&
-    // Δεν είναι ειδική περίπτωση (εγγραφή μετά 1 Σεπτεμβρίου του προηγούμενου έτους)
-    !(regDate >= startOfLastSept && regDate < startOfCurrentYear)
-  ) {
-    return "Ληγμένη";
-  } 
-  
-  return "Ενεργή";
+  try {
+    // Υπολογισμός της ημερομηνίας λήξης με βάση τις ημερομηνίες εγγραφής και πληρωμής
+    const endDateStr = calculateSubscriptionEndDate(registrationDate, paymentDate);
+    
+    // Αν η ημερομηνία λήξης είναι "Άγνωστη", διατηρούμε την τρέχουσα κατάσταση
+    if (endDateStr === "Άγνωστη") return currentStatus;
+    
+    // Μετατροπή της ημερομηνίας λήξης σε αντικείμενο Date
+    // Η ημερομηνία λήξης έχει μορφή "DD/MM/YYYY"
+    const parts = endDateStr.split('/');
+    if (parts.length !== 3) return currentStatus;
+    
+    const day = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // Οι μήνες στην JavaScript είναι 0-11
+    const year = parseInt(parts[2]);
+    const endDate = new Date(year, month, day);
+    
+    // Σύγκριση με την τρέχουσα ημερομηνία - ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ ΕΔΩ
+    const today = new Date();
+    
+    // Σύγκριση μόνο ημερομηνιών, αγνοώντας την ώρα
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    
+    // Αν η τρέχουσα ημερομηνία είναι ίση ή μετά την ημερομηνία λήξης, η συνδρομή έχει λήξει
+    if (todayDateOnly >= endDateOnly) {
+      return "Ληγμένη";
+    }
+    
+    // Αλλιώς η συνδρομή είναι ενεργή
+    return "Ενεργή";
+  } catch (error) {
+    console.error("Σφάλμα κατά τον υπολογισμό της κατάστασης συνδρομής:", error);
+    return currentStatus;
+  }
 };
 
 // Ενημέρωση της συνάρτησης getStatusStyle
@@ -469,7 +481,7 @@ const getStatusStyle = (status) => {
 
 export default function Meloi() {
   // Add this feature flag at the beginning of your component
-  const SHOW_EXCEL_IMPORT = false; // Set to true when you want to enable it again
+  const SHOW_EXCEL_IMPORT = true; // Set to true when you want to enable it again
   
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -936,15 +948,13 @@ export default function Meloi() {
         accessorKey: "hmerominia_enarksis", 
         header: "Ημερομηνία Έναρξης Συνδρομής", 
         type: "date",
-        defaultValue: new Date().toISOString().split('T')[0],
-        validation: yup.date().nullable() // Αφαίρεση .required() και του test
+        validation: yup.date().nullable()
       },
       { 
         accessorKey: "hmerominia_pliromis", 
         header: "Ημερομηνία Πληρωμής", 
         type: "date",
-        defaultValue: new Date().toISOString().split('T')[0],
-        validation: yup.date().nullable() // Αφαίρεση .required()
+        validation: yup.date().nullable()
       },
  { 
   accessorKey: "epipedo", 
@@ -1365,13 +1375,13 @@ const parseDate = (dateValue) => {
                 accessorKey: "hmerominia_enarksis", 
                 header: "Ημερομηνία Έναρξης Συνδρομής", 
                 type: "date",
-                validation: yup.date().nullable() // Αφαίρεση .required() και test
+                validation: yup.date().nullable()
               },
               { 
                 accessorKey: "hmerominia_pliromis", 
                 header: "Ημερομηνία Πληρωμής", 
                 type: "date",
-                validation: yup.date().nullable() // Αφαίρεση .required()
+                validation: yup.date().nullable()
               }
             ] : []),
      { 

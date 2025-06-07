@@ -472,6 +472,17 @@ export default function AdminPage() {
     }
   };
 
+  // Add this function at the top level of your component
+  const handleDialogKeyDown = (event, saveFunction) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      // Prevent default behavior (like adding a newline in multiline textfields)
+      event.preventDefault();
+      
+      // Execute the save function when Enter is pressed
+      saveFunction();
+    }
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
@@ -720,7 +731,14 @@ export default function AdminPage() {
                       startIcon={<AddIcon />} 
                       onClick={() => setRefugeDialog({
                         open: true, 
-                        data: { onoma: "", xoritikotita: 0, timi_melous: 0, timi_mi_melous: 0 }, 
+                        data: { 
+                          onoma: "", 
+                          xoritikotita: 0, 
+                          timi_melous: 0, 
+                          timi_mi_melous: 0,
+                          timi_eksoxwrou_melos: 0,
+                          timi_eksoxwroy_mimelos: 0
+                        }, 
                         isEdit: false 
                       })}
                     >
@@ -794,7 +812,9 @@ export default function AdminPage() {
         {/* Dialog για προσθήκη/επεξεργασία αθλήματος */}
         <Dialog open={sportDialog.open} onClose={() => setSportDialog({...sportDialog, open: false})}>
           <DialogTitle>{sportDialog.isEdit ? "Επεξεργασία" : "Προσθήκη"} Αθλήματος</DialogTitle>
-          <DialogContent>
+          <DialogContent 
+            onKeyDown={(e) => handleDialogKeyDown(e, () => sportDialog.isEdit ? handleUpdateSport() : handleAddSport())}
+          >
             <TextField
               autoFocus
               margin="dense"
@@ -819,7 +839,9 @@ export default function AdminPage() {
         {/* Dialog για προσθήκη/επεξεργασία βαθμού δυσκολίας */}
         <Dialog open={difficultyDialog.open} onClose={() => setDifficultyDialog({...difficultyDialog, open: false})}>
           <DialogTitle>{difficultyDialog.isEdit ? "Επεξεργασία" : "Προσθήκη"} Βαθμού Δυσκολίας</DialogTitle>
-          <DialogContent>
+          <DialogContent
+            onKeyDown={(e) => handleDialogKeyDown(e, () => difficultyDialog.isEdit ? handleUpdateDifficulty() : handleAddDifficulty())}
+          >
             <TextField
               autoFocus
               margin="dense"
@@ -845,7 +867,9 @@ export default function AdminPage() {
         {/* Dialog για προσθήκη/επεξεργασία είδους συνδρομής */}
         <Dialog open={subscriptionDialog.open} onClose={() => setSubscriptionDialog({...subscriptionDialog, open: false})}>
           <DialogTitle>{subscriptionDialog.isEdit ? "Επεξεργασία" : "Προσθήκη"} Είδους Συνδρομής</DialogTitle>
-          <DialogContent>
+          <DialogContent
+            onKeyDown={(e) => handleDialogKeyDown(e, () => subscriptionDialog.isEdit ? handleUpdateSubscription() : handleAddSubscription())}
+          >
             <TextField
               autoFocus
               margin="dense"
@@ -878,7 +902,9 @@ export default function AdminPage() {
         {/* Dialog για προσθήκη/επεξεργασία καταφυγίου */}
         <Dialog open={refugeDialog.open} onClose={() => setRefugeDialog({...refugeDialog, open: false})}>
           <DialogTitle>{refugeDialog.isEdit ? "Επεξεργασία" : "Προσθήκη"} Καταφυγίου</DialogTitle>
-          <DialogContent>
+          <DialogContent
+            onKeyDown={(e) => handleDialogKeyDown(e, () => refugeDialog.isEdit ? handleUpdateRefuge() : handleAddRefuge())}
+          >
             <TextField
               autoFocus
               margin="dense"
@@ -902,7 +928,13 @@ export default function AdminPage() {
               type="number"
               fullWidth
               value={refugeDialog.data?.timi_melous || 0}
-              onChange={(e) => setRefugeDialog({...refugeDialog, data: {...refugeDialog.data, timi_melous: parseInt(e.target.value)}})}
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : Number(e.target.value);
+                setRefugeDialog({
+                  ...refugeDialog, 
+                  data: {...refugeDialog.data, timi_melous: value}
+                });
+              }}
             />
             <TextField
               margin="dense"
@@ -910,7 +942,13 @@ export default function AdminPage() {
               type="number"
               fullWidth
               value={refugeDialog.data?.timi_mi_melous || 0}
-              onChange={(e) => setRefugeDialog({...refugeDialog, data: {...refugeDialog.data, timi_mi_melous: parseInt(e.target.value)}})}
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : Number(e.target.value);
+                setRefugeDialog({
+                  ...refugeDialog, 
+                  data: {...refugeDialog.data, timi_mi_melous: value}
+                });
+              }}
             />
             <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Τιμές Εξωτερικού Χώρου</Typography>
             <TextField
@@ -919,7 +957,13 @@ export default function AdminPage() {
               type="number"
               fullWidth
               value={refugeDialog.data?.timi_eksoxwrou_melos || 0}
-              onChange={(e) => setRefugeDialog({...refugeDialog, data: {...refugeDialog.data, timi_eksoxwrou_melos: parseInt(e.target.value)}})}
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : Number(e.target.value);
+                setRefugeDialog({
+                  ...refugeDialog, 
+                  data: {...refugeDialog.data, timi_eksoxwrou_melos: value}
+                });
+              }}
             />
             <TextField
               margin="dense"
@@ -927,7 +971,13 @@ export default function AdminPage() {
               type="number"
               fullWidth
               value={refugeDialog.data?.timi_eksoxwroy_mimelos || 0}
-              onChange={(e) => setRefugeDialog({...refugeDialog, data: {...refugeDialog.data, timi_eksoxwroy_mimelos: parseInt(e.target.value)}})}
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : Number(e.target.value);
+                setRefugeDialog({
+                  ...refugeDialog, 
+                  data: {...refugeDialog.data, timi_eksoxwroy_mimelos: value}
+                });
+              }}
             />
           </DialogContent>
           <DialogActions>

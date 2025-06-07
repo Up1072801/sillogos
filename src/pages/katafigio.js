@@ -10,7 +10,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import el from 'date-fns/locale/el';
 import { differenceInDays } from 'date-fns';
-import { Box, Typography, Paper, Button } from '@mui/material';
+import { Box, Typography, Paper, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 
 // Στυλ για τη βελτίωση της εμφάνισης της σελίδας
 const styles = {
@@ -114,6 +114,8 @@ export default function Katafigio() {
     Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i)
   );
   const calendarRef = React.useRef();
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
+const [deletePaymentDialog, setDeletePaymentDialog] = useState(false);
   const [editPaymentDialogOpen, setEditPaymentDialogOpen] = useState(false);
   const [editPaymentData, setEditPaymentData] = useState(null);
 
@@ -611,15 +613,22 @@ const handleSaveEditedPayment = async (editedPayment) => {
   }
 };
 
-const handleDeletePayment = async (payment) => {
+const handleDeletePayment = (payment) => {
+  // Store the payment to delete and open the confirmation dialog
+  setPaymentToDelete(payment);
+  setDeletePaymentDialog(true);
+};
+
+// New function to handle the confirmed deletion
+const confirmDeletePayment = async () => {
   try {
-    if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτήν την πληρωμή;")) {
+    if (!paymentToDelete) {
       return;
     }
 
     // Εύρεση της κράτησης στην οποία ανήκει η πληρωμή
     const bookingWithPayment = bookings.find(
-      booking => booking.payments?.some(p => p.id === payment.id)
+      booking => booking.payments?.some(p => p.id === paymentToDelete.id)
     );
 
     if (!bookingWithPayment) {
@@ -627,14 +636,14 @@ const handleDeletePayment = async (payment) => {
     }
 
     // Κλήση του API για διαγραφή της πληρωμής
-    await api.delete(`/katafigio/${bookingWithPayment.id}/payment/${payment.id}`);
+    await api.delete(`/katafigio/${bookingWithPayment.id}/payment/${paymentToDelete.id}`);
 
     // Ενημέρωση των τοπικών δεδομένων
     setBookings(prevBookings => 
       prevBookings.map(booking => {
         if (booking.id === bookingWithPayment.id) {
           // Αφαίρεση της πληρωμής
-          const updatedPayments = booking.payments.filter(p => p.id !== payment.id);
+          const updatedPayments = booking.payments.filter(p => p.id !== paymentToDelete.id);
           // Ενημέρωση υπολοίπου
           const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
           const updatedBalance = booking.totalPrice - totalPaid;
@@ -648,9 +657,16 @@ const handleDeletePayment = async (payment) => {
         return booking;
       })
     );
+
+    // Close the dialog and clear the payment to delete
+    setDeletePaymentDialog(false);
+    setPaymentToDelete(null);
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή πληρωμής:", error);
     alert(`Σφάλμα: ${error.message}`);
+    // Make sure to close the dialog even on error
+    setDeletePaymentDialog(false);
+    setPaymentToDelete(null);
   }
 };
 
@@ -1122,6 +1138,27 @@ return (
         title="Επεξεργασία Πληρωμής"
         fields={paymentFormFields}
       />
+      
+      {/* Payment Deletion Confirmation Dialog */}
+      <Dialog
+        open={deletePaymentDialog}
+        onClose={() => setDeletePaymentDialog(false)}
+      >
+        <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Είστε σίγουρος ότι θέλετε να διαγράψετε αυτή την εγγραφή;
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeletePaymentDialog(false)} color="primary">
+            Ακύρωση
+          </Button>
+          <Button onClick={confirmDeletePayment} color="error" autoFocus>
+            Διαγραφή
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   </LocalizationProvider>
 );

@@ -491,7 +491,7 @@ router.get("/katafigio/katafygia", async (req, res) => {
 // POST: Προσθήκη νέου καταφυγίου
 router.post("/katafigio/katafygia", async (req, res) => {
   try {
-    const { onoma, xoritikotita, timi_melous, timi_mi_melous } = req.body;
+    const { onoma, xoritikotita, timi_melous, timi_mi_melous, timi_eksoxwrou_melos, timi_eksoxwroy_mimelos } = req.body;
 
     if (!onoma) {
       return res.status(400).json({ error: "Το όνομα καταφυγίου είναι υποχρεωτικό" });
@@ -515,7 +515,9 @@ router.post("/katafigio/katafygia", async (req, res) => {
         onoma,
         xoritikotita: parseInt(xoritikotita) || 0,
         timi_melous: parseInt(timi_melous) || 0,
-        timi_mi_melous: parseInt(timi_mi_melous) || 0
+        timi_mi_melous: parseInt(timi_mi_melous) || 0,
+        timi_eksoxwrou_melos: parseInt(timi_eksoxwrou_melos) || 0,
+        timi_eksoxwroy_mimelos: parseInt(timi_eksoxwroy_mimelos) || 0
       }
     });
 
@@ -524,7 +526,9 @@ router.post("/katafigio/katafygia", async (req, res) => {
       onoma: newRefuge.onoma,
       xoritikotita: newRefuge.xoritikotita,
       timi_melous: newRefuge.timi_melous,
-      timi_mi_melous: newRefuge.timi_mi_melous
+      timi_mi_melous: newRefuge.timi_mi_melous,
+      timi_eksoxwrou_melos: newRefuge.timi_eksoxwrou_melos,
+      timi_eksoxwroy_mimelos: newRefuge.timi_eksoxwroy_mimelos
     });
   } catch (error) {
     console.error("Σφάλμα κατά την προσθήκη καταφυγίου:", error);

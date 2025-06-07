@@ -51,7 +51,7 @@ router.use(async (req, res, next) => {
               some: {
                 sindromi: {
                   hmerominia_enarksis: {
-                    gte: new Date(`${currentYear-1}-06-01`), // Ξεκίνησαν μετά την 1η Ιουνίου του προηγούμενου έτους
+                    gte: new Date(`${currentYear-1}-09-01`), // Ξεκίνησαν μετά την 1η Ιουνίου του προηγούμενου έτους
                     lt: new Date(`${currentYear}-01-01`)     // και πριν την αρχή του τρέχοντος έτους
                   }
                 }

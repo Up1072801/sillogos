@@ -40,6 +40,8 @@ export default function SchoolDetails() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [currentParticipantId, setCurrentParticipantId] = useState(null);
   // Dialog states
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
+const [deletePaymentDialog, setDeletePaymentDialog] = useState(false);
   const [editSchoolDialog, setEditSchoolDialog] = useState(false);
   const [editedSchool, setEditedSchool] = useState(null);
   const [addParticipantDialog, setAddParticipantDialog] = useState(false);
@@ -1031,10 +1033,6 @@ const handleRemovePayment = async (paymentId, participantId) => {
           }));
         },
         onDelete: (payment, participant) => {
-          if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτήν την πληρωμή;")) {
-            return;
-          }
-          
           const paymentId = payment.id || payment.id_katavalei;
           const participantId = participant.id_parakolouthisis;
           
@@ -1043,7 +1041,9 @@ const handleRemovePayment = async (paymentId, participantId) => {
             return;
           }
           
-          handleRemovePayment(paymentId, participantId);
+          // Store the payment and participant IDs and open the dialog
+          setPaymentToDelete({ paymentId, participantId });
+          setDeletePaymentDialog(true);
         },
         columns: [
           { 
@@ -1546,6 +1546,41 @@ const calculateBalance = (participant) => {
             Ακύρωση
           </Button>
           <Button onClick={handleConfirmTeacherDelete} color="error" autoFocus>
+            Διαγραφή
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Payment deletion confirmation dialog - new */}
+      <Dialog 
+        open={deletePaymentDialog} 
+        onClose={() => setDeletePaymentDialog(false)}
+      >
+        <DialogTitle>Επιβεβαίωση Διαγραφής Πληρωμής</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Είστε σίγουροι ότι θέλετε να διαγράψετε αυτήν την πληρωμή;
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeletePaymentDialog(false)} color="primary">
+            Ακύρωση
+          </Button>
+          <Button 
+            onClick={async () => {
+              if (!paymentToDelete) return;
+              
+              const { paymentId, participantId } = paymentToDelete;
+              
+              // Κλήση της handleRemovePayment με τα σωστά IDs
+              await handleRemovePayment(paymentId, participantId);
+              
+              setDeletePaymentDialog(false);
+              setPaymentToDelete(null);
+            }} 
+            color="error" 
+            autoFocus
+          >
             Διαγραφή
           </Button>
         </DialogActions>

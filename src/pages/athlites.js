@@ -1305,7 +1305,12 @@ const convertDateFormat = (dateString) => {
       accessorKey: "vathmos_diskolias", 
       header: "Βαθμός Δυσκολίας", 
       type: "select",
-      options: difficultyLevels.map(level => ({ value: level.id_vathmou_diskolias, label: `Βαθμός ${level.epipedo}` })),
+      options: difficultyLevels.map(level => ({ 
+        value: level.id_vathmou_diskolias, 
+        label: `Βαθμός ${level.epipedo}` 
+      })),
+      defaultValue: difficultyLevels[0]?.id_vathmou_diskolias || 1,
+      validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1") 
     },
     { 
       accessorKey: "arithmosdeltiou", 
@@ -1626,8 +1631,19 @@ const handleAthleteCompetitionTableDelete = (athlete, competition) => {
           { accessor: "arithmosdeltiou", header: "Αριθμός Δελτίου" }
         ],
         // Use the adapter function which handles the parameter order correctly
-        onDelete: handleAthleteCompetitionTableDelete,
-        onAddNew: (competitionId) => handleAddAthleteToCompetition(competitionId)
+onDelete: (payment, participant) => {
+  const paymentId = payment.id || payment.id_katavalei;
+  const participantId = participant.id_parakolouthisis;
+  
+  if (!paymentId || !participantId) {
+    console.error("Missing ID for payment or participant:", { payment, participant });
+    return;
+  }
+  
+  // Store the payment and participant IDs and open the dialog
+  setPaymentToDelete({ paymentId, participantId });
+  setDeletePaymentDialog(true);
+},        onAddNew: (competitionId) => handleAddAthleteToCompetition(competitionId)
       }
     ],
     showEditButton: true
@@ -1688,6 +1704,15 @@ const handleAthleteCompetitionTableDelete = (athlete, competition) => {
 // Add this component inside your file, before the main Athlites component
 // Replace your current CheckboxSportsSelector with this improved version:
 // Replace your current CheckboxSportsSelector component with this improved version
+// Add this function with your other handler functions
+const handleConfirmPaymentDelete = () => {
+  if (!paymentToDelete) return;
+  
+  const { paymentId, participantId } = paymentToDelete;
+  handleRemovePayment(paymentId, participantId);
+  setDeletePaymentDialog(false);
+  setPaymentToDelete(null);
+};
 
 const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
   const handleToggle = (sportId) => {
@@ -2051,6 +2076,30 @@ const showDeleteConfirmation = (item, type, callback) => {
           setAthleteToDelete(null);
         }
       }} 
+      color="error" 
+      autoFocus
+    >
+      Διαγραφή
+    </Button>
+  </DialogActions>
+</Dialog>
+{/* Payment deletion confirmation dialog */}
+<Dialog
+  open={deletePaymentDialog}
+  onClose={() => setDeletePaymentDialog(false)}
+>
+  <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την πληρωμή;
+    </DialogContentText>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setDeletePaymentDialog(false)} color="primary">
+      Ακύρωση
+    </Button>
+    <Button 
+      onClick={handleConfirmPaymentDelete}
       color="error" 
       autoFocus
     >

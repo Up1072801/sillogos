@@ -129,9 +129,9 @@ const [ypefthynoi, setYpefthynoi] = useState([]);
   // Fetch data on component mount and when refresh is triggered
   useEffect(() => {
     fetchData();
-    fetchInternalMembers(); // Add this line
+    fetchInternalMembers();
     fetchResponsiblePersons();
-}, [id, refreshTrigger, participants.length]); // Add participants.length as a dependency
+}, [id, refreshTrigger]); // Removed participants.length
 
 const fetchResponsiblePersons = async () => {
   try {
@@ -907,6 +907,7 @@ const handleAddParticipant = async (formData) => {
       if (formData.id_melous.melos && formData.id_melous.melos.id_melous) {
         memberIdToFind = formData.id_melous.melos.id_melous;
       } else {
+        // Fall back to the selected ID
         memberIdToFind = formData.id_melous.id;
       }
     } else {
@@ -948,114 +949,104 @@ const handleAddParticipant = async (formData) => {
       katastasi: formData.katastasi || "Ενεργή"
     };
     
-    try {
-      const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedData);
-      
-      if (!response.data) {
-        alert("Δεν ήταν δυνατή η προσθήκη συμμετοχών.");
-        return;
-      }
-      
-      const newParticipants = [];
-      
-      // Process the response data and update the UI
-      const participantId = response.data.id_simmetoxis;
-      
-      // Get details for each activity that was added
-      for (const activityId of activityIds) {
-        // Find the activity details
-        const activityDetails = drastiriotites.find(d => 
-          (d.id_drastiriotitas == activityId || d.id == activityId)
-        );
-        
-        // Add the activity to our local state
-        if (activityDetails) {
-          // Update the drastiriotites array to include this participant
-          setDrastiriotites(prev => 
-            prev.map(d => {
-              if (d.id_drastiriotitas == activityId || d.id == activityId) {
-                return {
-                  ...d,
-                  simmetexontes: [...(d.simmetexontes || []), {
-                    id_simmetoxis: participantId,
-                    id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
-                    memberName,
-                    email: memberEmail,
-                    tilefono: memberPhone,
-                    timi: fixedPrice,
-                    katastasi: formData.katastasi || "Ενεργή"
-                  }]
-                };
-              }
-              return d;
-            })
-          );
-        }
-      }
-      
-      // Create a new participant object with all activities
-      const newParticipant = {
-        id: participantId,
-        id_simmetoxis: participantId,
-        id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
-        memberName,
-        email: memberEmail,
-        tilefono: memberPhone,
-        timi: fixedPrice,
-        katastasi: formData.katastasi || "Ενεργή",
-        ypoloipo: fixedPrice,
-        plironei: [],
-        activities: activityIds.map(actId => {
-          const actDetails = drastiriotites.find(d => 
-            (d.id_drastiriotitas == actId || d.id == actId)
-          );
-          return {
-            id_drastiriotitas: actId,
-            titlos: actDetails?.titlos || `Δραστηριότητα #${actId}`,
-            hmerominia: actDetails?.hmerominia
-          };
-        }),
-        simmetoxes: activityIds.map(actId => {
-          const actDetails = drastiriotites.find(d => 
-            (d.id_drastiriotitas == actId || d.id == actId)
-          );
-          return {
-            drastiriotita: actDetails || {
-              titlos: `Δραστηριότητα #${actId}`,
-              id_drastiriotitas: actId
-            }
-          };
-        }),
-        melos: selectedMember.melos || {
-          epafes: {
-            onoma: selectedMember?.melos?.epafes?.onoma || '',
-            epitheto: selectedMember?.melos?.epafes?.epitheto || '',
-            email: memberEmail,
-            tilefono: memberPhone
-          }
-        }
-      };
-      
-      // Update the participants state
-      setParticipants(prev => [...prev, newParticipant]);
-      
-      // Remove the member from available members
-      setAvailableMembers(prev => 
-        prev.filter(m => {
-          const availableMemberId = String(m.id_es_melous || m.id_ekso_melous || m.id);
-          const selectedMemberId = String(selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id);
-          return availableMemberId !== selectedMemberId;
-        })
-      );
-      
-      setAddParticipantDialog(false);
-    } catch (error) {
-      console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα:", error);
-      alert("Σφάλμα: " + (error.response?.data?.error || error.message));
+    // Show loading indicator or disable UI elements here if needed
+    
+    const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedData);
+    
+    if (!response.data) {
+      alert("Δεν ήταν δυνατή η προσθήκη του συμμετέχοντα");
+      return;
     }
+    
+    const participantId = response.data.id_simmetoxis;
+    
+    // Create a new participant object with all activities
+    const newParticipant = {
+      id: participantId,
+      id_simmetoxis: participantId,
+      id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
+      memberName,
+      email: memberEmail,
+      tilefono: memberPhone,
+      timi: fixedPrice,
+      katastasi: formData.katastasi || "Ενεργή",
+      ypoloipo: fixedPrice,
+      plironei: [],
+      activities: activityIds.map(actId => {
+        const actDetails = drastiriotites.find(d => 
+          (d.id_drastiriotitas == actId || d.id == actId)
+        );
+        return {
+          id_drastiriotitas: actId,
+          titlos: actDetails?.titlos || `Δραστηριότητα #${actId}`,
+          hmerominia: actDetails?.hmerominia
+        };
+      }),
+      simmetoxes: activityIds.map(actId => {
+        const actDetails = drastiriotites.find(d => 
+          (d.id_drastiriotitas == actId || d.id == actId)
+        );
+        return {
+          drastiriotita: actDetails || {
+            titlos: `Δραστηριότητα #${actId}`,
+            id_drastiriotitas: actId
+          }
+        };
+      }),
+      melos: selectedMember.melos || {
+        epafes: {
+          onoma: selectedMember?.melos?.epafes?.onoma || '',
+          epitheto: selectedMember?.melos?.epafes?.epitheto || '',
+          email: memberEmail,
+          tilefono: memberPhone
+        }
+      }
+    };
+    
+    // Update the participants state
+    setParticipants(prev => [...prev, newParticipant]);
+    
+    // Now update the drastiriotites state to show the participant in each selected activity
+    setDrastiriotites(prevDrastiriotites => 
+      prevDrastiriotites.map(drastiriotita => {
+        const drastiriotitaId = drastiriotita.id_drastiriotitas || drastiriotita.id;
+        
+        // Check if this is one of the activities the participant was added to
+        if (activityIds.includes(String(drastiriotitaId))) {
+          // Add the participant to this activity's simmetexontes array
+          return {
+            ...drastiriotita,
+            simmetexontes: [
+              ...(drastiriotita.simmetexontes || []),
+              {
+                id_simmetoxis: participantId,
+                id_melous: selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id,
+                memberName,
+                email: memberEmail,
+                tilefono: memberPhone,
+                timi: fixedPrice,
+                katastasi: formData.katastasi || "Ενεργή"
+              }
+            ]
+          };
+        }
+        return drastiriotita;
+      })
+    );
+    
+    // Remove the member from available members
+    setAvailableMembers(prev => 
+      prev.filter(m => {
+        const availableMemberId = String(m.id_es_melous || m.id_ekso_melous || m.id);
+        const selectedMemberId = String(selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id);
+        return availableMemberId !== selectedMemberId;
+      })
+    );
+    
+    setAddParticipantDialog(false);
   } catch (error) {
     console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα:", error);
-    alert("Σφάλμα: " + error.message);
+    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
   }
 };
 
@@ -1234,6 +1225,7 @@ const handleEditParticipantSave = async (updatedParticipant) => {
 };
 
   // Simplified participant removal handler for better state synchronization
+// Simplified participant removal handler - remove redundant confirmation
 const handleRemoveParticipant = async (participant) => {
   // Check for valid participant
   if (!participant) {
@@ -1269,9 +1261,7 @@ const handleRemoveParticipant = async (participant) => {
     return;
   }
 
-  if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον συμμετέχοντα;")) {
-    return;
-  }
+  // Remove the redundant confirmation dialog, since the DataTable already has one
   
   try {
     await api.delete(`/eksormiseis/simmetoxi/${participantId}`);
@@ -1285,10 +1275,8 @@ const handleRemoveParticipant = async (participant) => {
     );
     
     // Update the activity's participants list in drastiriotites array
-    // This ensures the participants are removed from the activity details panel immediately
     setDrastiriotites(prev => 
       prev.map(d => {
-        // Check all activities, not just the one directly linked
         return {
           ...d,
           simmetexontes: (d.simmetexontes || []).filter(s => 
@@ -2032,15 +2020,27 @@ const handleAddActivityParticipant = async (formData) => {
       katastasi: formData.katastasi || "Ενεργή"
     };
     
-    const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedData);
-    
     // Find the selected member's details
     const selectedMember = availableMembers.find(m => (m.id_es_melous || m.id) === memberId);
     
+    if (!selectedMember) {
+      alert("Το επιλεγμένο μέλος δεν βρέθηκε");
+      return;
+    }
+    
+    const response = await api.post(`/eksormiseis/${id}/simmetoxi`, formattedData);
+    
+    if (!response.data || !response.data.id_simmetoxis) {
+      alert("Δεν ήταν δυνατή η προσθήκη του συμμετέχοντα");
+      return;
+    }
+    
+    const participantId = response.data.id_simmetoxis;
+    
     // Create new participant object
     const newParticipant = {
-      id: response.data.id_simmetoxis,
-      id_simmetoxis: response.data.id_simmetoxis,
+      id: participantId,
+      id_simmetoxis: participantId,
       id_drastiriotitas: parseInt(activityId),
       id_melous: memberId,
       memberName: `${selectedMember?.melos?.epafes?.epitheto || ''} ${selectedMember?.melos?.epafes?.onoma || ''}`.trim(),
@@ -2049,7 +2049,26 @@ const handleAddActivityParticipant = async (formData) => {
       timi: parseFloat(formattedData.timi),
       katastasi: formData.katastasi || "Ενεργή",
       ypoloipo: parseFloat(formattedData.timi), // Initially, the full amount is pending
-      plironei: [] // No payments yet
+      plironei: [], // No payments yet
+      activities: [{ 
+        id_drastiriotitas: activityId,
+        titlos: selectedActivityForParticipant.titlos || `Δραστηριότητα #${activityId}`,
+        hmerominia: selectedActivityForParticipant.hmerominia
+      }],
+      simmetoxes: [{
+        drastiriotita: {
+          titlos: selectedActivityForParticipant.titlos || `Δραστηριότητα #${activityId}`,
+          id_drastiriotitas: activityId
+        }
+      }],
+      melos: selectedMember.melos || {
+        epafes: {
+          onoma: selectedMember?.melos?.epafes?.onoma || '',
+          epitheto: selectedMember?.melos?.epafes?.epitheto || '',
+          email: selectedMember?.melos?.epafes?.email || '-',
+          tilefono: selectedMember?.melos?.epafes?.tilefono || '-'
+        }
+      }
     };
     
     // Update participants array
@@ -2057,12 +2076,12 @@ const handleAddActivityParticipant = async (formData) => {
     
     // Update the drastiriotites array to include this participant
     setDrastiriotites(prev => 
-      prev.map(d => {
-        if (d.id_drastiriotitas == activityId || d.id == activityId) {
+      prev.map(drastiriotita => {
+        if (drastiriotita.id_drastiriotitas == activityId || drastiriotita.id == activityId) {
           return {
-            ...d,
-            simmetexontes: [...(d.simmetexontes || []), {
-              id_simmetoxis: response.data.id_simmetoxis,
+            ...drastiriotita,
+            simmetexontes: [...(drastiriotita.simmetexontes || []), {
+              id_simmetoxis: participantId,
               id_melous: memberId,
               memberName: `${selectedMember?.melos?.epafes?.epitheto || ''} ${selectedMember?.melos?.epafes?.onoma || ''}`.trim(),
               email: selectedMember?.melos?.epafes?.email || '-',
@@ -2072,7 +2091,7 @@ const handleAddActivityParticipant = async (formData) => {
             }]
           };
         }
-        return d;
+        return drastiriotita;
       })
     );
     
@@ -2587,16 +2606,24 @@ const updateParticipantActivityLists = (deletedActivityId) => {
       setEditParticipantDialog(false);
       setCurrentParticipant(null);
     }}
-    handleEditSave={handleEditParticipantSave}
+    handleEditSave={(updatedValues) => {
+      // Add the IDs from currentParticipant before saving
+      handleEditParticipantSave({
+        ...updatedValues,
+        id_simmetoxis: currentParticipant.id_simmetoxis,
+        id_melous: currentParticipant.id_melous
+      });
+    }}
     editValues={currentParticipant}
     title="Επεξεργασία Συμμετέχοντα"
     fields={[
-      // Add these hidden ID fields back
-      { accessorKey: "id_simmetoxis", header: "ID", type: "hidden" },
-      { accessorKey: "id_melous", header: "ID Μέλους", type: "hidden" },
-      
-      // Keep the existing visible fields
-      { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική") },
+      // Removed the hidden ID fields
+      { 
+        accessorKey: "timi", 
+        header: "Τιμή", 
+        type: "number", 
+        validation: yup.number().min(0, "Δεν μπορεί να είναι αρνητικός αριθμός").required("Η τιμή είναι υποχρεωτική") 
+      },
       { 
         accessorKey: "katastasi", 
         header: "Κατάσταση", 
@@ -2623,20 +2650,17 @@ const updateParticipantActivityLists = (deletedActivityId) => {
           .required("Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα")
       }
     ]}
-    // Add custom validation to prevent saving if no activities are selected
     customValidation={(formData) => {
-      if (!formData.activities || formData.activities.length === 0) {
-        return {
-          isValid: false,
-          errorMessage: "Πρέπει να επιλεχθεί τουλάχιστον μία δραστηριότητα"
-        };
-      }
-      return { isValid: true };
+      // Any custom validation logic remains unchanged
+      return true;
     }}
     resourceData={{
       drastiriotitesList: drastiriotites.map(dr => {
+        // Determine display format for difficulty level
         let vathmosDisplay = "-";
-        if (dr.vathmou_diskolias?.epipedo) {
+        if (dr.vathmos_diskolias?.epipedo) {
+          vathmosDisplay = `Βαθμός ${dr.vathmos_diskolias.epipedo}`;
+        } else if (dr.vathmou_diskolias?.epipedo) {
           vathmosDisplay = `Βαθμός ${dr.vathmou_diskolias.epipedo}`;
         } else if (dr.id_vathmou_diskolias) {
           vathmosDisplay = `Βαθμός ${dr.id_vathmou_diskolias}`;

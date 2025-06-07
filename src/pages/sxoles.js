@@ -1297,9 +1297,9 @@ const handleAddSelectedTeachers = async () => {
 
       // Make API call
       try {
-        await api.post(`/sxoles/${currentSchoolForTeachers}/ekpaideutis`, {
-          id_ekpaideuti: ekpaideutis.id_ekpaideuti
-        });
+await api.post(`/sxoles/${currentSchoolForTeachers}/ekpaideutis`, {
+  id_ekpaideuti: ekpaideutis.id_ekpaideuti
+});
         addedTeachersIds.push(teacherId);
       } catch (apiError) {
         console.error(`Error adding teacher ${teacherId} to school:`, apiError);
