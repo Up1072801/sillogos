@@ -9,12 +9,12 @@ const fields = [
   {
     accessorKey: "onoma",
     header: "Όνομα",
-    validation: yup.string(), // Αφαίρεση του .required()
+    validation: yup.string().required("Το όνομα είναι υποχρεωτικό"),
   },
   {
     accessorKey: "epitheto", 
     header: "Επώνυμο",
-    validation: yup.string(), // Αφαίρεση του .required()
+    validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό"),
   },
   {
     accessorKey: "email",

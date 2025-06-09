@@ -383,12 +383,12 @@ const extractId = (obj) => {
     { 
       accessorKey: "onoma", 
       header: "Όνομα",
-      validation: yup.string() // Removed required
+      validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
     },
     { 
       accessorKey: "epitheto", 
       header: "Επώνυμο",
-      validation: yup.string() // Removed required
+      validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
     },
     { 
       accessorKey: "email", 
@@ -1477,7 +1477,6 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
       try {
         const response = await api.post("/sxoles", formattedSxoli);
        
-        
         // Τοπική ενημέρωση - προσθήκη της νέας σχολής στο state με όλα τα απαραίτητα δεδομένα
         const newSchoolWithId = {
           ...response.data,

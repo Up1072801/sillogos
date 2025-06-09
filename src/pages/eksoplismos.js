@@ -124,7 +124,7 @@ const equipmentFormFields = [
   { 
     accessorKey: "onoma", 
     header: "Όνομα Εξοπλισμού", 
-    validation: yup.string() // Removed required validation
+    validation: yup.string().required("Το όνομα εξοπλισμού είναι υποχρεωτικό")
   },
   { 
     accessorKey: "marka", 

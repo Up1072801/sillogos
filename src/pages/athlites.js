@@ -120,6 +120,9 @@ export default function Athlites() {
   const [sportsData, setSportsData] = useState([]);
   const [sportsListData, setSportsListData] = useState([]);
   const [loading, setLoading] = useState(true);
+
+const [deletePaymentDialog, setDeletePaymentDialog] = useState(false);
+const [paymentToDelete, setPaymentToDelete] = useState(null);
   const [openAddAthleteDialog, setOpenAddAthleteDialog] = useState(false);
   const [openAddCompetitionDialog, setOpenAddCompetitionDialog] = useState(false);
   const [openEditAthleteDialog, setOpenEditAthleteDialog] = useState(false);
@@ -1241,12 +1244,12 @@ const convertDateFormat = (dateString) => {
     { 
       accessorKey: "lastName", 
       header: "Επώνυμο", 
-      validation: yup.string() // Αφαίρεση του .required()
+      validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
     },
     { 
       accessorKey: "firstName", 
       header: "Όνομα", 
-      validation: yup.string() // Αφαίρεση του .required()
+      validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
     },
     { 
       accessorKey: "patronimo", 
@@ -1340,7 +1343,7 @@ const convertDateFormat = (dateString) => {
       accessorKey: "athlimata", 
       header: "Αθλήματα", 
       type: "custom",
-      validation: yup.array(), // Αφαίρεση του .min(1, "...")
+      validation: yup.array().min(1, "Τουλάχιστον ένα άθλημα είναι υποχρεωτικό"), 
       renderInput: ({ field, fieldState }) => (
         <CheckboxSportsSelector
           options={sportsListData.map(sport => ({ 

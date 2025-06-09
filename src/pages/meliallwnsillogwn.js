@@ -317,12 +317,12 @@ export default function MeliAllwn() {
       { 
         accessorKey: "firstName", 
         header: "Όνομα", 
-        validation: yup.string()
+        validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
       },
       { 
         accessorKey: "lastName", 
         header: "Επώνυμο", 
-        validation: yup.string()
+        validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
       },
       { 
         accessorKey: "email", 

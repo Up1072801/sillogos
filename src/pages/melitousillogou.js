@@ -393,6 +393,11 @@ const validateDates = (registrationDate, paymentDate) => {
 
 // Συνάρτηση που καθορίζει την κατάσταση συνδρομής με βάση την ημερομηνία λήξης
 const determineSubscriptionStatus = (registrationDate, paymentDate, currentStatus) => {
+  // Αν η τρέχουσα κατάσταση είναι "Διαγραμμένη", τη διατηρούμε
+  if (currentStatus === "Διαγραμμένη") {
+    return "Διαγραμμένη";
+  }
+  
   // Αν δεν έχει οριστεί μια από τις δύο ημερομηνίες, διατηρούμε την τρέχουσα κατάσταση
   if (!registrationDate || !paymentDate) return currentStatus;
   
@@ -413,7 +418,7 @@ const determineSubscriptionStatus = (registrationDate, paymentDate, currentStatu
     const year = parseInt(parts[2]);
     const endDate = new Date(year, month, day);
     
-    // Σύγκριση με την τρέχουσα ημερομηνία - ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ ΕΔΩ
+    // Σύγκριση με την τρέχουσα ημερομηνία
     const today = new Date();
     
     // Σύγκριση μόνο ημερομηνιών, αγνοώντας την ώρα
@@ -764,11 +769,13 @@ export default function Meloi() {
       const subscriptionStatus = !isAthlete ? updatedRow.katastasi_sindromis : undefined;
       
       // Προσδιορισμός της κατάστασης συνδρομής μόνο για μη αθλητές
-      const newStatus = !isAthlete ? determineSubscriptionStatus(
-        formattedStartDate, 
-        formattedPaymentDate, 
-        subscriptionStatus || "Ενεργή"
-      ) : undefined;
+      const newStatus = !isAthlete ? 
+  (updatedRow.katastasi_sindromis === "Διαγραμμένη" ? "Διαγραμμένη" : 
+  determineSubscriptionStatus(
+    formattedStartDate, 
+    formattedPaymentDate, 
+    updatedRow.katastasi_sindromis || "Ενεργή"
+  )) : undefined;
       
       // Ενημέρωση της κατάστασης στα δεδομένα που θα αποσταλούν
       const requestData = {
@@ -805,6 +812,8 @@ export default function Meloi() {
             ...response.data,
             // Ενημέρωση και των επιπλέον πεδίων
             fullName: `${updatedRow.epitheto || ""} ${updatedRow.onoma || ""}`.trim(),
+            // Προσθέστε αυτή τη γραμμή για να ενημερώσετε το status για το UI
+            status: !isAthlete ? newStatus : "Αθλητής",
             melos: {
               ...item.melos,
               epafes: {
@@ -874,12 +883,12 @@ export default function Meloi() {
       { 
         accessorKey: "onoma", 
         header: "Όνομα", 
-        validation: yup.string()
+        validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
       },
       { 
         accessorKey: "epitheto", 
         header: "Επώνυμο", 
-        validation: yup.string() // Αφαίρεση .required()
+        validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
       },
       { 
         accessorKey: "patronimo", 
@@ -1300,12 +1309,12 @@ const parseDate = (dateValue) => {
             { 
               accessorKey: "onoma", 
               header: "Όνομα", 
-              validation: yup.string() // Αφαίρεση .required()
+              validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
             },
             { 
               accessorKey: "epitheto", 
               header: "Επώνυμο", 
-              validation: yup.string() // Αφαίρεση .required()
+              validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
             },
             { 
               accessorKey: "patronimo", 
