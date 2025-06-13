@@ -6,7 +6,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import el from 'date-fns/locale/el';
 import {
   Box, Container, Typography, Button, CircularProgress, Alert,
-  Paper, Divider, Chip
+  Paper, Divider, Chip, FormControl, InputLabel, Select, MenuItem
 } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import GroupIcon from '@mui/icons-material/Group';
@@ -47,7 +47,10 @@ export default function Eksormiseis() {
   const [currentEksormisiForActivity, setCurrentEksormisiForActivity] = useState(null);
   const [difficultyLevels, setDifficultyLevels] = useState([]);
   const [expeditionFilter, setExpeditionFilter] = useState('upcoming'); // 'all', 'past', 'upcoming'
-  
+  const [selectedYear, setSelectedYear] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [availableYears, setAvailableYears] = useState([]);
+
   // Φόρτωση δεδομένων
   useEffect(() => {
     fetchData();
@@ -236,9 +239,9 @@ export default function Eksormiseis() {
   // Στήλες πίνακα
   const columns = [
     { 
-      accessorKey: "titlos", 
-      header: "Τίτλος",
-      size: 200, // Give title more space
+      accessorKey: "proorismos", 
+      header: "Προορισμός",
+      size: 180, // Medium space for destination
       Cell: ({ row }) => {
         return (
           <Box 
@@ -254,16 +257,16 @@ export default function Eksormiseis() {
               navigate(`/eksormisi/${id}`);
             }}
           >
-            {row.original.titlos || "-"}
+            {row.original.proorismos || "-"}
           </Box>
         );
       }
     },
     { 
-      accessorKey: "proorismos", 
-      header: "Προορισμός",
-      size: 180, // Medium space for destination
-      Cell: ({ row }) => row.original.proorismos || "-"
+      accessorKey: "titlos", 
+      header: "Τίτλος",
+      size: 200, // Give title more space
+      Cell: ({ row }) => row.original.titlos || "-"
     },
     { 
       accessorKey: "hmerominia_anaxorisis", 
@@ -503,23 +506,7 @@ export default function Eksormiseis() {
           { 
             accessorKey: "titlos", 
             header: "Τίτλος",
-            Cell: ({ value, row }) => (
-              <Box 
-                sx={{ 
-                  cursor: "pointer", 
-                  color: "primary.main",
-                  fontWeight: "medium",
-                  "&:hover": { textDecoration: "underline" } 
-                }} 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const id = row.original.id || row.original.id_drastiriotitas;
-                  navigate(`/drastiriotita/${id}`);
-                }}
-              >
-                {value || "-"}
-              </Box>
-            )
+            Cell: ({ value }) => value || "-" // Simple non-clickable display
           },
           { 
             accessorKey: "vathmos_diskolias", 
@@ -545,29 +532,67 @@ export default function Eksormiseis() {
     ]
   };
 
+  // Extract available years from the data
+  useEffect(() => {
+    if (eksormiseisData.length > 0) {
+      const years = [...new Set(eksormiseisData
+        .filter(exp => exp.hmerominia_anaxorisis)
+        .map(exp => new Date(exp.hmerominia_anaxorisis).getFullYear())
+      )].sort((a, b) => b - a); // Sort descending
+      
+      setAvailableYears(years);
+    }
+  }, [eksormiseisData]);
+
+  // Modify the filteredData function to consider year and month filters
   const filteredData = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time part for date comparison
     
-    switch(expeditionFilter) {
-      case 'past':
-        return eksormiseisData.filter(expedition => {
-          const departureDate = expedition.hmerominia_anaxorisis 
-            ? new Date(expedition.hmerominia_anaxorisis) 
-            : null;
-          return departureDate && departureDate < today;
-        });
-      case 'upcoming':
-        return eksormiseisData.filter(expedition => {
-          const departureDate = expedition.hmerominia_anaxorisis 
-            ? new Date(expedition.hmerominia_anaxorisis) 
-            : null;
-          return departureDate && departureDate >= today;
-        });
-      default:
-        return eksormiseisData;
+    // First filter by upcoming/past/all
+    let filtered = eksormiseisData;
+    if (expeditionFilter !== 'all') {
+      filtered = filtered.filter(expedition => {
+        const departureDate = expedition.hmerominia_anaxorisis 
+          ? new Date(expedition.hmerominia_anaxorisis) 
+          : null;
+        
+        if (!departureDate) return false;
+        
+        return expeditionFilter === 'upcoming' 
+          ? departureDate >= today 
+          : departureDate < today;
+      });
     }
-  }, [eksormiseisData, expeditionFilter]);
+    
+    // Then filter by year if selected
+    if (selectedYear !== 'all') {
+      filtered = filtered.filter(expedition => {
+        const departureDate = expedition.hmerominia_anaxorisis 
+          ? new Date(expedition.hmerominia_anaxorisis) 
+          : null;
+        return departureDate && departureDate.getFullYear() === parseInt(selectedYear);
+      });
+    }
+    
+    // Then filter by month if selected
+    if (selectedMonth !== 'all') {
+      filtered = filtered.filter(expedition => {
+        const departureDate = expedition.hmerominia_anaxorisis 
+          ? new Date(expedition.hmerominia_anaxorisis) 
+          : null;
+        return departureDate && departureDate.getMonth() === parseInt(selectedMonth) - 1; // JS months are 0-indexed
+      });
+    }
+    
+    return filtered;
+  }, [eksormiseisData, expeditionFilter, selectedYear, selectedMonth]);
+
+  // Clear date filters function
+  const clearDateFilters = () => {
+    setSelectedYear('all');
+    setSelectedMonth('all');
+  };
 
   const tableInitialState = React.useMemo(() => ({
     sorting: [
@@ -586,12 +611,21 @@ export default function Eksormiseis() {
     );
   }
 
-  return (
+   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
+      <Box sx={{ 
+        p: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%' 
+      }}>
+        <Typography variant="h4" sx={{ 
+          mb: 3,
+          textAlign: 'center' 
+        }}>
           Διαχείριση Εξορμήσεων
         </Typography>
+        
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h5">
@@ -631,7 +665,52 @@ export default function Eksormiseis() {
             </Box>
           </Box>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 2, mb: 2, gap: 2 }}>
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel id="year-filter-label">Έτος</InputLabel>
+              <Select
+                labelId="year-filter-label"
+                id="year-filter"
+                value={selectedYear}
+                label="Έτος"
+                onChange={(e) => setSelectedYear(e.target.value)}
+              >
+                <MenuItem value="all">Όλα</MenuItem>
+                {availableYears.map(year => (
+                  <MenuItem key={year} value={year}>{year}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel id="month-filter-label">Μήνας</InputLabel>
+              <Select
+                labelId="month-filter-label"
+                id="month-filter"
+                value={selectedMonth}
+                label="Μήνας"
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                disabled={selectedYear === 'all'} // Disable month selection if no year is selected
+              >
+                <MenuItem value="all">Όλοι</MenuItem>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                  <MenuItem key={month} value={month}>
+                    {new Date(2000, month - 1, 1).toLocaleDateString('el-GR', { month: 'long' })}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            {(selectedYear !== 'all' || selectedMonth !== 'all') && (
+              <Button 
+                variant="outlined"
+                size="small"
+                onClick={clearDateFilters}
+              >
+                Καθαρισμός φίλτρων ημερομηνίας
+              </Button>
+            )}
+          </Box>
           <DataTable 
             data={filteredData}
             columns={columns}
