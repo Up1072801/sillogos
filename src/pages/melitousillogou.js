@@ -880,21 +880,29 @@ export default function Meloi() {
   // Δημιουργία των fields για το AddDialog με useMemo για να αποφύγουμε άπειρους επανασχεδιασμούς
   const addFields = useMemo(() => {
     return [
-      { 
-        accessorKey: "onoma", 
-        header: "Όνομα", 
-        validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
-      },
-      { 
-        accessorKey: "epitheto", 
-        header: "Επώνυμο", 
-        validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
-      },
-      { 
-        accessorKey: "patronimo", 
-        header: "Πατρώνυμο", 
-        validation: yup.string() // Αφαίρεση .required()
-      },
+{ 
+  accessorKey: "onoma", 
+  header: "Όνομα", 
+  validation: yup.string()
+    .required("Το όνομα είναι υποχρεωτικό")
+    .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο όνομα', 
+      value => !value || !/[0-9]/.test(value))
+},
+{ 
+  accessorKey: "epitheto", 
+  header: "Επώνυμο", 
+  validation: yup.string()
+    .required("Το επώνυμο είναι υποχρεωτικό")
+    .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο επώνυμο', 
+      value => !value || !/[0-9]/.test(value))
+},
+{ 
+  accessorKey: "patronimo", 
+  header: "Πατρώνυμο", 
+  validation: yup.string()
+    .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο πατρώνυμο', 
+      value => !value || !/[0-9]/.test(value))
+},
       { 
         accessorKey: "email", 
         header: "Email", 
@@ -1306,93 +1314,101 @@ const parseDate = (dateValue) => {
           editValues={editValues}
           handleEditSave={handleEditSave}
           fields={[
-            { 
-              accessorKey: "onoma", 
-              header: "Όνομα", 
-              validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
-            },
-            { 
-              accessorKey: "epitheto", 
-              header: "Επώνυμο", 
-              validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
-            },
-            { 
-              accessorKey: "patronimo", 
-              header: "Πατρώνυμο", 
-              validation: yup.string() // Αφαίρεση .required()
-            },
-            { 
-              accessorKey: "email", 
-              header: "Email", 
-              validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
-                if (!value || value === '') return true;
-                return yup.string().email().isValidSync(value);
-              }) // Αφαίρεση .required()
-            },
-            { 
-              accessorKey: "tilefono", 
-              header: "Τηλέφωνο", 
-              validation: yup.string().nullable().test('valid-phone', 'Επιτρέπονται μόνο αριθμοί και το σύμβολο +', function(value) {
-                if (!value || value === '') return true;
-                return /^[0-9+]+$/.test(value);
-              })
-            },
-            { 
-              accessorKey: "hmerominia_gennhshs", 
-              header: "Ημερομηνία Γέννησης", 
-              type: "date",
-              validation: yup.date().nullable() // Αφαίρεση .required()
-            },
-            { 
-              accessorKey: "odos", 
-              header: "Οδός", 
-              validation: yup.string() // Αφαίρεση .required()
-            },
-            { 
-              accessorKey: "tk", 
-              header: "ΤΚ", 
-              validation: yup.number().nullable().transform((value, originalValue) => {
-                if (originalValue === '' || originalValue === null) return null;
-                return value;
-              }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
-            },
-            { 
-              accessorKey: "arithmos_mitroou", 
-              header: "Αριθμός Μητρώου", 
-              validation: yup.number().nullable().transform((value, originalValue) => {
-                if (originalValue === '' || originalValue === null) return null;
-                return value;
-              }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
-            },
-            // Πεδία συνδρομής - εμφανίζονται μόνο αν δεν είναι αθλητής
-            ...(!editValues.isAthlete ? [
-              { 
-                accessorKey: "eidosSindromis", 
-                header: "Είδος Συνδρομής",
-                type: "select",
-                options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
-                validation: yup.string() // Αφαίρεση .required()
-              },
-              { 
-                accessorKey: "katastasi_sindromis", 
-                header: "Κατάσταση Συνδρομής",
-                type: "select",
-                options: subscriptionStatuses,
-                validation: yup.string() // Αφαίρεση .required()
-              },
-              { 
-                accessorKey: "hmerominia_enarksis", 
-                header: "Ημερομηνία Έναρξης Συνδρομής", 
-                type: "date",
-                validation: yup.date().nullable()
-              },
-              { 
-                accessorKey: "hmerominia_pliromis", 
-                header: "Ημερομηνία Πληρωμής", 
-                type: "date",
-                validation: yup.date().nullable()
-              }
-            ] : []),
+    { 
+      accessorKey: "onoma", 
+      header: "Όνομα", 
+      validation: yup.string()
+        .required("Το όνομα είναι υποχρεωτικό")
+        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο όνομα', 
+          value => !value || !/[0-9]/.test(value))
+    },
+    { 
+      accessorKey: "epitheto", 
+      header: "Επώνυμο", 
+      validation: yup.string()
+        .required("Το επώνυμο είναι υποχρεωτικό")
+        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο επώνυμο', 
+          value => !value || !/[0-9]/.test(value))
+    },
+    { 
+      accessorKey: "patronimo", 
+      header: "Πατρώνυμο", 
+      validation: yup.string()
+        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο πατρώνυμο', 
+          value => !value || !/[0-9]/.test(value))
+    },
+    { 
+      accessorKey: "email", 
+      header: "Email", 
+      validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
+        if (!value || value === '') return true;
+        return yup.string().email().isValidSync(value);
+      }) // Αφαίρεση .required()
+    },
+    { 
+      accessorKey: "tilefono", 
+      header: "Τηλέφωνο", 
+      validation: yup.string().nullable().test('valid-phone', 'Επιτρέπονται μόνο αριθμοί και το σύμβολο +', function(value) {
+        if (!value || value === '') return true;
+        return /^[0-9+]+$/.test(value);
+      })
+    },
+    { 
+      accessorKey: "hmerominia_gennhshs", 
+      header: "Ημερομηνία Γέννησης", 
+      type: "date",
+      validation: yup.date().nullable() // Αφαίρεση .required()
+    },
+    { 
+      accessorKey: "odos", 
+      header: "Οδός", 
+      validation: yup.string() // Αφαίρεση .required()
+    },
+    { 
+      accessorKey: "tk", 
+      header: "ΤΚ", 
+      validation: yup.number().nullable().transform((value, originalValue) => {
+        if (originalValue === '' || originalValue === null) return null;
+        return value;
+      }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
+    },
+    { 
+      accessorKey: "arithmos_mitroou", 
+      header: "Αριθμός Μητρώου", 
+      validation: yup.number().nullable().transform((value, originalValue) => {
+        if (originalValue === '' || originalValue === null) return null;
+        return value;
+      }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
+    },
+    // Πεδία συνδρομής - εμφανίζονται μόνο αν δεν είναι αθλητής
+    ...(!editValues.isAthlete ? [
+      { 
+        accessorKey: "eidosSindromis", 
+        header: "Είδος Συνδρομής",
+        type: "select",
+        options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
+        validation: yup.string() // Αφαίρεση .required()
+      },
+      { 
+        accessorKey: "katastasi_sindromis", 
+        header: "Κατάσταση Συνδρομής",
+        type: "select",
+        options: subscriptionStatuses,
+        validation: yup.string() // Αφαίρεση .required()
+      },
+      { 
+        accessorKey: "hmerominia_enarksis", 
+        header: "Ημερομηνία Έναρξης Συνδρομής", 
+        type: "date",
+        validation: yup.date().nullable()
+      },
+      { 
+        accessorKey: "hmerominia_pliromis", 
+        header: "Ημερομηνία Πληρωμής", 
+        type: "date",
+        validation: yup.date().nullable()
+      }
+    ] : []),
      { 
   accessorKey: "epipedo", 
   header: "Βαθμός Δυσκολίας", 

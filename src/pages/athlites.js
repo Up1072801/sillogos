@@ -1244,17 +1244,25 @@ const convertDateFormat = (dateString) => {
     { 
       accessorKey: "lastName", 
       header: "Επώνυμο", 
-      validation: yup.string().required("Το επώνυμο είναι υποχρεωτικό")
+      validation: yup.string()
+        .required("Το επώνυμο είναι υποχρεωτικό")
+        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο επώνυμο', 
+          value => !value || !/[0-9]/.test(value))
     },
     { 
       accessorKey: "firstName", 
       header: "Όνομα", 
-      validation: yup.string().required("Το όνομα είναι υποχρεωτικό")
+      validation: yup.string()
+        .required("Το όνομα είναι υποχρεωτικό")
+        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο όνομα', 
+          value => !value || !/[0-9]/.test(value))
     },
     { 
       accessorKey: "patronimo", 
       header: "Πατρώνυμο",
-      validation: yup.string() // Αφαίρεση του .required()
+      validation: yup.string()
+        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο πατρώνυμο', 
+          value => !value || !/[0-9]/.test(value))
     },
     { 
       accessorKey: "email", 
