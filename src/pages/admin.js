@@ -58,19 +58,19 @@ const [userToDelete, setUserToDelete] = useState(null);
   }, []);
 
   // Φόρτωση αθλημάτων
- const fetchSports = async () => {
+const fetchSports = async () => {
   try {
     setLoading(prev => ({ ...prev, sports: true }));
     
-    // Αλλαγή σε endpoint με /admin/ πρόθεμα
-    const response = await api.get("/admin/sports-list");
+    // Use the correct endpoint that exists in the backend
+    const response = await api.get("/athlites/sports-list");
     setSports(response.data);
   } catch (error) {
     console.error("Σφάλμα κατά τη φόρτωση αθλημάτων:", error);
     
-    // Δοκιμή εναλλακτικού endpoint με /api/admin/ πρόθεμα
+    // Try fetching from the general sports endpoint as fallback
     try {
-      const response = await api.get("/api/admin/sports-list");
+      const response = await api.get("/athlites/sports");
       setSports(response.data);
     } catch (altError) {
       console.error("Alternative path also failed:", altError);
