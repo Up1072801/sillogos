@@ -1021,15 +1021,17 @@ return (
       
       <Paper sx={styles.tableContainer}>
         <DataTable
-          data={filteredBookings} // Χρησιμοποιούμε τις φιλτραρισμένες κρατήσεις αντί για όλες
-          columns={columns}
+          data={filteredBookings}
+          columns={columns.filter(col => col.accessorKey !== "id")} // Remove ID column completely
           detailPanelConfig={bookingDetailPanelConfig}
           getRowId={(row) => row.id}
           initialState={{
-            columnVisibility: { id: false },
             sorting: [{ id: 'arrival', desc: false }] // Sort by arrival date (asc)
           }}
-          state={{ isLoading: loading }}
+          state={{ 
+            isLoading: loading,
+            columnVisibility: { id: false } // Set visibility state directly here for emphasis
+          }}
           enableExpand={true}
           enableRowActions={true}
           enableAddNew={true}

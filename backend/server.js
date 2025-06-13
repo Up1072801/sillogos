@@ -62,7 +62,9 @@ app.use('/vathmoi-diskolias', vathmoiDiskoliasRouter);
 app.use('/api/vathmoi-diskolias', vathmoiDiskoliasRouter);
 app.use('/eidi-sindromis', eidiSindromisRouter);
 app.use('/api/eidi-sindromis', eidiSindromisRouter);
-app.use(adminRouter);
+app.use('/admin', adminRouter);
+app.use('/api/admin', adminRouter);
+app.use(adminRouter); // Keep this line too (for backward compatibility)
 
 // Ρίζα διαδρομής - πλέον απαντά μόνο αν δεν ταιριάξει με στατικό αρχείο
 app.get("/", (_req, res) => {
