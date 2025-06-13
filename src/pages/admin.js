@@ -58,32 +58,32 @@ const [userToDelete, setUserToDelete] = useState(null);
   }, []);
 
   // Φόρτωση αθλημάτων
-  const fetchSports = async () => {
+ const fetchSports = async () => {
+  try {
+    setLoading(prev => ({ ...prev, sports: true }));
+    
+    // Αλλαγή σε endpoint με /admin/ πρόθεμα
+    const response = await api.get("/admin/sports-list");
+    setSports(response.data);
+  } catch (error) {
+    console.error("Σφάλμα κατά τη φόρτωση αθλημάτων:", error);
+    
+    // Δοκιμή εναλλακτικού endpoint με /api/admin/ πρόθεμα
     try {
-      setLoading(prev => ({ ...prev, sports: true }));
-      
-      // Try without the /admin/ prefix
-      const response = await api.get("/athlites/sports-list");
+      const response = await api.get("/api/admin/sports-list");
       setSports(response.data);
-    } catch (error) {
-      console.error("Σφάλμα κατά τη φόρτωση αθλημάτων:", error);
-      
-      // Try alternative path if first attempt fails
-      try {
-        const response = await api.get("/sports-list");
-        setSports(response.data);
-      } catch (altError) {
-        console.error("Alternative path also failed:", altError);
-        setNotification({
-          open: true,
-          message: "Σφάλμα κατά τη φόρτωση αθλημάτων", 
-          severity: "error"
-        });
-      }
-    } finally {
-      setLoading(prev => ({ ...prev, sports: false }));
+    } catch (altError) {
+      console.error("Alternative path also failed:", altError);
+      setNotification({
+        open: true,
+        message: "Σφάλμα κατά τη φόρτωση αθλημάτων", 
+        severity: "error"
+      });
     }
-  };
+  } finally {
+    setLoading(prev => ({ ...prev, sports: false }));
+  }
+};
 
   // Φόρτωση βαθμών δυσκολίας
   const fetchDifficultyLevels = async () => {
