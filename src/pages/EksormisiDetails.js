@@ -761,11 +761,6 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
   try {
     await api.delete(`/eksormiseis/drastiriotita/${drastiriotitaId}`);
     
-    // Get participants from this activity to possibly add them back to available members
-    const activityParticipants = participants.filter(p => 
-      p.id_drastiriotitas == drastiriotitaId
-    );
-    
     // Update local state by removing the deleted drastiriotita
     setDrastiriotites(prevDrastiriotites => 
       prevDrastiriotites.filter(item => 
@@ -773,23 +768,45 @@ const handleDeleteDrastiriotita = async (drastiriotita) => {
       )
     );
     
-    // Update the participant lists
-    updateParticipantActivityLists(drastiriotitaId);
+    // Update participants state to remove the deleted activity from their lists
+    setParticipants(prevParticipants => 
+      prevParticipants.map(participant => {
+        // Remove the activity from simmetoxes array
+        const updatedSimmetoxes = (participant.simmetoxes || []).filter(s => 
+          s.drastiriotita?.id_drastiriotitas != drastiriotitaId &&
+          s.drastiriotita?.id != drastiriotitaId
+        );
+        
+        // Remove the activity from activities array
+        const updatedActivities = (participant.activities || []).filter(a => 
+          (a.id_drastiriotitas != drastiriotitaId && a.id != drastiriotitaId)
+        );
+        
+        // Remove from simmetoxi_drastiriotites (if present)
+        const updatedSimmetoxiDrastiriotites = (participant.simmetoxi_drastiriotites || [])
+          .filter(sd => sd.id_drastiriotitas != drastiriotitaId);
+        
+        return {
+          ...participant,
+          simmetoxes: updatedSimmetoxes,
+          activities: updatedActivities,
+          simmetoxi_drastiriotites: updatedSimmetoxiDrastiriotites,
+          // Flag participants who now have no activities
+          hasNoActivities: updatedActivities.length === 0 && updatedSimmetoxes.length === 0
+        };
+      })
+    );
     
-    // Rest of your function...
-    
-    // Remove participants who no longer have any activities
+    // Optionally remove participants who no longer have any activities
     setParticipants(prev => 
       prev.filter(p => {
         // If this participant was directly linked to the deleted activity,
         // check if they're part of any other activities
-        if (p.id_drastiriotitas == drastiriotitaId) {
-          return p.simmetoxes && p.simmetoxes.some(s => 
-            s.drastiriotita?.id_drastiriotitas != drastiriotitaId &&
-            s.drastiriotita?.id != drastiriotitaId
-          );
-        }
-        return true;
+        const hasActivities = 
+          (p.activities && p.activities.length > 0) || 
+          (p.simmetoxes && p.simmetoxes.length > 0);
+        
+        return hasActivities || p.id_drastiriotitas != drastiriotitaId;
       })
     );
     
@@ -1236,32 +1253,24 @@ const handleRemoveParticipant = async (participant) => {
   // Extract IDs
   let participantId;
   let fullParticipantData;
-  let activityId;
   
   if (typeof participant === 'object') {
     participantId = participant.id_simmetoxis || participant.id;
     fullParticipantData = participant;
-    activityId = participant.id_drastiriotitas;
     
     if (participant.original) {
       participantId = participantId || participant.original.id_simmetoxis || participant.original.id;
       fullParticipantData = participant.original;
-      activityId = activityId || participant.original.id_drastiriotitas;
     }
   } else {
     participantId = participant;
     fullParticipantData = participants.find(p => p.id_simmetoxis == participantId || p.id == participantId);
-    if (fullParticipantData) {
-      activityId = fullParticipantData.id_drastiriotitas;
-    }
   }
   
   if (participantId === undefined || participantId === null) {
     alert("Σφάλμα: Δεν βρέθηκε έγκυρο ID συμμετοχής");
     return;
   }
-
-  // Remove the redundant confirmation dialog, since the DataTable already has one
   
   try {
     await api.delete(`/eksormiseis/simmetoxi/${participantId}`);
@@ -1274,16 +1283,13 @@ const handleRemoveParticipant = async (participant) => {
       prev.filter(p => p.id_simmetoxis != participantId && p.id != participantId)
     );
     
-    // Update the activity's participants list in drastiriotites array
+    // Update all drastiriotites to remove this participant from their simmetexontes arrays
     setDrastiriotites(prev => 
-      prev.map(d => {
-        return {
-          ...d,
-          simmetexontes: (d.simmetexontes || []).filter(s => 
-            s.id_simmetoxis != participantId && s.id != participantId
-          )
-        };
-      })
+      prev.map(drastiriotita => ({
+        ...drastiriotita,
+        simmetexontes: (drastiriotita.simmetexontes || [])
+          .filter(s => s.id_simmetoxis != participantId && s.id != participantId)
+      }))
     );
     
     // Add the member back to available members if needed
@@ -1297,16 +1303,9 @@ const handleRemoveParticipant = async (participant) => {
       // If this was their only participation, add them back to available members
       if (!memberHasOtherParticipations) {
         try {
-          const response = await api.get(`/melitousillogou/${memberId}`);
-          if (response.data) {
-            const memberData = {
-              ...response.data,
-              id: response.data.id_es_melous || response.data.id,
-              fullName: `${response.data.melos?.epafes?.epitheto || ''} ${response.data.melos?.epafes?.onoma || ''}`.trim(),
-              status: response.data.athlitis ? "Αθλητής" : response.data.sindromitis?.katastasi_sindromis || '-'
-            };
-            
-            setAvailableMembers(prev => [...prev, memberData]);
+          const memberResponse = await api.get(`/melitousillogou/${memberId}`);
+          if (memberResponse.data) {
+            setAvailableMembers(prev => [...prev, memberResponse.data]);
           }
         } catch (err) {
           console.error("Error fetching removed member data:", err);

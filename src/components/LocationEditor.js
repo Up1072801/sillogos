@@ -20,11 +20,15 @@ const LocationEditor = ({ value, onChange }) => {
     }
   };
 
-  // Convert Date to ISO string (YYYY-MM-DD)
+  // Convert Date to ISO string (YYYY-MM-DD) without timezone issues
   const toISODateString = (date) => {
     if (!date) return "";
     try {
-      return date.toISOString().split('T')[0];
+      // Αντί για toISOString(), χρησιμοποιούμε απευθείας τα τοπικά μέρη της ημερομηνίας
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     } catch (e) {
       return "";
     }
