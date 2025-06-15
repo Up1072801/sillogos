@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import api from '../utils/api';
-import { Box, Typography, Paper, TextField, IconButton, Button, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle, DialogContent, DialogActions, Checkbox, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
+import { Box, Typography, Paper, TextField, IconButton, Button, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText, Checkbox, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { Link } from "react-router-dom";
 import DataTable from "../components/DataTable/DataTable";
 import AddDialog from "../components/DataTable/AddDialog";
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+// Add this import to the top of the file
+import LocationEditor from '../components/LocationEditor';
 import EditDialog from "../components/DataTable/EditDialog";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -34,7 +36,10 @@ export default function Sxoles() {
   const [selectedTeachers, setSelectedTeachers] = useState([]);
   const [availableTeachers, setAvailableTeachers] = useState([]);
   const [currentSchoolForTeachers, setCurrentSchoolForTeachers] = useState(null);
+// Προσθέστε αυτά στις υπόλοιπες καταστάσεις (states) στην αρχή του component
+const [locationDeleteDialog, setLocationDeleteDialog] = useState(false);
 
+const [locationToDelete, setLocationToDelete] = useState(null);
   // Add new state for year filter
   const [yearFilter, setYearFilter] = useState("");
   const [availableYears, setAvailableYears] = useState([]);
@@ -478,62 +483,14 @@ const fetchData = async () => {
 
   // Διάλογος επεξεργασίας τοποθεσιών
   const LocationEditorDialog = ({ open, onClose, value, onSave, title = "Διαχείριση Τοποθεσιών" }) => {
-    const [locations, setLocations] = useState([]);
-    const [newLocation, setNewLocation] = useState({ 
-      topothesia: "", 
-      start: "", 
-      end: "" 
-    });
+    const [locations, setLocations] = useState(value || []);
     
+    // Ενημέρωση των locations όταν αλλάζει το value
     useEffect(() => {
       if (open) {
-        
-        // Αρχικοποίηση των τοποθεσιών όταν ανοίγει ο διάλογος
-        if (Array.isArray(value) && value.length > 0) {
-          // Βεβαιωνόμαστε ότι κάθε τοποθεσία έχει μοναδικό id
-          setLocations(value.map((loc, idx) => ({
-            ...loc,
-            id: loc.id !== undefined ? loc.id : idx,
-            topothesia: loc.topothesia || "",
-            start: loc.start || loc.hmerominia_enarksis || "",
-            end: loc.end || loc.hmerominia_liksis || ""
-          })));
-        } else {
-          setLocations([]);
-        }
-        
-        // Καθαρισμός του newLocation
-        setNewLocation({ topothesia: "", start: "", end: "" });
+        setLocations(value || []);
       }
     }, [value, open]);
-    
-    const handleAddLocation = () => {
-      if (newLocation.topothesia && newLocation.start && newLocation.end) {
-        // Προσθήκη με μοναδικό ID
-        const updatedLocations = [
-          ...locations, 
-          { 
-            ...newLocation, 
-            id: Date.now() 
-          }
-        ];
-        
-        setLocations(updatedLocations);
-        setNewLocation({ topothesia: "", start: "", end: "" });
-      }
-    };
-    
-    const handleUpdateLocation = (id, field, value) => {
-      const updatedLocations = locations.map(loc => 
-        loc.id === id ? { ...loc, [field]: value } : loc
-      );
-      setLocations(updatedLocations);
-    };
-    
-    const handleDeleteLocation = (id) => {
-      const updatedLocations = locations.filter(loc => loc.id !== id);
-      setLocations(updatedLocations);
-    };
     
     const handleSave = () => {
       onSave(locations);
@@ -544,147 +501,10 @@ const fetchData = async () => {
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
           <Box sx={{ p: 2 }}>
-            {/* Λίστα τοποθεσιών */}
-            {locations.length > 0 ? (
-              <TableContainer component={Paper} sx={{ mb: 3 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Τοποθεσία</TableCell>
-                      <TableCell>Ημ/νία Έναρξης</TableCell>
-                      <TableCell>Ημ/νία Λήξης</TableCell>
-                      <TableCell>Ενέργειες</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {locations.map((loc) => (
-                      <TableRow key={loc.id}>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            value={loc.topothesia}
-                            onChange={(e) => handleUpdateLocation(loc.id, "topothesia", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <DatePicker
-                            label=""
-                            value={loc.start ? new Date(loc.start) : null}
-                            onChange={(newDate) => {
-                              if (newDate) {
-                                // Αποθήκευση σε μορφή ISO για συμβατότητα με το backend
-                                const isoDate = newDate.toISOString().split('T')[0];
-                                handleUpdateLocation(loc.id, "start", isoDate);
-                              }
-                            }}
-                            format="dd/MM/yyyy"
-                            slotProps={{ 
-                              textField: { 
-                                size: "small",
-                                fullWidth: true
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <DatePicker
-                            label=""
-                            value={loc.end ? new Date(loc.end) : null}
-                            onChange={(newDate) => {
-                              if (newDate) {
-                                const isoDate = newDate.toISOString().split('T')[0];
-                                handleUpdateLocation(loc.id, "end", isoDate);
-                              }
-                            }}
-                            format="dd/MM/yyyy"
-                            slotProps={{ 
-                              textField: { 
-                                size: "small",
-                                fullWidth: true
-                              }
-                            }}
-                            minDate={loc.start ? new Date(loc.start) : undefined}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <IconButton size="small" onClick={() => handleDeleteLocation(loc.id)}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-                Δεν έχουν προστεθεί τοποθεσίες.
-              </Typography>
-            )}
-            
-            {/* Φόρμα προσθήκης */}
-            <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Τοποθεσία"
-                    value={newLocation.topothesia}
-                    onChange={(e) => setNewLocation({...newLocation, topothesia: e.target.value})}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <DatePicker
-                    label="Ημ/νία Έναρξης"
-                    value={newLocation.start ? new Date(newLocation.start) : null}
-                    onChange={(newDate) => {
-                      if (newDate) {
-                        const isoDate = newDate.toISOString().split('T')[0];
-                        setNewLocation({...newLocation, start: isoDate});
-                      }
-                    }}
-                    format="dd/MM/yyyy"
-                    slotProps={{ 
-                      textField: { 
-                        size: "small",
-                        fullWidth: true 
-                      } 
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <DatePicker
-                    label="Ημ/νία Λήξης"
-                    value={newLocation.end ? new Date(newLocation.end) : null}
-                    onChange={(newDate) => {
-                      if (newDate) {
-                        const isoDate = newDate.toISOString().split('T')[0];
-                        setNewLocation({...newLocation, end: isoDate});
-                      }
-                    }}
-                    format="dd/MM/yyyy"
-                    slotProps={{ 
-                      textField: { 
-                        size: "small",
-                        fullWidth: true
-                      }
-                    }}
-                    minDate={newLocation.start ? new Date(newLocation.start) : undefined}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={2}>
-                  <Button 
-                    fullWidth 
-                    variant="contained" 
-                    onClick={handleAddLocation}
-                    disabled={!newLocation.topothesia || !newLocation.start || !newLocation.end}
-                  >
-                    Προσθήκη
-                  </Button>
-                </Grid>
-              </Grid>
-            </Paper>
+            <LocationEditor 
+              value={locations} 
+              onChange={setLocations} 
+            />
           </Box>
         </DialogContent>
         <DialogActions>
@@ -698,237 +518,8 @@ const fetchData = async () => {
   };
 
   // ΤΟΠΟΘΕΣΙΕΣ - Διαχείριση τοποθεσιών (component)
-  // Βελτίωση του component LocationEditor
-  const LocationEditor = ({ value, onChange }) => {
-    const [locations, setLocations] = useState([]);
-    const [newLocation, setNewLocation] = useState({ 
-      topothesia: "", 
-      start: "", 
-      end: "" 
-    });
-    
-    // Ενημέρωση των locations όταν αλλάζει το value από έξω
-    useEffect(() => {
-      
-      // Αν έχουμε τιμή και είναι πίνακας
-      if (Array.isArray(value) && value.length > 0) {
-        // Διασφαλίζουμε ότι κάθε τοποθεσία έχει μοναδικό id και σωστά ονόματα πεδίων
-        setLocations(value.map((loc, idx) => ({
-          ...loc,
-          id: loc.id !== undefined ? loc.id : idx,
-          topothesia: loc.topothesia || "",
-          start: loc.start || loc.hmerominia_enarksis || "", 
-          end: loc.end || loc.hmerominia_liksis || ""
-        })));
-      } else {
-        // Αν δεν έχουμε αρχική τιμή, ξεκινάμε με άδειο πίνακα
-        setLocations([]);
-      }
-    }, [value]);
-    
-    // Προσθήκη νέας τοποθεσίας με validation
-    const handleAddLocation = () => {
-      if (!newLocation.topothesia) {
-        alert("Παρακαλώ συμπληρώστε την τοποθεσία");
-        return;
-      }
-      
-      if (!newLocation.start) {
-        alert("Παρακαλώ επιλέξτε ημερομηνία έναρξης");
-        return;
-      }
-      
-      if (!newLocation.end) {
-        alert("Παρακαλώ επιλέξτε ημερομηνία λήξης");
-        return;
-      }
-      
-      if (new Date(newLocation.end) < new Date(newLocation.start)) {
-        alert("Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης");
-        return;
-      }
-      
-      const updatedLocations = [...locations, { ...newLocation, id: Date.now() }];
-      setLocations(updatedLocations);
-      setNewLocation({ 
-        topothesia: "", 
-        start: "", 
-        end: "" 
-      });
-      onChange(updatedLocations);
-    };
-    
-    // Ενημέρωση υπάρχουσας τοποθεσίας
-    const handleUpdateLocation = (id, field, value) => {
-      const updatedLocations = locations.map(loc => 
-        loc.id === id ? { ...loc, [field]: value } : loc
-      );
-      setLocations(updatedLocations);
-      onChange(updatedLocations);
-    };
-    
-    // Διαγραφή τοποθεσίας
-    const handleDeleteLocation = (id) => {
-      const updatedLocations = locations.filter(loc => loc.id !== id);
-      setLocations(updatedLocations);
-      onChange(updatedLocations);
-    };
-    
-    return (
-      <Box sx={{ border: '1px solid #e0e0e0', p: 2, borderRadius: 1 }}>
-        <Typography variant="subtitle1" sx={{ mb: 2 }}>Διαχείριση Τοποθεσιών</Typography>
-        
-        {/* Λίστα τοποθεσιών */}
-        {locations.length > 0 ? (
-          <TableContainer component={Paper} sx={{ mb: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Τοποθεσία</TableCell>
-                  <TableCell>Ημ/νία Έναρξης</TableCell>
-                  <TableCell>Ημ/νία Λήξης</TableCell>
-                  <TableCell>Ενέργειες</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {locations.map((loc) => (
-                  // Fix: Always ensure each loc has a unique id
-                  <TableRow key={loc.id !== undefined ? loc.id : `loc-${Date.now()}-${Math.random()}`}>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        value={loc.topothesia}
-                        onChange={(e) => handleUpdateLocation(loc.id, "topothesia", e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <DatePicker
-                        value={loc.start ? new Date(loc.start) : null}
-                        onChange={(newDate) => {
-                          if (newDate) {
-                            const isoDate = newDate.toISOString().split('T')[0];
-                            handleUpdateLocation(loc.id, "start", isoDate);
-                          }
-                        }}
-                        format="dd/MM/yyyy"
-                        slotProps={{ 
-                          textField: { 
-                            size: "small",
-                            fullWidth: true
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <DatePicker
-                        value={loc.end ? new Date(loc.end) : null}
-                        onChange={(newDate) => {
-                          if (newDate) {
-                            const isoDate = newDate.toISOString().split('T')[0];
-                            handleUpdateLocation(loc.id, "end", isoDate);
-                          }
-                        }}
-                        format="dd/MM/yyyy"
-                        slotProps={{ 
-                          textField: { 
-                            size: "small",
-                            fullWidth: true
-                          }
-                        }}
-                        minDate={loc.start ? new Date(loc.start) : undefined}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton size="small" onClick={() => handleDeleteLocation(loc.id)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        ) : (
-          <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-            Δεν έχουν προστεθεί τοποθεσίες.
-          </Typography>
-        )}
-        
-        {/* Φόρμα προσθήκης */}
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Τοποθεσία"
-              value={newLocation.topothesia}
-              onChange={(e) => setNewLocation({
-                ...newLocation, 
-                topothesia: e.target.value
-              })}
-            />
-          </Grid>
-          <Grid item xs={12} sm={3}>
-            <DatePicker
-              label="Ημ/νία Έναρξης"
-              value={newLocation.start ? new Date(newLocation.start) : null}
-              onChange={(newDate) => {
-                if (newDate) {
-                  const isoDate = newDate.toISOString().split('T')[0];
-                  setNewLocation({
-                    ...newLocation, 
-                    start: isoDate
-                  });
-                }
-              }}
-              format="dd/MM/yyyy"
-              slotProps={{ 
-                textField: { 
-                  size: "small",
-                  fullWidth: true 
-                } 
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={3}>
-            <DatePicker
-              label="Ημ/νία Λήξης"
-              value={newLocation.end ? new Date(newLocation.end) : null}
-              onChange={(newDate) => {
-                if (newDate) {
-                  const isoDate = newDate.toISOString().split('T')[0];
-                  setNewLocation({
-                    ...newLocation, 
-                    end: isoDate
-                  });
-                }
-              }}
-              format="dd/MM/yyyy"
-              slotProps={{ 
-                textField: { 
-                  size: "small",
-                  fullWidth: true
-                }
-              }}
-              minDate={newLocation.start ? new Date(newLocation.start) : undefined}
-            />
-          </Grid>
-          <Grid item xs={12} sm={2}>
-            <Button 
-              fullWidth 
-              variant="contained" 
-              onClick={handleAddLocation}
-              disabled={!newLocation.topothesia || !newLocation.start || !newLocation.end}
-            >
-              Προσθήκη
-            </Button>
-          </Grid>
-        </Grid>
-      </Box>
-    );
-  }; // Εδώ χρειάζεται το ελληνικό ερωτηματικό (;)
   
-  // Βελτιωμένη έκδοση του handleAddTopothesia
+  // Βελτίωση του handleAddTopothesia
 const handleAddTopothesia = async (parentRow) => {
   try {
 
@@ -989,13 +580,14 @@ const handleAddTopothesia = async (parentRow) => {
   }
 };
 
-  // Replace the handleDeleteTopothesia function with local state update
+  // Replace or update the existing handleDeleteTopothesia function
+
+// Function to handle delete button click for locations
 const handleDeleteTopothesia = async (rowData, parentRow) => {
   try {
-    
-    if (!parentRow) {
-      console.error("Missing parentRow when deleting topothesia");
-      alert("Δεν επιλέχθηκε σχολή");
+    if (!rowData) {
+      console.error("Missing rowData for topothesia deletion");
+      alert("Δεν επιλέχθηκε τοποθεσία");
       return;
     }
     
@@ -1004,22 +596,37 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
       (parentRow.id_sxolis || parentRow.id) : 
       parentRow;
     
-    
     if (!schoolId && schoolId !== 0) {
       console.error("Invalid school ID for topothesia deletion");
       alert("Δεν βρέθηκε ID σχολής");
       return;
     }
     
-    if (!window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την τοποθεσία;")) {
+    // Store data and open confirmation dialog instead of immediate deletion
+    setLocationToDelete({ rowData, schoolId });
+    setLocationDeleteDialog(true);
+    
+  } catch (error) {
+    console.error("Σφάλμα κατά τη διαγραφή τοποθεσίας:", error);
+    alert("Σφάλμα κατά τη διαγραφή τοποθεσίας: " + error.message);
+  }
+};
+
+// Make sure to have a confirmLocationDeletion function to actually perform the deletion
+const confirmLocationDeletion = async () => {
+  try {
+    if (!locationToDelete) {
+      setLocationDeleteDialog(false);
       return;
     }
+    
+    const { rowData, schoolId } = locationToDelete;
     
     // Ανάκτηση τρέχουσας σχολής
     const response = await api.get(`/sxoles/${schoolId}`);
     const school = response.data;
     
-    // Εξαγωγή τοποθεσιών
+    // Επεξεργασία τοποθεσιών
     let topothesiaData = school.topothesies;
     
     // Αν δεν υπάρχουν τοποθεσίες, έλεγξε εναλλακτικά ονόματα πεδίων
@@ -1029,6 +636,8 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
     
     if (!topothesiaData) {
       alert("Δεν βρέθηκαν τοποθεσίες για διαγραφή");
+      setLocationDeleteDialog(false);
+      setLocationToDelete(null);
       return;
     }
     
@@ -1049,14 +658,13 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
     } catch (e) {
       console.error("Σφάλμα ανάλυσης JSON:", e);
       alert("Σφάλμα επεξεργασίας τοποθεσιών");
+      setLocationDeleteDialog(false);
+      setLocationToDelete(null);
       return;
     }
     
- 
-    
     // Αφαίρεση της τοποθεσίας με το συγκεκριμένο ID
     const updatedTopothesies = currentTopothesies.filter((_, index) => index !== rowData.id);
-    
     
     // Δημιουργούμε το αντικείμενο ενημέρωσης διατηρώντας τις υπάρχουσες τιμές
     const updateData = {
@@ -1065,7 +673,6 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
       timi: school.timi,
       etos: school.etos,
       seira: school.seira,
-      // Αποθήκευση του τροποποιημένου πίνακα τοποθεσιών
       topothesies: updatedTopothesies
     };
     
@@ -1085,16 +692,18 @@ const handleDeleteTopothesia = async (rowData, parentRow) => {
       });
     });
     
-    // Προαιρετικά: μήνυμα επιτυχίας
-    alert("Η τοποθεσία διαγράφηκε επιτυχώς!");
+    // Κλείσιμο διαλόγου και καθαρισμός καταστάσεων
+    setLocationDeleteDialog(false);
+    setLocationToDelete(null);
     
   } catch (error) {
     console.error("Σφάλμα κατά τη διαγραφή τοποθεσίας:", error);
     alert("Σφάλμα κατά τη διαγραφή τοποθεσίας: " + error.message);
+    setLocationDeleteDialog(false);
+    setLocationToDelete(null);
   }
 };
-
-  // Improved handleSaveLocations with local state updates
+  // Improved handleSaveLocations with local updates
 const handleSaveLocations = async (locations) => {
   try {
     if (!editingSchoolForLocation) {
@@ -1148,7 +757,6 @@ const handleSaveLocations = async (locations) => {
     // Close dialog and reset state
     setLocationDialogOpen(false);
     setEditingSchoolForLocation(null);
-    alert("Οι τοποθεσίες αποθηκεύτηκαν με επιτυχία!");
   } catch (error) {
     console.error("Σφάλμα κατά την αποθήκευση τοποθεσιών:", error);
     alert("Σφάλμα: " + error.message);
@@ -1205,7 +813,7 @@ const handleEditSxoliClick = async (row) => {
   }
 };
 
-// Προσθήκη εκπαιδευτή σε σχολή - γραμμή ~1125
+  // Προσθήκη εκπαιδευτή σε σχολή - γραμμή ~1125
 const handleAddTeacherToSchool = async (parentRow) => {
   try {
 
@@ -1824,7 +1432,7 @@ const handleEditEkpaideutiClick = async (row) => {
       setCurrentEkpaideutisId(null);
     } catch (error) {
       console.error("Σφάλμα κατά την επεξεργασία εκπαιδευτή:", error);
-      alert("Σφάλμα κατά την επεξεργασία εκπαιδευτή: " + (error.response?.data?.error || error.message));
+           alert("Σφάλμα κατά την επεξεργασία εκπαιδευτή: " + (error.response?.data?.error || error.message));
     }
   };
 
@@ -2303,6 +1911,27 @@ const formatDateForInput = (dateString) => {
           selectedTeachers={selectedTeachers}
           setSelectedTeachers={setSelectedTeachers}
         />
+
+        {/* Διάλογος επιβεβαίωσης διαγραφής τοποθεσίας */}
+        <Dialog
+          open={locationDeleteDialog}
+          onClose={() => setLocationDeleteDialog(false)}
+        >
+          <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την τοποθεσία;
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setLocationDeleteDialog(false)} color="primary">
+              Άκυρο
+            </Button>
+            <Button onClick={confirmLocationDeletion} color="error" autoFocus>
+              Διαγραφή
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     
     {/* Διάλογος για διαχείριση τοποθεσιών */}
