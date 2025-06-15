@@ -25,6 +25,9 @@ export default function Sxoles() {
   const [editSxoliData, setEditSxoliData] = useState(null);
   const [addEkpaideutiDialogOpen, setAddEkpaideutiDialogOpen] = useState(false);
   const [editEkpaideutiDialogOpen, setEditEkpaideutiDialogOpen] = useState(false);
+  // Add these with your other state variables
+const [teacherDeleteDialog, setTeacherDeleteDialog] = useState(false);
+const [teacherToDelete, setTeacherToDelete] = useState(null);
   const [editEkpaideutiData, setEditEkpaideutiData] = useState(null);
   const [currentSxoliId, setCurrentSxoliId] = useState(null);
   const [currentEkpaideutisId, setCurrentEkpaideutisId] = useState(null);
@@ -813,6 +816,66 @@ const handleEditSxoliClick = async (row) => {
   }
 };
 
+// Handle confirmed teacher deletion
+const confirmTeacherDeletion = async () => {
+  try {
+    if (!teacherToDelete) {
+      setTeacherDeleteDialog(false);
+      return;
+    }
+    
+    const { teacherId, schoolId } = teacherToDelete;
+    
+    // API call with the correct ID
+    await api.delete(`/sxoles/${schoolId}/ekpaideutis/${teacherId}`);
+    
+    // Local state updates
+    // 1. Remove teacher from school's teachers list
+    setSxolesData(prev => {
+      return prev.map(sxoli => {
+        if ((sxoli.id_sxolis == schoolId || sxoli.id == schoolId) && 
+            Array.isArray(sxoli.ekpaideutes)) {
+          return {
+            ...sxoli,
+            ekpaideutes: sxoli.ekpaideutes.filter(ekp => 
+              ekp.id != teacherId && 
+              ekp.id_ekpaideuti != teacherId && 
+              ekp.id_epafis != teacherId
+            )
+          };
+        }
+        return sxoli;
+      });
+    });
+    
+    // 2. Remove school from teacher's schools list
+    setEkpaideutesData(prev => {
+      return prev.map(ekpaideutis => {
+        if ((ekpaideutis.id == teacherId || 
+            ekpaideutis.id_ekpaideuti == teacherId || 
+            ekpaideutis.id_epafis == teacherId) && 
+            Array.isArray(ekpaideutis.sxoles)) {
+          return {
+            ...ekpaideutis,
+            sxoles: ekpaideutis.sxoles.filter(sxoli => 
+              sxoli.id != schoolId && sxoli.id_sxolis != schoolId
+            )
+          };
+        }
+        return ekpaideutis;
+      });
+    });
+    
+    // Close the dialog and reset state
+    setTeacherDeleteDialog(false);
+    setTeacherToDelete(null);
+  } catch (error) {
+    console.error("Σφάλμα κατά την αφαίρεση εκπαιδευτή από τη σχολή:", error);
+    alert("Σφάλμα: " + error.message);
+    setTeacherDeleteDialog(false);
+    setTeacherToDelete(null);
+  }
+};
   // Προσθήκη εκπαιδευτή σε σχολή - γραμμή ~1125
 const handleAddTeacherToSchool = async (parentRow) => {
   try {
@@ -1004,52 +1067,11 @@ const handleRemoveTeacherFromSchool = async (teacherId, schoolId) => {
       return;
     }
     
-    if (!window.confirm("Είστε σίγουροι ότι θέλετε να αφαιρέσετε τον εκπαιδευτή από τη σχολή;")) {
-      return;
-    }
-    
-    // API call with the correct ID
-    await api.delete(`/sxoles/${schoolId}/ekpaideutis/${actualTeacherId}`);
-    
-    // Local state updates
-    // 1. Remove teacher from school's teachers list
-    setSxolesData(prev => {
-      return prev.map(sxoli => {
-        if ((sxoli.id_sxolis == schoolId || sxoli.id == schoolId) && 
-            Array.isArray(sxoli.ekpaideutes)) {
-          return {
-            ...sxoli,
-            ekpaideutes: sxoli.ekpaideutes.filter(ekp => 
-              ekp.id != actualTeacherId && 
-              ekp.id_ekpaideuti != actualTeacherId && 
-              ekp.id_epafis != actualTeacherId
-            )
-          };
-        }
-        return sxoli;
-      });
-    });
-    
-    // 2. Remove school from teacher's schools list
-    setEkpaideutesData(prev => {
-      return prev.map(ekpaideutis => {
-        if ((ekpaideutis.id == actualTeacherId || 
-            ekpaideutis.id_ekpaideuti == actualTeacherId || 
-            ekpaideutis.id_epafis == actualTeacherId) && 
-            Array.isArray(ekpaideutis.sxoles)) {
-          return {
-            ...ekpaideutis,
-            sxoles: ekpaideutis.sxoles.filter(sxoli => 
-              sxoli.id != schoolId && sxoli.id_sxolis != schoolId
-            )
-          };
-        }
-        return ekpaideutis;
-      });
-    });
-    
+    // Instead of window.confirm, store the IDs and open the dialog
+    setTeacherToDelete({ teacherId: actualTeacherId, schoolId });
+    setTeacherDeleteDialog(true);
   } catch (error) {
-    console.error("Σφάλμα κατά την αφαίρεση εκπαιδευτή από τη σχολή:", error);
+    console.error("Σφάλμα κατά την προετοιμασία αφαίρεσης εκπαιδευτή:", error);
     alert("Σφάλμα: " + error.message);
   }
 };
@@ -1929,6 +1951,27 @@ const formatDateForInput = (dateString) => {
             </Button>
             <Button onClick={confirmLocationDeletion} color="error" autoFocus>
               Διαγραφή
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Teacher deletion confirmation dialog */}
+        <Dialog
+          open={teacherDeleteDialog}
+          onClose={() => setTeacherDeleteDialog(false)}
+        >
+          <DialogTitle>Επιβεβαίωση Αφαίρεσης</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Είστε σίγουροι ότι θέλετε να αφαιρέσετε αυτόν τον εκπαιδευτή από τη σχολή;
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setTeacherDeleteDialog(false)} color="primary">
+              Ακύρωση
+            </Button>
+            <Button onClick={confirmTeacherDeletion} color="error" autoFocus>
+              Αφαίρεση
             </Button>
           </DialogActions>
         </Dialog>

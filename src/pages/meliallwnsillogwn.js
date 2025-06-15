@@ -45,11 +45,11 @@ const detailPanelConfig = {
       accessor: "melos.simmetoxi",
       columns: [
         {
-          accessor: "simmetoxi_drastiriotites[0].drastiriotita.eksormisi.titlos",
+          accessor: "eksormisi.titlos",
           header: "Τίτλος Εξόρμησης",
           Cell: ({ row }) => {
-            const eksormisiId = row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.eksormisi?.id_eksormisis;
-            const titlos = row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.eksormisi?.titlos || "-";
+            const eksormisiId = row.original.eksormisi?.id_eksormisis;
+            const titlos = row.original.eksormisi?.titlos || "-";
             return eksormisiId ? (
               <a
                 href={`/eksormisi/${eksormisiId}`}
@@ -62,26 +62,86 @@ const detailPanelConfig = {
           }
         },
         { 
-          accessor: "simmetoxi_drastiriotites[0].drastiriotita.titlos", 
+          accessor: "drastiriotita.titlos", 
           header: "Τίτλος Δραστηριότητας",
-          Cell: ({ row }) => row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.titlos || "-" 
+          Cell: ({ row }) => row.original.drastiriotita?.titlos || "-" 
         },
         { 
-          accessor: "simmetoxi_drastiriotites[0].drastiriotita.vathmos_diskolias.epipedo", 
+          accessor: "drastiriotita.vathmos_diskolias.epipedo", 
           header: "ΒΔ",
-          Cell: ({ row }) => row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.vathmos_diskolias?.epipedo || "-" 
+          Cell: ({ row }) => row.original.drastiriotita?.vathmos_diskolias?.epipedo || "-" 
         },
         {
-          accessor: "simmetoxi_drastiriotites[0].drastiriotita.hmerominia",
+          accessor: "drastiriotita.hmerominia",
           header: "Ημερομηνία",
-          format: (value) => value ? new Date(value).toLocaleDateString("el-GR") : "-",
           Cell: ({ row }) => {
-            const date = row.original.simmetoxi_drastiriotites?.[0]?.drastiriotita?.hmerominia;
-            return date ? new Date(date).toLocaleDateString("el-GR") : "-";
+            const dateValue = row.original.drastiriotita?.hmerominia;
+            if (!dateValue) return "-";
+            
+            try {
+              // Check if the value is already a formatted string (contains /)
+              if (typeof dateValue === 'string' && dateValue.includes('/')) {
+                // Parse the Greek formatted date (D/M/YYYY or DD/MM/YYYY)
+                const parts = dateValue.split('/');
+                if (parts.length === 3) {
+                  // Ensure day and month are always two digits
+                  const day = String(parseInt(parts[0])).padStart(2, '0');
+                  const month = String(parseInt(parts[1])).padStart(2, '0');
+                  const year = parts[2];
+                  
+                  return `${day}/${month}/${year}`;
+                }
+                return dateValue; // Return as-is if we can't parse it
+              }
+              
+              // If it's not already formatted, treat it as a raw date
+              const date = new Date(dateValue);
+              if (isNaN(date.getTime())) return "-";
+              
+              // Explicitly format as DD/MM/YYYY
+              const day = String(date.getDate()).padStart(2, '0');
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const year = date.getFullYear();
+              
+              return `${day}/${month}/${year}`;
+            } catch (e) {
+              console.error("Σφάλμα μορφοποίησης ημερομηνίας:", e, dateValue);
+              return "-";
+            }
           }
         }
       ],
-      getData: (row) => row.melos?.simmetoxi || [],
+      getData: (row) => {
+        // Get all active participations
+        const simmetoxes = (row.melos?.simmetoxi || []).filter(item => item.katastasi === "Ενεργή");
+        
+        // Flatten the structure to create one row per activity
+        const activities = [];
+        
+        simmetoxes.forEach(simmetoxi => {
+          if (simmetoxi.simmetoxi_drastiriotites && simmetoxi.simmetoxi_drastiriotites.length > 0) {
+            // Create a row for each activity in this participation
+            simmetoxi.simmetoxi_drastiriotites.forEach(rel => {
+              if (rel.drastiriotita) {
+                activities.push({
+                  id_simmetoxis: simmetoxi.id_simmetoxis,
+                  eksormisi: simmetoxi.eksormisi,
+                  drastiriotita: rel.drastiriotita
+                });
+              }
+            });
+          } else if (simmetoxi.drastiriotita) {
+            // Backward compatibility for old data structure
+            activities.push({
+              id_simmetoxis: simmetoxi.id_simmetoxis,
+              eksormisi: simmetoxi.eksormisi,
+              drastiriotita: simmetoxi.drastiriotita
+            });
+          }
+        });
+        
+        return activities;
+      },
       noRowHover: true,
       noRowClick: true
     },
