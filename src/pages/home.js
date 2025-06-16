@@ -139,7 +139,7 @@ function Home({ user }) {
             </Link>
             <Link to="/athlites">
               <p style={{ cursor: "pointer", textDecoration: "underline" }}>
-                Προβολή αθλητών
+                Προβολή αθλητών και αγώνων
               </p>
             </Link>
             <Link to="/meliallwnsillogwn">
@@ -149,7 +149,7 @@ function Home({ user }) {
             </Link>
             <Link to="/epafes">
               <p style={{ cursor: "pointer", textDecoration: "underline" }}>
-                Προβολή Επαφών
+                Προβολή επαφών
               </p>
             </Link>
           </div>

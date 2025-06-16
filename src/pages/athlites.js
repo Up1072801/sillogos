@@ -1882,8 +1882,8 @@ const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
 
       <Typography variant="h4" gutterBottom>
         Αγώνες
-
       </Typography>
+
       <Box sx={{ mb: 2 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
@@ -1897,7 +1897,6 @@ const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
                 <MenuItem value="all">Όλα τα αθλήματα</MenuItem>
                 {sportsListData.map(sport => (
                   <MenuItem key={sport.id_athlimatos} value={sport.id_athlimatos}>
-                   
                     {sport.onoma}
                   </MenuItem>
                 ))}
@@ -1919,17 +1918,9 @@ const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={4} sx={{ textAlign: 'right' }}>
-            <Button 
-              variant="contained" 
-              startIcon={<Add />}
-              onClick={handleAddSportCompetitionClick}
-            >
-              Νέος Αγώνας
-            </Button>
-          </Grid>
         </Grid>
       </Box>
+
       <Box>
         <DataTable
           data={filteredCompetitions}
@@ -1947,6 +1938,9 @@ const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
           enableRowActions={true}
           handleEditClick={handleEditCompetition}
           handleDelete={handleDeleteCompetition}
+          onAddNew={handleAddSportCompetitionClick}
+          enableAddNew={true}
+          enableTopAddButton={true}
         />
       </Box>
 

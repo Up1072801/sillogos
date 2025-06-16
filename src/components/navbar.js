@@ -216,7 +216,7 @@ export default function Navbar({ user, onLogout, tokenStatus, refreshing, refres
               <ListItemText primary="Μέλη του συλλόγου" />
             </ListItemButton>
             <ListItemButton sx={{ pl: 4 }} component={RouterLink} to="/athlites" role="menuitem" onClick={handleDrawerClose}>
-              <ListItemText primary="Αθλητές" />
+              <ListItemText primary="Αθλητές και αγώνες" />
             </ListItemButton>
             <ListItemButton sx={{ pl: 4 }} component={RouterLink} to="/meliallwnsillogwn" role="menuitem" onClick={handleDrawerClose}>
               <ListItemText primary="Μέλη άλλων συλλόγων" />

@@ -124,16 +124,24 @@ const equipmentFormFields = [
   { 
     accessorKey: "onoma", 
     header: "Όνομα Εξοπλισμού", 
-    validation: yup.string().required("Το όνομα εξοπλισμού είναι υποχρεωτικό")
+    validation: yup.string()
+      .required("Το όνομα εξοπλισμού είναι υποχρεωτικό")
+      .test('letters-only', 'Επιτρέπονται μόνο γράμματα', 
+        value => !value || /^[A-Za-zΑ-Ωα-ωίϊΐόάέύϋΰήώ\s]*$/.test(value))
   },
   { 
     accessorKey: "marka", 
     header: "Μάρκα", 
-    validation: yup.string() // Removed required validation
+    validation: yup.string()
+      .test('letters-only', 'Επιτρέπονται μόνο γράμματα', 
+        value => !value || /^[A-Za-zΑ-Ωα-ωίϊΐόάέύϋΰήώ\s]*$/.test(value))
   },
   { 
     accessorKey: "xroma", 
-    header: "Χρώμα" 
+    header: "Χρώμα",
+    validation: yup.string()
+      .test('letters-only', 'Επιτρέπονται μόνο γράμματα', 
+        value => !value || /^[A-Za-zΑ-Ωα-ωίϊΐόάέύϋΰήώ\s]*$/.test(value))
   },
   { 
     accessorKey: "megethos", 
@@ -775,7 +783,7 @@ const handleEditEquipment = async (editedEquipment) => {
         (item.id === equipmentId || item.id_eksoplismou === equipmentId) 
           ? {
               ...response.data,
-              id: response.data.id_eksoplισμου || response.data.id,  // Διασφάλιση συμβατότητας ID
+              id: response.data.id_eksoplismou || response.data.id,  // Διασφάλιση συμβατότητας ID
               id_eksoplismou: response.data.id_eksoplismou || response.data.id // Διπλό ID για συνέπεια
             } 
           : item
@@ -1123,7 +1131,7 @@ const updateAvailableEquipment = () => {
               cursor: 'pointer'
             }}
           >
-            Όλοι ({filteredLoansData.length})
+            Όλοι ({daneismoiData.length})
           </button>
           <button 
             onClick={() => setLoanStatusFilter('active')} 

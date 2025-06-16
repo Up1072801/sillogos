@@ -576,7 +576,9 @@ const drastiriotitaFormFields = [
     type: "number",
     required: true,
     defaultValue: 0,
-    validation: yup.number().required("Το πεδίο είναι υποχρεωτικό")
+    validation: yup.number()
+      .typeError("Το πεδίο πρέπει να είναι αριθμός")
+      .required("Το πεδίο είναι υποχρεωτικό")
   },
   { 
     accessorKey: "diafora_ipsous", 
@@ -584,7 +586,9 @@ const drastiriotitaFormFields = [
     type: "number",
     required: true, 
     defaultValue: 0,
-    validation: yup.number().required("Το πεδίο είναι υποχρεωτικό")
+    validation: yup.number()
+      .typeError("Το πεδίο πρέπει να είναι αριθμός")
+      .required("Το πεδίο είναι υποχρεωτικό")
   },
   { 
     accessorKey: "megisto_ipsometro", 
@@ -592,7 +596,9 @@ const drastiriotitaFormFields = [
     type: "number",
     required: true,
     defaultValue: 0,
-    validation: yup.number().required("Το πεδίο είναι υποχρεωτικό")
+    validation: yup.number()
+      .typeError("Το πεδίο πρέπει να είναι αριθμός")
+      .required("Το πεδίο είναι υποχρεωτικό")
   },
   { 
     accessorKey: "id_vathmou_diskolias", 
