@@ -164,9 +164,12 @@ const detailPanelConfig = {
             ].filter(Boolean).join("   ");
             return sxoliId ? (
               <a
-                href={`/school/${sxoliId}`}
+                href={`/sxoles/${sxoliId}`}
                 style={{ color: "#1976d2", textDecoration: "underline", cursor: "pointer" }}
-                onClick={e => { e.stopPropagation(); }}
+                onClick={e => {
+                  e.stopPropagation();
+                  window.location.href = `/sxoles/${sxoliId}`;
+                }}
               >
                 {onomaSxolis}
               </a>
@@ -397,7 +400,8 @@ export default function MeliAllwn() {
           .string()
           .test('email-format', 'Μη έγκυρο email', function(value) {
             if (!value || value === '') return true;
-            return yup.string().email().isValidSync(value);
+            const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+            return emailRegex.test(value);
           })
       },
       { 
@@ -405,9 +409,10 @@ export default function MeliAllwn() {
         header: "Τηλέφωνο", 
         validation: yup
           .string()
-          .test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
+          .test('phone-format', 'Το τηλέφωνο πρέπει να έχει τουλάχιστον 10 ψηφία και να περιέχει μόνο αριθμούς και το σύμβολο +', function(value) {
             if (!value || value === '') return true;
-            return /^[0-9]{10}$/.test(value);
+            const digitsOnly = value.replace(/[^0-9]/g, '');
+            return /^[0-9+]+$/.test(value) && digitsOnly.length >= 10;
           })
       },
       { 

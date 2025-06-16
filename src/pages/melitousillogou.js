@@ -28,20 +28,22 @@ const fields = [
       if (originalValue === '' || originalValue === null) return null;
       return value;
     }).typeError("Πρέπει να είναι αριθμός") }, // Αφαίρεση .required()
-  { 
-    accessorKey: "melos.epafes.email", 
-    header: "Email", 
-    validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
-      if (!value || value === '') return true;
-      return yup.string().email().isValidSync(value);
-    }) // Αφαίρεση .required()
-  },
+{ 
+  accessorKey: "melos.epafes.email", 
+  header: "Email", 
+  validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
+    if (!value || value === '') return true;
+    const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+    return emailRegex.test(value);
+  })
+},
   { 
     accessorKey: "melos.epafes.tilefono", 
     header: "Τηλέφωνο", 
-    validation: yup.string().nullable().test('valid-phone', 'Επιτρέπονται μόνο αριθμοί και το σύμβολο +', function(value) {
+    validation: yup.string().nullable().test('valid-phone', 'Το τηλέφωνο πρέπει να έχει τουλάχιστον 10 ψηφία και να περιέχει μόνο αριθμούς και το σύμβολο +', function(value) {
       if (!value || value === '') return true;
-      return /^[0-9+]+$/.test(value);
+      const digitsOnly = value.replace(/[^0-9]/g, '');
+      return /^[0-9+]+$/.test(value) && digitsOnly.length >= 10;
     })
   },
   { 
@@ -269,9 +271,12 @@ const detailPanelConfig = {
             ].filter(Boolean).join("   ");
             return sxoliId ? (
               <a
-                href={`/school/${sxoliId}`}
+                href={`/sxoles/${sxoliId}`}
                 style={{ color: "#1976d2", textDecoration: "underline", cursor: "pointer" }}
-                onClick={e => { e.stopPropagation(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = `/sxoles/${sxoliId}`; // Updated from /school/ to /sxoles/
+                }}
               >
                 {onomaSxolis}
               </a>
@@ -970,15 +975,17 @@ export default function Meloi() {
         header: "Email", 
         validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
           if (!value || value === '') return true;
-          return yup.string().email().isValidSync(value);
+          const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+          return emailRegex.test(value);
         }) // Αφαίρεση .required()
       },
       { 
         accessorKey: "tilefono", 
         header: "Τηλέφωνο", 
-        validation: yup.string().nullable().test('valid-phone', 'Επιτρέπονται μόνο αριθμοί και το σύμβολο +', function(value) {
+        validation: yup.string().nullable().test('valid-phone', 'Το τηλέφωνο πρέπει να έχει τουλάχιστον 10 ψηφία και να περιέχει μόνο αριθμούς και το σύμβολο +', function(value) {
           if (!value || value === '') return true;
-          return /^[0-9+]+$/.test(value);
+          const digitsOnly = value.replace(/[^0-9]/g, '');
+          return /^[0-9+]+$/.test(value) && digitsOnly.length >= 10;
         })
       },
       { 
@@ -1404,15 +1411,17 @@ const parseDate = (dateValue) => {
       header: "Email", 
       validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
         if (!value || value === '') return true;
-        return yup.string().email().isValidSync(value);
-      }) // Αφαίρεση .required()
+        const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+        return emailRegex.test(value);
+      })
     },
     { 
       accessorKey: "tilefono", 
       header: "Τηλέφωνο", 
-      validation: yup.string().nullable().test('valid-phone', 'Επιτρέπονται μόνο αριθμοί και το σύμβολο +', function(value) {
+      validation: yup.string().nullable().test('valid-phone', 'Το τηλέφωνο πρέπει να έχει τουλάχιστον 10 ψηφία και να περιέχει μόνο αριθμούς και το σύμβολο +', function(value) {
         if (!value || value === '') return true;
-        return /^[0-9+]+$/.test(value);
+        const digitsOnly = value.replace(/[^0-9]/g, '');
+        return /^[0-9+]+$/.test(value) && digitsOnly.length >= 10;
       })
     },
     { 

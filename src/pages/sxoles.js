@@ -401,19 +401,25 @@ const extractId = (obj) => {
     { 
       accessorKey: "email", 
       header: "Email",
-      validation: yup.string().email("Μη έγκυρο email")
-        .test('optional-email', 'Μη έγκυρο email', function(value) {
-          if (!value || value === '') return true; // Allow empty values
-          return yup.string().email().isValidSync(value);
+      validation: yup
+        .string()
+        .nullable()
+        .test('email-format', 'Μη έγκυρο email', function(value) {
+          if (!value || value === '') return true;
+          const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+          return emailRegex.test(value);
         })
     },
     { 
       accessorKey: "tilefono", 
       header: "Τηλέφωνο",
-      validation: yup.string()
-        .test('phone-format', 'Το τηλέφωνο πρέπει να έχει 10 ψηφία', function(value) {
-          if (!value || value === '') return true; // Allow empty values
-          return /^[0-9]{10}$/.test(value);
+      validation: yup
+        .string()
+        .nullable()
+        .test('valid-phone', 'Το τηλέφωνο πρέπει να έχει τουλάχιστον 10 ψηφία και να περιέχει μόνο αριθμούς και το σύμβολο +', function(value) {
+          if (!value || value === '') return true;
+          const digitsOnly = value.replace(/[^0-9]/g, '');
+          return /^[0-9+]+$/.test(value) && digitsOnly.length >= 10;
         })
     },
     { 
