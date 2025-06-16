@@ -145,7 +145,13 @@ const [openDeleteAthleteDialog, setOpenDeleteAthleteDialog] = useState(false);
 const [athleteToDelete, setAthleteToDelete] = useState(null);
 // Add this with the other state variables at the top of your component
 const [currentSportName, setCurrentSportName] = useState("");
-  // Φόρτωση δεδομένων
+  // State for the confirmation dialog
+const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+const [confirmDialogMessage, setConfirmDialogMessage] = useState("");
+const [confirmDialogCallback, setConfirmDialogCallback] = useState(null);
+const [confirmDialogItem, setConfirmDialogItem] = useState(null);
+
+// Φόρτωση δεδομένων
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -441,18 +447,15 @@ const handleEditCompetition = (competition) => {
     }));
   };
 
-  // Move this function up right after toggleCompetition and before sportDetailPanelConfig
 const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
   try {
     if (!competitionId || !athleteId) {
       console.error("Λείπει το ID αγώνα ή αθλητή");
+      alert("Λείπουν απαραίτητα δεδομένα για τη διαγραφή");
       return false;
     }
 
-    // Remove any window.confirm() calls from here since the DataTable will handle confirmation
-
     // Make sure we're using the correct ID properties
-    
     let compId = competitionId;
     let athId = athleteId;
 
@@ -470,12 +473,13 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
 
     if (isNaN(compId) || isNaN(athId)) {
       console.error("Μη έγκυρα IDs για διαγραφή αθλητή από αγώνα:", { compId, athId });
+      alert("Μη έγκυρα δεδομένα για τη διαγραφή");
       return false;
     }
 
-
+    console.log(`Διαγραφή αθλητή ${athId} από αγώνα ${compId}`);
     const deleteRoute = `/athlites/agona/${compId}/athlete/${athId}`;
-
+    
     // Try to delete the athlete from the competition
     const response = await api.delete(deleteRoute);
 
@@ -503,8 +507,8 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
     
     return true;
   } catch (error) {
-    console.error("Σφάλμα κατά την αφαίρεση αθλητή από αγώνα:", error);
-    alert(`Σφάλμα: ${error.response?.data?.message || error.message}`);
+    console.error("Σφάλμα διαγραφής:", error);
+    alert(`Σφάλμα κατά τη διαγραφή: ${error.response?.data?.error || error.message}`);
     return false;
   }
 };
@@ -754,11 +758,15 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
                                         <IconButton 
                                           size="small" 
                                           color="error"
-                                          onClick={() => {
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Prevent event bubbling
                                             const competitionId = competition.id_agona || competition.id;
                                             const athleteId = athlete.id_athliti || athlete.id;
-                                            setAthleteToDelete({ athleteId, competitionId });
-                                            setOpenDeleteAthleteDialog(true);
+                                            showDeleteConfirmation(
+                                              athleteId, 
+                                              'athlete-from-competition',
+                                              () => handleDeleteAthleteFromCompetition(competitionId, athleteId)
+                                            );
                                           }}
                                         >
                                           <Delete fontSize="small" />
@@ -1646,19 +1654,23 @@ const handleAthleteCompetitionTableDelete = (athlete, competition) => {
           { accessor: "arithmosdeltiou", header: "Αριθμός Δελτίου" }
         ],
         // Use the adapter function which handles the parameter order correctly
-onDelete: (payment, participant) => {
-  const paymentId = payment.id || payment.id_katavalei;
-  const participantId = participant.id_parakolouthisis;
+onDelete: (athlete, competition) => {
+  // The athlete object contains the athlete to remove
+  const athleteId = athlete.id || athlete.id_athliti;
   
-  if (!paymentId || !participantId) {
-    console.error("Missing ID for payment or participant:", { payment, participant });
+  // The competition is the parent context
+  const competitionId = competition.id_agona || competition.id;
+  
+  if (!athleteId || !competitionId) {
+    console.error("Missing ID for athlete or competition:", { athlete, competition });
     return;
   }
   
-  // Store the payment and participant IDs and open the dialog
-  setPaymentToDelete({ paymentId, participantId });
-  setDeletePaymentDialog(true);
-},        onAddNew: (competitionId) => handleAddAthleteToCompetition(competitionId)
+  // Use the confirmation dialog instead of direct deletion
+  setConfirmDialogMessage("Είστε βέβαιοι ότι θέλετε να αφαιρέσετε τον αθλητή από αυτόν τον αγώνα;");
+  setConfirmDialogCallback(() => () => handleDeleteAthleteFromCompetition(competitionId, athleteId));
+  setConfirmDialogOpen(true);
+}
       }
     ],
     showEditButton: true
@@ -1818,27 +1830,6 @@ const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
       </Typography>
     </Box>
   );
-};
-
-// Νέα συνάρτηση για προβολή διαλόγου επιβεβαίωσης όπως στο EksormisiDetails.js
-const showDeleteConfirmation = (item, type, callback) => {
-  let message = "Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτό το στοιχείο;";
-  
-  switch (type) {
-    case 'athlete':
-      message = "Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτόν τον αθλητή;";
-      break;
-    case 'competition':
-      message = "Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτόν τον αγώνα;";
-      break;
-    case 'athlete-competition':
-      message = "Είστε βέβαιοι ότι θέλετε να αφαιρέσετε τον αθλητή από αυτόν τον αγώνα;";
-      break;
-  }
-  
-  if (window.confirm(message)) {
-    callback(item);
-  }
 };
 
   return (
@@ -2068,54 +2059,26 @@ const showDeleteConfirmation = (item, type, callback) => {
 
       {/* Add this Dialog component at the end of your return statement */}
 <Dialog
-  open={openDeleteAthleteDialog}
-  onClose={() => setOpenDeleteAthleteDialog(false)}
+  open={confirmDialogOpen}
+  onClose={() => setConfirmDialogOpen(false)}
 >
-  <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+  <DialogTitle>Επιβεβαίωση</DialogTitle>
   <DialogContent>
     <DialogContentText>
-      Είστε σίγουρος ότι θέλετε να αφαιρέσετε αυτόν τον αθλητή από τον αγώνα;
+      {confirmDialogMessage}
     </DialogContentText>
   </DialogContent>
   <DialogActions>
-    <Button onClick={() => setOpenDeleteAthleteDialog(false)} color="primary">
+    <Button onClick={() => setConfirmDialogOpen(false)} color="primary">
       Ακύρωση
     </Button>
     <Button 
       onClick={() => {
-        if (athleteToDelete) {
-          handleDeleteAthleteFromCompetition(
-            athleteToDelete.competitionId, 
-            athleteToDelete.athleteId
-          );
-          setOpenDeleteAthleteDialog(false);
-          setAthleteToDelete(null);
+        if (confirmDialogCallback) {
+          confirmDialogCallback(confirmDialogItem);
         }
+        setConfirmDialogOpen(false);
       }} 
-      color="error" 
-      autoFocus
-    >
-      Διαγραφή
-    </Button>
-  </DialogActions>
-</Dialog>
-{/* Payment deletion confirmation dialog */}
-<Dialog
-  open={deletePaymentDialog}
-  onClose={() => setDeletePaymentDialog(false)}
->
-  <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
-  <DialogContent>
-    <DialogContentText>
-      Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την πληρωμή;
-    </DialogContentText>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setDeletePaymentDialog(false)} color="primary">
-      Ακύρωση
-    </Button>
-    <Button 
-      onClick={handleConfirmPaymentDelete}
       color="error" 
       autoFocus
     >
