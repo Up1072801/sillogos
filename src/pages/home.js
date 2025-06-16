@@ -197,7 +197,7 @@ function Home({ user }) {
           color: '#1976d2',
           fontSize: '1.2rem' 
         }}>
-          Προσεχή Γεγονότα και Ειδοποιήσεις
+          Προσεχή Γεγονότα 
         </h2>
         
         <div style={{ 
