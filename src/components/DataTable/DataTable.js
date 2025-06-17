@@ -122,7 +122,7 @@ const DataTable = React.memo(({
                   sx={{ mt: 2 }}
                   onClick={() => handleEditClick(item)}
                 >
-                  Επεξεργασία Στοιχείων
+                  ΕΠΕΞΕΡΓΑΣΙΑ ΣΤΟΙΧΕΙΩΝ
                 </Button>
               )}
             </Box>
@@ -156,7 +156,7 @@ const DataTable = React.memo(({
                           startIcon={<Add />}
                           onClick={() => tableConfig.onAddNew(item.id, item.athlima)}
                         >
-                          Προσθήκη Νέου
+                          ΠΡΟΣΘΗΚΗ ΝΕΟΥ
                         </Button>
                       )}
                     </Box>
@@ -746,7 +746,7 @@ const DataTable = React.memo(({
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               }
-              label={<strong>Επιλογή Όλων</strong>}
+              label={<strong>ΕΠΙΛΟΓΗ ΟΛΩΝ</strong>}
             />
             <Divider sx={{ my: 1 }} />
             
@@ -766,13 +766,13 @@ const DataTable = React.memo(({
           </FormGroup>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Ακύρωση</Button>
+          <Button onClick={onClose}>ΑΚΥΡΩΣΗ</Button>
           <Button 
             variant="contained"
             color="primary"
             onClick={handleExportClick}
           >
-            Εξαγωγή
+            ΕΞΑΓΩΓΗ
           </Button>
         </DialogActions>
       </Dialog>
@@ -803,7 +803,7 @@ const DataTable = React.memo(({
             startIcon={<Add />} 
             onClick={onAddNew}
           >
-            Προσθήκη Νέου
+            ΠΡΟΣΘΗΚΗ ΝΕΟΥ
           </Button>
         )}
         <Button 
@@ -812,7 +812,7 @@ const DataTable = React.memo(({
           onClick={handleExportClick}
           sx={{ ml: !enableAddNew || !enableTopAddButton || !onAddNew ? 'auto' : 0 }}
         >
-          Εξαγωγή
+          ΕΞΑΓΩΓΗ
         </Button>
         <ExportMenu
           anchorEl={anchorEl}
@@ -840,6 +840,8 @@ const DataTable = React.memo(({
         state={state}
         getRowId={getRowId}
         positionActionsColumn="last"
+        enableDensityToggle={false}  // Disable the density toggle button
+        enableFullScreenToggle={false}  // Disable the full screen toggle button
         muiTableProps={{
           sx: { tableLayout: 'fixed' } // Forces fixed table layout
         }}
