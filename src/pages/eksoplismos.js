@@ -52,18 +52,18 @@ const daneismoiColumns = [
     Cell: ({ row }) => {
       const data = row.original;
       
-      // If it's a grouped loan, show all items with quantities
+      // If it's a grouped loan, show all items with quantities on a single line
       if (data.isGrouped && data.equipment_items) {
         return (
-          <div>
+          <span>
             {data.equipment_items.map((item, index) => (
-              <div key={index}>
-                {item.equipmentName || item.eksoplismos?.onoma || "Άγνωστο"} 
-                <strong>({item.quantity || 1} τεμ.)</strong>
-                {index < data.equipment_items.length - 1 ? <hr style={{margin: '4px 0'}} /> : null}
-              </div>
+              <React.Fragment key={index}>
+                {item.equipmentName || item.eksoplismos?.onoma || "Άγνωστο"}
+                <strong>({item.quantity || 1})</strong>
+                {index < data.equipment_items.length - 1 ? ', ' : ''}
+              </React.Fragment>
             ))}
-          </div>
+          </span>
         );
       }
       
@@ -71,7 +71,7 @@ const daneismoiColumns = [
       return (
         <span>
           {data.equipmentName} 
-          {data.quantity > 1 ? <strong> ({data.quantity} τεμ.)</strong> : ''}
+          {data.quantity > 1 ? <strong>({data.quantity})</strong> : ''}
         </span>
       );
     }
@@ -889,7 +889,7 @@ const handleEditLoan = async (editedLoan) => {
   const handleEditLoanClick = (loan) => {
     // Αν είναι ομαδοποιημένο δάνειο, επιλέγουμε το πρώτο είδος για επεξεργασία
     if (loan.equipment_items && Array.isArray(loan.equipment_items) && loan.equipment_items.length > 0) {
-      // Εδώ θα μπορούσατε να προσθέσετε επιλογή για το ποιο είδος θα επεξεργαστεί ο χρήστης
+      // Εδώ θα μπορούσατε να προσθέσετε επιλογή για το ποιο είδος θα επεξεργτεί ο χρήστης
       const selectedIndex = 0; // Προς το παρόν πάντα το πρώτο
       const selectedItem = loan.equipment_items[selectedIndex];
 
@@ -1070,8 +1070,59 @@ const handleEditEquipment = async (editedEquipment) => {
   };
 
   // Χειρισμός διαγραφής δανεισμού
-  const handleDeleteLoan = async (id) => {
-    try {
+  // Χειρισμός διαγραφής δανεισμού
+const handleDeleteLoan = async (id) => {
+  try {
+    const loanToDelete = daneismoiData.find(loan => loan.id === id);
+    
+    // Check if this is a grouped loan (the ID starts with "group_" or has equipment_items array)
+    if (loanToDelete && (id.toString().startsWith('group_') || loanToDelete.isGrouped || 
+        (loanToDelete.equipment_items && loanToDelete.equipment_items.length > 0))) {
+      
+      // Display confirmation for deleting multiple items
+     
+      
+      
+      // Delete all loan items in the group
+      const deletePromises = loanToDelete.equipment_items.map(item => 
+        api.delete(`/eksoplismos/daneismos/${item.id}`)
+      );
+      
+      await Promise.all(deletePromises);
+      
+      // Update states
+      // 1. Remove from daneismoiData
+      const updatedDaneismoiData = daneismoiData.filter(item => item.id !== id);
+      setDaneismoiData(updatedDaneismoiData);
+      
+      // 2. Remove from equipment's daneizetai arrays
+      const updatedEksoplismosData = eksoplismosData.map(equipment => {
+        // Check if this equipment has any of the deleted loan items
+        const hasDeletedLoan = loanToDelete.equipment_items.some(
+          item => parseInt(item.id_eksoplismou) === parseInt(equipment.id_eksoplismou)
+        );
+        
+        if (hasDeletedLoan) {
+          // Filter out all the deleted loan IDs
+          const deletedLoanIds = loanToDelete.equipment_items.map(item => item.id);
+          return {
+            ...equipment,
+            daneizetai: (equipment.daneizetai || []).filter(
+              d => !deletedLoanIds.includes(d.id)
+            )
+          };
+        }
+        return equipment;
+      });
+      setEksoplismosData(updatedEksoplismosData);
+      
+      // 3. Update filtered loans
+      const processedLoans = updatedDaneismoiData.map(processLoanData);
+      const filtered = filterLoansByStatus(processedLoans, loanStatusFilter);
+      setFilteredLoansData(filtered);
+      
+    } else {
+      // Regular non-grouped loan deletion (existing code)
       await api.delete(`/eksoplismos/daneismos/${id}`);
       
       // Αφαίρεση από τον πίνακα δανεισμών
@@ -1094,12 +1145,12 @@ const handleEditEquipment = async (editedEquipment) => {
       const processedLoans = updatedDaneismoiData.map(processLoanData);
       const filtered = filterLoansByStatus(processedLoans, loanStatusFilter);
       setFilteredLoansData(filtered);
-      
-    } catch (error) {
-      console.error("Σφάλμα κατά τη διαγραφή δανεισμού:", error);
-      alert("Σφάλμα κατά τη διαγραφή δανεισμού.");
     }
-  };
+  } catch (error) {
+    console.error("Σφάλμα κατά τη διαγραφή δανεισμού:", error);
+    alert("Σφάλμα κατά τη διαγραφή δανεισμού.");
+  }
+};
 
   // Διόρθωση του loanDetailPanelConfig για πιο άμεση προσπέλαση των στοιχείων
 
