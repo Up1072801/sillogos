@@ -586,4 +586,78 @@ router.delete("/daneismos/:id", async (req, res) => {
   }
 });
 
+// PUT: Ομαδική ενημέρωση δανεισμών με κοινό δανειστή και ημερομηνίες
+router.put("/daneismos-group/update", async (req, res) => {
+  try {
+    const { id_epafis, hmerominia_daneismou, hmerominia_epistrofis, katastasi_daneismou, equipment_ids } = req.body;
+    
+    if (!id_epafis || !Array.isArray(equipment_ids) || equipment_ids.length === 0) {
+      return res.status(400).json({ 
+        error: "Απαιτούνται: ID επαφής και τουλάχιστον ένα ID δανεισμού" 
+      });
+    }
+    
+    // Μετατροπή ημερομηνιών
+    let borrowDate = null;
+    let returnDate = null;
+    
+    if (hmerominia_daneismou) {
+      borrowDate = new Date(hmerominia_daneismou);
+    }
+    
+    if (hmerominia_epistrofis) {
+      returnDate = new Date(hmerominia_epistrofis);
+    }
+    
+    // Έλεγχος εγκυρότητας ημερομηνιών
+    if (borrowDate && returnDate && returnDate < borrowDate) {
+      return res.status(400).json({ 
+        error: "Η ημερομηνία επιστροφής δεν μπορεί να είναι πριν την ημερομηνία δανεισμού" 
+      });
+    }
+    
+    // Ενημέρωση όλων των δανεισμών
+    const updatedLoans = await prisma.$transaction(async (prismaTransaction) => {
+      const updates = [];
+      
+      // Μετατροπή των IDs σε αριθμούς
+      const loanIds = equipment_ids.map(id => {
+        const numId = parseInt(id);
+        return isNaN(numId) ? null : numId;
+      }).filter(id => id !== null);
+      
+      // Ενημέρωση κάθε δανεισμού
+      for (const loanId of loanIds) {
+        const updatedLoan = await prismaTransaction.daneizetai.update({
+          where: { id: loanId },
+          data: {
+            katastasi_daneismou: katastasi_daneismou,
+            hmerominia_epistrofis: returnDate || undefined
+          },
+          include: {
+            epafes: true,
+            eksoplismos: true
+          }
+        });
+        
+        updates.push(updatedLoan);
+      }
+      
+      return updates;
+    });
+    
+    res.json({
+      success: true,
+      message: `Ενημερώθηκαν ${updatedLoans.length} δανεισμοί`,
+      data: updatedLoans
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά την ομαδική ενημέρωση δανεισμών:", error);
+    res.status(500).json({ 
+      error: "Σφάλμα κατά την ομαδική ενημέρωση δανεισμών", 
+      details: error.message 
+    });
+  }
+});
+
 module.exports = router;

@@ -796,83 +796,82 @@ const handleAddLoan = async (newLoan) => {
 };
 
   // Βελτιωμένη έκδοση του handleEditLoan
+// Βελτιωμένη έκδοση του handleEditLoan
 const handleEditLoan = async (editedLoan) => {
   try {
     if (!editLoanData || !editLoanData.id) {
       throw new Error("Δεν υπάρχουν δεδομένα για επεξεργασία");
     }
-
-    // Χρησιμοποιούμε μόνο τα υπάρχοντα IDs από το editLoanData
-    const id_epafis = editLoanData.id_epafis;
-    const id_eksoplismou = editLoanData.id_eksoplismou;
     
-    if (!id_epafis || !id_eksoplismou) {
-      throw new Error("Λείπουν απαιτούμενα πεδία: Δανειζόμενος ή Εξοπλισμός");
+    // Έλεγχος αν είναι ομαδοποιημένος δανεισμός
+    const isGroupLoan = 
+      editLoanData.id.toString().startsWith('group_') || 
+      editLoanData.isGrouped || 
+      (editLoanData.equipment_items && editLoanData.equipment_items.length > 1);
+      
+    if (isGroupLoan) {
+      // Συλλογή όλων των IDs των δανεισμών στην ομάδα
+      const loanIds = editLoanData.equipment_items.map(item => item.id);
+      
+      // Κλήση του νέου endpoint για ομαδική ενημέρωση
+      const response = await api.put('/eksoplismos/daneismos-group/update', {
+        id_epafis: editLoanData.id_epafis,
+        hmerominia_daneismou: editedLoan.hmerominia_daneismou,
+        hmerominia_epistrofis: editedLoan.hmerominia_epistrofis,
+        katastasi_daneismou: editedLoan.katastasi_daneismou,
+        equipment_ids: loanIds
+      });
+      
+      // Ενημέρωση των τοπικών δεδομένων
+      const updatedLoans = response.data.data;
+      setDaneismoiData(prevDaneismoiData => {
+        return prevDaneismoiData.map(loan => {
+          if (loan.id === editLoanData.id) {
+            return {
+              ...loan,
+              hmerominia_daneismou: editedLoan.hmerominia_daneismou,
+              hmerominia_epistrofis: editedLoan.hmerominia_epistrofis,
+              katastasi_daneismou: editedLoan.katastasi_daneismou,
+              equipment_items: loan.equipment_items.map(item => ({
+                ...item,
+                katastasi_daneismou: editedLoan.katastasi_daneismou
+              }))
+            };
+          }
+          return loan;
+        });
+      });
+    } else {
+      // Υπάρχων κώδικας για μη ομαδοποιημένους δανεισμούς
+      const response = await api.put(`/eksoplismos/daneismos/${editLoanData.id}`, {
+        id_epafis: editLoanData.id_epafis,
+        id_eksoplismou: editLoanData.id_eksoplismou,
+        hmerominia_daneismou: editedLoan.hmerominia_daneismou,
+        hmerominia_epistrofis: editedLoan.hmerominia_epistrofis,
+        katastasi_daneismou: editedLoan.katastasi_daneismou,
+        quantity: editedLoan.quantity
+      });
+      
+      // Υπάρχων κώδικας ενημέρωσης τοπικών δεδομένων για μεμονωμένο δανεισμό
+      setDaneismoiData(prevData => 
+        prevData.map(item => item.id === editLoanData.id ? response.data : item)
+      );
     }
     
-    const formattedLoan = {
-      id_epafis: parseInt(id_epafis),
-      id_eksoplismou: parseInt(id_eksoplismou),
-      hmerominia_daneismou: editedLoan.hmerominia_daneismou || null,
-      hmerominia_epistrofis: editedLoan.hmerominia_epistrofis || null,
-      katastasi_daneismou: editedLoan.katastasi_daneismou,
-      quantity: parseInt(editedLoan.quantity) || 1 // Προσθήκη ποσότητας
-    };
+    // Κλείσιμο του dialog
+    setEditLoanDialogOpen(false);
+    setEditLoanData(null);
     
-    
-    const response = await api.put(`/eksoplismos/daneismos/${editLoanData.id}`, formattedLoan);
-    
-    // Βρίσκουμε τις πλήρεις λεπτομέρειες για την επαφή και τον εξοπλισμό (διατήρηση υπαρχόντων)
-    const borrower = contactsList.find(c => parseInt(c.id_epafis) === parseInt(id_epafis));
-    const equipment = eksoplismosData.find(e => parseInt(e.id_eksoplismou) === parseInt(id_eksoplismou));
-    
-    // Ενημέρωση του πίνακα δανεισμών
-    const updatedDaneismoiData = daneismoiData.map(item => 
-      item.id === editLoanData.id 
-        ? {
-            ...item,
-            hmerominia_daneismou: response.data.hmerominia_daneismou || editedLoan.hmerominia_daneismou,
-            hmerominia_epistrofis: response.data.hmerominia_epistrofis || editedLoan.hmerominia_epistrofis,
-            katastasi_daneismou: response.data.katastasi_daneismou || editedLoan.katastasi_daneismou
-          } 
-        : item
-    );
-    setDaneismoiData(updatedDaneismoiData);
-    
-    // Ενημέρωση των δανεισμών στον πίνακα εξοπλισμού
-    const updatedEksoplismosData = eksoplismosData.map(item => {
-      if (parseInt(item.id_eksoplismou) === parseInt(id_eksoplismou)) {
-        return {
-          ...item,
-          daneizetai: (item.daneizetai || []).map(d => 
-            d.id === editLoanData.id 
-              ? {
-                  ...d,
-                  hmerominia_daneismou: response.data.hmerominia_daneismou || editedLoan.hmerominia_daneismou,
-                  hmerominia_epistrofis: response.data.hmerominia_epistrofis || editedLoan.hmerominia_epistrofis,
-                  katastasi_daneismou: response.data.katastasi_daneismou || editedLoan.katastasi_daneismou
-                } 
-              : d
-          )
-        };
-      }
-      return item;
-    });
-    setEksoplismosData(updatedEksoplismosData);
-    
-    // Άμεση ενημέρωση των φιλτραρισμένων δεδομένων
-    const processedLoans = updatedDaneismoiData.map(processLoanData);
+    // Ανανέωση των φιλτραρισμένων δανεισμών
+    const processedLoans = daneismoiData.map(processLoanData);
     const filtered = filterLoansByStatus(processedLoans, loanStatusFilter);
     setFilteredLoansData(filtered);
     
-    setEditLoanDialogOpen(false);
-    setEditLoanData(null);
   } catch (error) {
     console.error("Σφάλμα κατά την επεξεργασία δανεισμού:", error);
-    alert("Σφάλμα κατά την επεξεργασία δανεισμού: " + error.message);
+    alert(`Σφάλμα κατά την επεξεργασία δανεισμού: ${error.message}`);
   }
 };
-
   // Βοηθητική συνάρτηση για μορφοποίηση ημερομηνίας (ώστε να είναι διαθέσιμη παντού)
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -886,44 +885,38 @@ const handleEditLoan = async (editedLoan) => {
   };
 
   // Τροποποιημένη συνάρτηση handleEditLoanClick που υποστηρίζει ομαδοποιημένα δάνεια
-  const handleEditLoanClick = (loan) => {
-    // Αν είναι ομαδοποιημένο δάνειο, επιλέγουμε το πρώτο είδος για επεξεργασία
-    if (loan.equipment_items && Array.isArray(loan.equipment_items) && loan.equipment_items.length > 0) {
-      // Εδώ θα μπορούσατε να προσθέσετε επιλογή για το ποιο είδος θα επεξεργτεί ο χρήστης
-      const selectedIndex = 0; // Προς το παρόν πάντα το πρώτο
-      const selectedItem = loan.equipment_items[selectedIndex];
-
-      const loanData = {
-        id: selectedItem.id,
-        id_epafis: loan.id_epafis?.toString() || "",
-        id_eksoplismou: selectedItem.id_eksoplismou?.toString() || "",
-        hmerominia_daneismou: formatDate(loan.hmerominia_daneismou),
-        hmerominia_epistrofis: formatDate(loan.hmerominia_epistrofis),
-        katastasi_daneismou: loan.katastasi_daneismou || "Σε εκκρεμότητα",
-        quantity: selectedItem.quantity || 1
-      };
-
-      setEditLoanData(loanData);
-      setEditLoanDialogOpen(true);
-    } else {
-      // Υφιστάμενος κώδικας για μη-ομαδοποιημένα δάνεια
-      const id_epafis = loan.id_epafis?.toString() || "";
-      const id_eksoplismou = loan.id_eksoplismou?.toString() || "";
-
-      const loanData = {
-        id: loan.id,
-        id_epafis: id_epafis,
-        id_eksoplismou: id_eksoplismou,
-        hmerominia_daneismou: formatDate(loan.hmerominia_daneismou),
-        hmerominia_epistrofis: formatDate(loan.hmerominia_epistrofis),
-        katastasi_daneismou: loan.katastasi_daneismou || "Σε εκκρεμότητα",
-        quantity: loan.quantity || 1
-      };
-
-      setEditLoanData(loanData);
-      setEditLoanDialogOpen(true);
-    }
-  };
+ // Τροποποιημένη συνάρτηση handleEditLoanClick που υποστηρίζει ομαδοποιημένα δάνεια
+const handleEditLoanClick = (loan) => {
+  // Προετοιμασία δεδομένων ανάλογα με το αν είναι ομαδοποιημένο δάνειο
+  const isGrouped = loan.id.toString().startsWith('group_') || loan.isGrouped || 
+                   (loan.equipment_items && loan.equipment_items.length > 1);
+  
+  // Για ομαδοποιημένους δανεισμούς
+  if (isGrouped) {
+    setEditLoanData({
+      ...loan,
+      id: loan.id,
+      id_epafis: loan.id_epafis,
+      isGrouped: true,
+      hmerominia_daneismou: loan.hmerominia_daneismou,
+      hmerominia_epistrofis: loan.hmerominia_epistrofis,
+      katastasi_daneismou: loan.katastasi_daneismou
+    });
+  } else {
+    // Για μεμονωμένους δανεισμούς
+    setEditLoanData({
+      id: loan.id,
+      id_epafis: loan.id_epafis,
+      id_eksoplismou: loan.id_eksoplismou,
+      hmerominia_daneismou: loan.hmerominia_daneismou,
+      hmerominia_epistrofis: loan.hmerominia_epistrofis,
+      katastasi_daneismou: loan.katastasi_daneismou,
+      quantity: loan.quantity
+    });
+  }
+  
+  setEditLoanDialogOpen(true);
+};
  
 
   // Βελτιωμένος χειριστής επεξεργασίας εξοπλισμού
