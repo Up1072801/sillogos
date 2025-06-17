@@ -29,6 +29,7 @@ router.get("/", async (_req, res) => {
         megethos: item.megethos || "",
         imerominiakataskeuis: item.hmerominia_kataskeuis,
         hmerominia_kataskeuis: item.hmerominia_kataskeuis,
+        quantity: item.quantity || 1, // Add this line to include the quantity field
         // Επεξεργασία των δανεισμών για κάθε εξοπλισμό
         daneizetai: (item.daneizetai || []).map(d => ({
           id: d.id,
@@ -40,8 +41,6 @@ router.get("/", async (_req, res) => {
         }))
       };
 
-      // Προσθήκη log για debugging
-      
       return serializedItem;
     });
 
@@ -89,7 +88,7 @@ router.get("/daneismoi", async (_req, res) => {
 // POST: Προσθήκη νέου εξοπλισμού
 router.post("/", async (req, res) => {
   try {
-    const { onoma, marka, xroma, megethos, hmerominia_kataskeuis } = req.body;
+    const { onoma, marka, xroma, megethos, hmerominia_kataskeuis, quantity } = req.body;
 
     // Έλεγχος αν τα απαραίτητα πεδία υπάρχουν
     if (!onoma) {
@@ -105,9 +104,12 @@ router.post("/", async (req, res) => {
         marka: marka || "",
         xroma: xroma || "",
         megethos: megethos || "",
-        hmerominia_kataskeuis: hmerominia_kataskeuis ? new Date(hmerominia_kataskeuis) : null
+        hmerominia_kataskeuis: hmerominia_kataskeuis ? new Date(hmerominia_kataskeuis) : null,
+        quantity: quantity ? parseInt(quantity) : 1
       }
     });
+
+    // Rest of the function remains the same
 
     // Επιστροφή με όλες τις πιθανές μορφές ID για συνέπεια
     res.status(201).json({
@@ -123,16 +125,56 @@ router.post("/", async (req, res) => {
 // POST: Προσθήκη νέου δανεισμού
 router.post("/daneismos", async (req, res) => {
   try {
-    const { id_epafis, id_eksoplismou, hmerominia_daneismou, hmerominia_epistrofis, katastasi_daneismou } = req.body;
+    const { id_epafis, id_eksoplismou, hmerominia_daneismou, hmerominia_epistrofis, katastasi_daneismou, quantity } = req.body;
 
-    // ΔΙΟΡΘΩΣΗ: Χρήση των id_epafis και id_eksoplismou απευθείας από το req.body
+    // Validate dates
+    if (hmerominia_daneismou && hmerominia_epistrofis) {
+      const borrowDate = new Date(hmerominia_daneismou);
+      const returnDate = new Date(hmerominia_epistrofis);
+      
+      if (returnDate < borrowDate) {
+        return res.status(400).json({ 
+          error: "Η ημερομηνία επιστροφής δεν μπορεί να είναι πριν την ημερομηνία δανεισμού" 
+        });
+      }
+    }
+    
+    // Check if equipment has enough quantity available
+    const equipment = await prisma.eksoplismos.findUnique({
+      where: { id_eksoplismou: parseInt(id_eksoplismou) },
+      include: { daneizetai: true }
+    });
+    
+    if (!equipment) {
+      return res.status(404).json({ error: "Ο εξοπλισμός δεν βρέθηκε" });
+    }
+    
+    // Calculate currently borrowed quantity
+    const borrowedItems = equipment.daneizetai.filter(loan => 
+      loan.katastasi_daneismou !== "Επιστράφηκε" && 
+      (!loan.hmerominia_epistrofis || new Date(loan.hmerominia_epistrofis) >= new Date())
+    );
+    
+    const borrowedQuantity = borrowedItems.reduce((total, loan) => total + (loan.quantity || 1), 0);
+    const availableQuantity = (equipment.quantity || 1) - borrowedQuantity;
+    
+    const requestedQuantity = quantity ? parseInt(quantity) : 1;
+    
+    if (requestedQuantity > availableQuantity) {
+      return res.status(400).json({ 
+        error: `Μη διαθέσιμη ποσότητα. Ζητήθηκαν ${requestedQuantity}, διαθέσιμα ${availableQuantity}` 
+      });
+    }
+
+    // Create the loan with quantity
     const newDaneismos = await prisma.daneizetai.create({
       data: {
         id_epafis: parseInt(id_epafis),
         id_eksoplismou: parseInt(id_eksoplismou),
         hmerominia_daneismou: hmerominia_daneismou ? new Date(hmerominia_daneismou) : new Date(),
         hmerominia_epistrofis: hmerominia_epistrofis ? new Date(hmerominia_epistrofis) : null,
-        katastasi_daneismou: katastasi_daneismou || "Σε εκκρεμότητα"
+        katastasi_daneismou: katastasi_daneismou || "Σε εκκρεμότητα",
+        quantity: requestedQuantity
       },
       include: {
         epafes: true,
@@ -186,7 +228,7 @@ router.put("/:id", async (req, res) => {
       return res.status(400).json({ error: "Μη έγκυρο ID εξοπλισμού" });
     }
     
-    const { onoma, marka, xroma, megethos, hmerominia_kataskeuis } = req.body;
+    const { onoma, marka, xroma, megethos, hmerominia_kataskeuis, quantity } = req.body;
 
     // Έλεγχος αν ο εξοπλισμός υπάρχει
     const existingEquipment = await prisma.eksoplismos.findUnique({
@@ -206,7 +248,8 @@ router.put("/:id", async (req, res) => {
         megethos: megethos || existingEquipment.megethos,
         hmerominia_kataskeuis: hmerominia_kataskeuis 
           ? new Date(hmerominia_kataskeuis) 
-          : existingEquipment.hmerominia_kataskeuis
+          : existingEquipment.hmerominia_kataskeuis,
+        quantity: quantity !== undefined ? parseInt(quantity) : existingEquipment.quantity
       },
       // Προσθήκη του include για τους δανεισμούς
       include: {
@@ -243,9 +286,21 @@ router.put("/:id", async (req, res) => {
 router.put("/daneismos/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { id_epafis, id_eksoplismou, hmerominia_daneismou, hmerominia_epistrofis, katastasi_daneismou } = req.body;
+    const { id_epafis, id_eksoplismou, hmerominia_daneismou, hmerominia_epistrofis, katastasi_daneismou, quantity } = req.body;
 
-    // Βρίσκουμε τον υπάρχοντα δανεισμό για να διατηρήσουμε τις τιμές που δεν αλλάζουν
+    // Validate dates
+    if (hmerominia_daneismou && hmerominia_epistrofis) {
+      const borrowDate = new Date(hmerominia_daneismou);
+      const returnDate = new Date(hmerominia_epistrofis);
+      
+      if (returnDate < borrowDate) {
+        return res.status(400).json({ 
+          error: "Η ημερομηνία επιστροφής δεν μπορεί να είναι πριν την ημερομηνία δανεισμού" 
+        });
+      }
+    }
+
+    // Find the existing loan
     const existingLoan = await prisma.daneizetai.findUnique({
       where: { id }
     });
@@ -254,7 +309,35 @@ router.put("/daneismos/:id", async (req, res) => {
       return res.status(404).json({ error: "Ο δανεισμός δεν βρέθηκε" });
     }
 
-    // ΔΙΟΡΘΩΣΗ: Χρήση των τιμών από το req.body αντί για αόριστες μεταβλητές
+    // If quantity is changing, check if enough is available
+    if (quantity && parseInt(quantity) !== (existingLoan.quantity || 1)) {
+      const equipment = await prisma.eksoplismos.findUnique({
+        where: { id_eksoplismou: id_eksoplismou ? parseInt(id_eksoplismou) : existingLoan.id_eksoplismou },
+        include: { daneizetai: true }
+      });
+      
+      if (!equipment) {
+        return res.status(404).json({ error: "Ο εξοπλισμός δεν βρέθηκε" });
+      }
+      
+      const borrowedItems = equipment.daneizetai.filter(loan => 
+        loan.id !== id && // Exclude current loan
+        loan.katastasi_daneismou !== "Επιστράφηκε" && 
+        (!loan.hmerominia_epistrofis || new Date(loan.hmerominia_epistrofis) >= new Date())
+      );
+      
+      const borrowedQuantity = borrowedItems.reduce((total, loan) => total + (loan.quantity || 1), 0);
+      const availableQuantity = (equipment.quantity || 1) - borrowedQuantity;
+      const requestedQuantity = parseInt(quantity);
+      
+      if (requestedQuantity > availableQuantity) {
+        return res.status(400).json({ 
+          error: `Μη διαθέσιμη ποσότητα. Ζητήθηκαν ${requestedQuantity}, διαθέσιμα ${availableQuantity}` 
+        });
+      }
+    }
+
+    // Update the loan
     const updatedDaneismos = await prisma.daneizetai.update({
       where: { id },
       data: {
@@ -262,7 +345,8 @@ router.put("/daneismos/:id", async (req, res) => {
         id_eksoplismou: id_eksoplismou ? parseInt(id_eksoplismou) : existingLoan.id_eksoplismou,
         hmerominia_daneismou: hmerominia_daneismou ? new Date(hmerominia_daneismou) : existingLoan.hmerominia_daneismou,
         hmerominia_epistrofis: hmerominia_epistrofis ? new Date(hmerominia_epistrofis) : existingLoan.hmerominia_epistrofis,
-        katastasi_daneismou: katastasi_daneismou || existingLoan.katastasi_daneismou
+        katastasi_daneismou: katastasi_daneismou || existingLoan.katastasi_daneismou,
+        quantity: quantity ? parseInt(quantity) : (existingLoan.quantity || 1)
       },
       include: {
         epafes: true,
@@ -304,7 +388,7 @@ router.put("/daneismos/:id", async (req, res) => {
     });
   } catch (error) {
     console.error("Σφάλμα κατά την ενημέρωση δανεισμού:", error);
-    res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση δανεισμού" });
+    res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση δανεισμού", details: error.message });
   }
 });
 

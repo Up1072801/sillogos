@@ -15,7 +15,7 @@ const columns = [
   { accessorKey: "marka", header: "Μάρκα" },
   { accessorKey: "xroma", header: "Χρώμα" },
   { accessorKey: "megethos", header: "Μέγεθος" },
-  { 
+   { 
     accessorKey: "hmerominia_kataskeuis", 
     header: "Ημερομηνία Κατασκευής", 
     enableHiding: true,
@@ -28,6 +28,15 @@ const columns = [
       }) : "-";
     }
   },
+  { 
+    accessorKey: "quantity", 
+    header: "Ποσότητα",
+    Cell: ({ cell }) => {
+      const value = cell.getValue();
+      return value || 1; // Προεπιλεγμένη τιμή 1 αν δεν έχει οριστεί
+    }
+  },
+ 
 ];
 
 // Στήλες για τον πίνακα δανεισμών
@@ -148,10 +157,27 @@ const equipmentFormFields = [
     header: "Μέγεθος" 
   },
   { 
-    accessorKey: "hmerominia_kataskeuis", 
-    header: "Ημ/νία Κατασκευής", 
-    type: "date" 
+    accessorKey: "quantity", 
+    header: "Συνολική Ποσότητα", 
+    type: "number",
+    defaultValue: 1,
+    validation: yup.number()
+      .min(1, "Η ποσότητα πρέπει να είναι τουλάχιστον 1")
+      .required("Η ποσότητα είναι υποχρεωτική")
+  },
+{ 
+  accessorKey: "hmerominia_kataskeuis", 
+  header: "Ημερομηνία Κατασκευής", 
+  enableHiding: true,  // Βεβαιωθείτε ότι υπάρχει αυτή η γραμμή
+  Cell: ({ cell }) => {
+    const value = cell.getValue();
+    return value ? new Date(value).toLocaleDateString('el-GR', { 
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }) : "-";
   }
+}
 ];
 
 // Βελτιωμένη έκδοση των πεδίων φόρμας δανεισμού
@@ -194,6 +220,15 @@ const loanFormFields = [
     header: "Ημερομηνία Επιστροφής", 
     type: "date",
     validation: yup.date().nullable()
+  },
+  { 
+    accessorKey: "quantity", 
+    header: "Ποσότητα", 
+    type: "number",
+    defaultValue: 1,
+    validation: yup.number()
+      .min(1, "Η ποσότητα πρέπει να είναι τουλάχιστον 1")
+      .required("Η ποσότητα είναι υποχρεωτική")
   },
   { 
     accessorKey: "katastasi_daneismou", 
@@ -530,8 +565,10 @@ const handleAddLoan = async (newLoan) => {
     const formattedLoan = {
       id_epafis: parseInt(id_epafis),
       id_eksoplismou: parseInt(id_eksoplismou),
-      hmerominia_daneismou: newLoan.hmerominia_daneismou || new Date().toISOString().split('T')[0],
-      hmerominia_epistrofis: newLoan.hmerominia_epistrofis || null // Διασφάλιση ότι είναι null όταν δεν υπάρχει
+      hmerominia_daneismou: newLoan.hmerominia_daneismou,
+      hmerominia_epistrofis: newLoan.hmerominia_epistrofis || null,
+      katastasi_daneismou: newLoan.katastasi_daneismou || "Σε εκκρεμότητα",
+      quantity: parseInt(newLoan.quantity) || 1 // Προσθήκη ποσότητας
     };
     
     
@@ -627,7 +664,8 @@ const handleEditLoan = async (editedLoan) => {
       id_eksoplismou: parseInt(id_eksoplismou),
       hmerominia_daneismou: editedLoan.hmerominia_daneismou || null,
       hmerominia_epistrofis: editedLoan.hmerominia_epistrofis || null,
-      katastasi_daneismou: editedLoan.katastasi_daneismou // Προσθήκη της κατάστασης στα δεδομένα που αποστέλλονται
+      katastasi_daneismou: editedLoan.katastasi_daneismou,
+      quantity: parseInt(editedLoan.quantity) || 1 // Προσθήκη ποσότητας
     };
     
     
@@ -744,12 +782,13 @@ const handleEditEquipmentClick = (equipment) => {
   
   setEditEquipmentData({
     id: equipmentId,
-    id_eksoplismou: equipmentId, // Αποθηκεύουμε το ID και στα δύο πεδία για συμβατότητα
+    id_eksoplismou: equipmentId, 
     onoma: equipment.onoma || "",
     marka: equipment.marka || "",
     xroma: equipment.xroma || "",
     megethos: equipment.megethos || "",
-    hmerominia_kataskeuis: formatDate(equipment.hmerominia_kataskeuis)
+    hmerominia_kataskeuis: formatDate(equipment.hmerominia_kataskeuis),
+    quantity: equipment.quantity || 1 // Add this line
   });
   
   setEditEquipmentDialogOpen(true);
@@ -914,6 +953,11 @@ const loanDetailPanelConfig = {
         month: '2-digit',
         year: 'numeric'
       }) : '-' 
+    },
+    {
+      accessor: "quantity",
+      header: "Ποσότητα",
+      format: (value) => value || 1
     }
   ],
   tables: [
@@ -960,6 +1004,7 @@ const loanDetailPanelConfig = {
             marka: row.eksoplismos.marka || '-',
             xroma: row.eksoplismos.xroma || '-',
             megethos: row.eksoplismos.megethos || '-',
+            quantity: row.eksoplismos.quantity || 1,  // Προσθήκη ποσότητας
             hmerominia_kataskeuis: row.eksoplismos.hmerominia_kataskeuis
           }];
         }
@@ -1100,7 +1145,7 @@ const updateAvailableEquipment = () => {
             initialState={{
               columnVisibility: {
                 id: false,
-                imerominiakataskeuis: false,
+      hmerominia_kataskeuis: false, // Añade esta línea para ocultar la columna inicialmente
               },
             }}
             state={{ isLoading: loading }}
@@ -1235,7 +1280,6 @@ const updateAvailableEquipment = () => {
               fullName: `${contact.onoma || ''} ${contact.epitheto || ''}`.trim()
             })),
             equipmentList: eksoplismosData.map(equipment => ({
-              ...equipment,
               // Βελτιωμένος έλεγχος διαθεσιμότητας εξοπλισμού
               isAvailable: !(equipment.daneizetai || []).some(loan => {
                 // Έλεγχος με βάση την κατάσταση δανεισμού

@@ -163,7 +163,8 @@ model eksoplismos {
   hmerominia_kataskeuis DateTime?
   megethos              String?
   marka                 String?
-
+  quantity              Int       @default(1) // New quantity field
+  
   daneizetai daneizetai[]
 
   @@map("Eksoplismos")
@@ -262,7 +263,8 @@ model daneizetai {
   id_eksoplismou        Int
   hmerominia_daneismou  DateTime?
   hmerominia_epistrofis DateTime?
-  katastasi_daneismou   String?   // Νέο πεδίο για την κατάσταση δανεισμού
+  katastasi_daneismou   String?
+  quantity              Int       @default(1) // New quantity field
 
   epafes      epafes      @relation(fields: [id_epafis], references: [id_epafis], onDelete: Cascade)
   eksoplismos eksoplismos @relation(fields: [id_eksoplismou], references: [id_eksoplismou], onDelete: Cascade)

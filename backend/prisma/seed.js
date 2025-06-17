@@ -34,60 +34,65 @@ await prisma.katafigio.create({
   }
 });
 
-
-  // 4. Δημιουργία Εξοπλισμού
-  await prisma.eksoplismos.createMany({
-    data: [
-      {
-        id_eksoplismou: 1,
-        onoma: "Αναρριχητικό σχοινί",
-        xroma: "Μπλε",
-        hmerominia_kataskeuis: new Date("2022-01-15"),
-        megethos: "50m",
-        marka: "Petzl"
-      },
-      {
-        id_eksoplismou: 2,
-        onoma: "Σακίδιο",
-        xroma: "Κόκκινο",
-        hmerominia_kataskeuis: new Date("2023-03-20"),
-        megethos: "30L",
-        marka: "Deuter"
-      },
-      {
-        id_eksoplismou: 3,
-        onoma: "Παγοθραυστικό",
-        xroma: "Ασημί",
-        hmerominia_kataskeuis: new Date("2024-07-10"),
-        megethos: "70cm",
-        marka: "Black Diamond"
-      },
-      {
-        id_eksoplismou: 4,
-        onoma: "Μάσκα Καταδύσεων",
-        xroma: "Μαύρο",
-        hmerominia_kataskeuis: new Date("2023-11-01"),
-        megethos: "Standard",
-        marka: "Cressi"
-      },
-      {
-        id_eksoplismou: 5,
-        onoma: "Ποδήλατο",
-        xroma: "Πράσινο",
-        hmerominia_kataskeuis: new Date("2022-09-15"),
-        megethos: "Medium",
-        marka: "Giant"
-      },
-      {
-        id_eksoplismou: 6,
-        onoma: "Σαπούνι",
-        xroma: "Διαφανές",
-        hmerominia_kataskeuis: new Date("2023-02-10"),
-        megethos: "100g",
-        marka: "Nivea"
-      }
-    ]
-  });
+// Updated eksoplismos creation with quantity field
+await prisma.eksoplismos.createMany({
+  data: [
+    {
+      id_eksoplismou: 1,
+      onoma: "Αναρριχητικό σχοινί",
+      xroma: "Μπλε",
+      hmerominia_kataskeuis: new Date("2022-01-15"),
+      megethos: "50m",
+      marka: "Petzl",
+      quantity: 5 // Added quantity: Organization has 5 climbing ropes
+    },
+    {
+      id_eksoplismou: 2,
+      onoma: "Σακίδιο",
+      xroma: "Κόκκινο",
+      hmerominia_kataskeuis: new Date("2023-03-20"),
+      megethos: "30L",
+      marka: "Deuter",
+      quantity: 10 // Added quantity: Organization has 10 backpacks
+    },
+    {
+      id_eksoplismou: 3,
+      onoma: "Παγοθραυστικό",
+      xroma: "Ασημί",
+      hmerominia_kataskeuis: new Date("2024-07-10"),
+      megethos: "70cm",
+      marka: "Black Diamond",
+      quantity: 3 // Added quantity: Organization has 3 ice axes
+    },
+    {
+      id_eksoplismou: 4,
+      onoma: "Μάσκα Καταδύσεων",
+      xroma: "Μαύρο",
+      hmerominia_kataskeuis: new Date("2023-11-01"),
+      megethos: "Standard",
+      marka: "Cressi",
+      quantity: 8 // Added quantity: Organization has 8 diving masks
+    },
+    {
+      id_eksoplismou: 5,
+      onoma: "Ποδήλατο",
+      xroma: "Πράσινο",
+      hmerominia_kataskeuis: new Date("2022-09-15"),
+      megethos: "Medium",
+      marka: "Giant",
+      quantity: 4 // Added quantity: Organization has 4 bicycles
+    },
+    {
+      id_eksoplismou: 6,
+      onoma: "Σαπούνι",
+      xroma: "Διαφανές",
+      hmerominia_kataskeuis: new Date("2023-02-10"),
+      megethos: "100g",
+      marka: "Nivea",
+      quantity: 20 // Added quantity: Organization has 20 soap bars
+    }
+  ]
+});
 
   // 5. Δημιουργία Αθλημάτων
   await prisma.athlima.createMany({
@@ -787,18 +792,81 @@ await prisma.drastiriotita.createMany({
     ]
   });
 
-  // 3. Δανεισμοί Εξοπλισμού
+ // Updated daneizetai creation with quantity field
 await prisma.daneizetai.createMany({
   data: [
-    { id_epafis: 7, id_eksoplismou: 1, hmerominia_daneismou: new Date("2024-01-22"), hmerominia_epistrofis: new Date("2024-01-30"), katastasi_daneismou: "Επιστράφηκε" },
-    { id_epafis: 8, id_eksoplismou: 1, hmerominia_daneismou: new Date("2024-02-01"), hmerominia_epistrofis: new Date("2024-02-05"), katastasi_daneismou: "Επιστράφηκε" },
-    { id_epafis: 9, id_eksoplismou: 2, hmerominia_daneismou: new Date("2024-02-12"), hmerominia_epistrofis: new Date("2024-02-20"), katastasi_daneismou: "Επιστράφηκε" },
-    { id_epafis: 10, id_eksoplismou: 3, hmerominia_daneismou: new Date("2024-04-01"), hmerominia_epistrofis: new Date("2024-04-07"), katastasi_daneismou: "Επιστράφηκε" },
-    { id_epafis: 11, id_eksoplismou: 3, hmerominia_daneismou: new Date("2024-04-10"), hmerominia_epistrofis: new Date("2024-04-15"), katastasi_daneismou: "Επιστράφηκε" },
-    { id_epafis: 12, id_eksoplismou: 4, hmerominia_daneismou: new Date("2024-02-01"), hmerominia_epistrofis: new Date("2024-02-05"), katastasi_daneismou: "Επιστράφηκε" },
-    { id_epafis: 13, id_eksoplismou: 5, hmerominia_daneismou: new Date("2024-03-20"), hmerominia_epistrofis: new Date("2024-03-30"), katastasi_daneismou: "Επιστράφηκε" },
-    { id_epafis: 14, id_eksoplismou: 5, hmerominia_daneismou: new Date("2024-04-01"), hmerominia_epistrofis: null, katastasi_daneismou: "Σε εκκρεμότητα" },
-    { id_epafis: 15, id_eksoplismou: 6, hmerominia_daneismou: new Date("2024-03-20"), hmerominia_epistrofis: new Date("2024-03-25"), katastasi_daneismou: "Επιστράφηκε" }
+    { 
+      id_epafis: 7, 
+      id_eksoplismou: 1, 
+      hmerominia_daneismou: new Date("2024-01-22"), 
+      hmerominia_epistrofis: new Date("2024-01-30"), 
+      katastasi_daneismou: "Επιστράφηκε",
+      quantity: 1 // Borrowed 1 climbing rope
+    },
+    { 
+      id_epafis: 8, 
+      id_eksoplismou: 1, 
+      hmerominia_daneismou: new Date("2024-02-01"), 
+      hmerominia_epistrofis: new Date("2024-02-05"), 
+      katastasi_daneismou: "Επιστράφηκε",
+      quantity: 2 // Borrowed 2 climbing ropes 
+    },
+    { 
+      id_epafis: 9, 
+      id_eksoplismou: 2, 
+      hmerominia_daneismou: new Date("2024-02-12"), 
+      hmerominia_epistrofis: new Date("2024-02-20"), 
+      katastasi_daneismou: "Επιστράφηκε",
+      quantity: 3 // Borrowed 3 backpacks
+    },
+    { 
+      id_epafis: 10, 
+      id_eksoplismou: 3, 
+      hmerominia_daneismou: new Date("2024-04-01"), 
+      hmerominia_epistrofis: new Date("2024-04-07"), 
+      katastasi_daneismou: "Επιστράφηκε",
+      quantity: 1 // Borrowed 1 ice axe
+    },
+    { 
+      id_epafis: 11, 
+      id_eksoplismou: 3, 
+      hmerominia_daneismou: new Date("2024-04-10"), 
+      hmerominia_epistrofis: new Date("2024-04-15"), 
+      katastasi_daneismou: "Επιστράφηκε",
+      quantity: 1 // Borrowed 1 ice axe
+    },
+    { 
+      id_epafis: 12, 
+      id_eksoplismou: 4, 
+      hmerominia_daneismou: new Date("2024-02-01"), 
+      hmerominia_epistrofis: new Date("2024-02-05"), 
+      katastasi_daneismou: "Επιστράφηκε",
+      quantity: 2 // Borrowed 2 diving masks
+    },
+    { 
+      id_epafis: 13, 
+      id_eksoplismou: 5, 
+      hmerominia_daneismou: new Date("2024-03-20"), 
+      hmerominia_epistrofis: new Date("2024-03-30"), 
+      katastasi_daneismou: "Επιστράφηκε",
+      quantity: 1 // Borrowed 1 bicycle
+    },
+    { 
+      id_epafis: 14, 
+      id_eksoplismou: 5, 
+      hmerominia_daneismou: new Date("2024-04-01"), 
+      hmerominia_epistrofis: null, 
+      katastasi_daneismou: "Σε εκκρεμότητα",
+      quantity: 1 // Currently borrowing 1 bicycle
+    },
+    { 
+      id_epafis: 15, 
+      id_eksoplismou: 6, 
+      hmerominia_daneismou: new Date("2024-03-20"), 
+      hmerominia_epistrofis: new Date("2024-03-25"), 
+      katastasi_daneismou: "Επιστράφηκε",
+      quantity: 5 // Borrowed 5 soap bars
+    }
   ]
 });
 
