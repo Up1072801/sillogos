@@ -450,9 +450,8 @@ const DataTable = React.memo(({
         // Αν έχουμε πολλές στήλες, προσαρμόζουμε τα πλάτη
         if (visibleColumns.length > 8) {
           // Προσαρμοσμένα πλάτη για καλύτερη κατανομή στο χώρο
-          const totalWidth = 530; // Περίπου το διαθέσιμο πλάτος σε points στη σελίδα landscape
+          const totalWidth = 700; // Fixed width for landscape page
           const avgWidth = Math.floor(totalWidth / visibleColumns.length);
-          
           return Array(visibleColumns.length).fill(avgWidth);
         }
         // Διαφορετικά χρησιμοποιούμε auto πλάτος
