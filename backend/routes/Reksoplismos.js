@@ -62,21 +62,65 @@ router.get("/daneismoi", async (_req, res) => {
       }
     });
 
-    // Διαμόρφωση απάντησης με πλήρη δεδομένα
-    const formattedDaneismoi = daneismoi.map(daneismos => ({
-      id: daneismos.id,
-      id_epafis: daneismos.id_epafis,
-      id_eksoplismou: daneismos.id_eksoplismou,
-      hmerominia_daneismou: daneismos.hmerominia_daneismou,
-      hmerominia_epistrofis: daneismos.hmerominia_epistrofis,
-      katastasi_daneismou: daneismos.katastasi_daneismou || "Σε εκκρεμότητα",
-      borrowerName: daneismos.epafes ? 
-        `${daneismos.epafes.onoma || ''} ${daneismos.epafes.epitheto || ''}`.trim() : 
-        "Άγνωστο",
-      equipmentName: daneismos.eksoplismos?.onoma || "Άγνωστο",
-      epafes: daneismos.epafes,
-      eksoplismos: daneismos.eksoplismos
-    }));
+    // Group loans by borrower and date
+    const groupedLoans = {};
+    
+    daneismoi.forEach(loan => {
+      // Create a unique key using borrower ID and loan date
+      const loanDate = loan.hmerominia_daneismou ? 
+        new Date(loan.hmerominia_daneismou).toISOString().split('T')[0] : 'nodate';
+      const returnDate = loan.hmerominia_epistrofis ? 
+        new Date(loan.hmerominia_epistrofis).toISOString().split('T')[0] : 'nodate';
+      const status = loan.katastasi_daneismou || 'Σε εκκρεμότητα';
+      
+      // Create a key that groups by borrower, loan date, return date, and status
+      const key = `${loan.id_epafis}_${loanDate}_${returnDate}_${status}`;
+      
+      if (!groupedLoans[key]) {
+        // Create a new grouped loan entry
+        groupedLoans[key] = {
+          id: `group_${key}`,
+          id_epafis: loan.id_epafis,
+          hmerominia_daneismou: loan.hmerominia_daneismou,
+          hmerominia_epistrofis: loan.hmerominia_epistrofis,
+          katastasi_daneismou: status,
+          borrowerName: loan.epafes ? 
+            `${loan.epafes.onoma || ''} ${loan.epafes.epitheto || ''}`.trim() : 
+            "Άγνωστο",
+          isGrouped: true,
+          equipment_items: [{
+            id: loan.id,
+            id_eksoplismou: loan.id_eksoplismou,
+            equipmentName: loan.eksoplismos?.onoma || "Άγνωστο",
+            quantity: loan.quantity || 1,
+            eksoplismos: loan.eksoplismos
+          }],
+          epafes: loan.epafes
+        };
+      } else {
+        // Add this item to the existing group
+        groupedLoans[key].equipment_items.push({
+          id: loan.id,
+          id_eksoplismou: loan.id_eksoplismou,
+          equipmentName: loan.eksoplismos?.onoma || "Άγνωστο",
+          quantity: loan.quantity || 1,
+          eksoplismos: loan.eksoplismos
+        });
+      }
+    });
+
+    // Convert the grouped loans object to an array
+    const formattedDaneismoi = Object.values(groupedLoans).map(loan => {
+      // Create a summary of equipment for display
+      const equipmentSummary = loan.equipment_items.map(item => 
+        `${item.equipmentName} (${item.quantity})`
+      ).join(", ");
+      
+      return {
+        ...loan,
+        equipmentName: equipmentSummary
+      };
+    });
 
     res.json(formattedDaneismoi);
   } catch (error) {
