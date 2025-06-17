@@ -5,9 +5,13 @@ import * as yup from "yup";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import api from '../utils/api';
 import AddDialog from "../components/DataTable/AddDialog";
+import { 
+  Dialog, DialogTitle, DialogContent, DialogActions 
+} from "@mui/material";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import el from 'date-fns/locale/el';
+import MultiLoanForm from '../components/MultiLoanForm';
 
 // Στήλες για τον πίνακα εξοπλισμού
 const columns = [
@@ -383,6 +387,60 @@ const processedLoans = daneismoiResponse.data.map(item => {
   fetchData();
 }, []);
 
+// Add this function to your Eksoplismos component
+const handleAddMultiLoan = async (responseData) => {
+  try {
+    // Process the response that contains multiple loans
+    const { data: newLoans } = responseData;
+    
+    // Add the new loans to the state
+    setDaneismoiData(prevData => [...prevData, ...newLoans.map(processLoanData)]);
+    
+    // Update the equipment data to reflect the new loans
+    setEksoplismosData(prevData => {
+      return prevData.map(equipment => {
+        // Find any loans for this equipment
+        const equipmentLoans = newLoans.filter(
+          loan => parseInt(loan.id_eksoplismou) === parseInt(equipment.id_eksoplismou)
+        );
+        
+        if (equipmentLoans.length > 0) {
+          // Add the new loans to this equipment's daneizetai array
+          return {
+            ...equipment,
+            daneizetai: [
+              ...(equipment.daneizetai || []),
+              ...equipmentLoans.map(loan => ({
+                id: loan.id,
+                id_epafis: loan.id_epafis,
+                id_eksoplismou: loan.id_eksoplismou,
+                hmerominia_daneismou: loan.hmerominia_daneismou,
+                hmerominia_epistrofis: loan.hmerominia_epistrofis,
+                katastasi_daneismou: loan.katastasi_daneismou,
+                borrowerName: loan.borrowerName,
+                quantity: loan.quantity
+              }))
+            ]
+          };
+        }
+        return equipment;
+      });
+    });
+    
+    // Update filtered loans if you're using filtering
+    if (typeof filterLoansByStatus === 'function') {
+      const processedLoans = [...daneismoiData, ...newLoans.map(processLoanData)];
+      const filtered = filterLoansByStatus(processedLoans, loanStatusFilter);
+      setFilteredLoansData(filtered);
+    }
+    
+    // Close the dialog
+    setAddLoanDialogOpen(false);
+  } catch (error) {
+    console.error("Error adding multiple loans:", error);
+    alert("Σφάλμα κατά την προσθήκη πολλαπλών δανεισμών");
+  }
+};
 // Προσθήκη συνάρτησης μετά το useEffect για ενίσχυση των δεδομένων δανεισμού
 const enhanceLoanData = async () => {
   if (daneismoiData.length === 0 || contactsList.length === 0 || eksoplismosData.length === 0) return;
@@ -1100,32 +1158,29 @@ const handleOpenAddLoanDialog = () => {
   setAddLoanDialogOpen(true);
 };
 
-// Νέα συνάρτηση για ενημέρωση διαθέσιμου εξοπλισμού
+// Replace the existing updateAvailableEquipment function// Replace your existing updateAvailableEquipment function with this one
+
 const updateAvailableEquipment = () => {
-  // Εκτελείται όποτε χρειάζεται να ενημερωθεί η λίστα διαθέσιμου εξοπλισμού
-  const today = new Date();
-  const availableEquipment = eksoplismosData.filter(equipment => {
-    // Έλεγχος αν ο εξοπλισμός είναι διαθέσιμος
-    return !(equipment.daneizetai || []).some(loan => {
-      // Έλεγχος με βάση την κατάσταση δανεισμού
-      if (loan.katastasi_daneismou === "Επιστράφηκε") {
-        return false; // Διαθέσιμος αν έχει επιστραφεί
-      }
-      
-      // Έλεγχος για ενεργούς ή εκπρόθεσμους δανεισμούς
-      const returnDate = loan.hmerominia_epistrofis ? new Date(loan.hmerominia_epistrofis) : null;
-      
-      // Ο εξοπλισμός δεν είναι διαθέσιμος αν:
-      // - Δεν έχει ημερομηνία επιστροφής ΚΑΙ είναι "Σε εκκρεμότητα" ή "Εκπρόθεσμο"
-      // - Ή έχει ημερομηνία επιστροφής που είναι στο μέλλον
-      return (!returnDate && 
-              (loan.katastasi_daneismou === "Σε εκκρεμότητα" || 
-               loan.katastasi_daneismou === "Εκπρόθεσμο")) || 
-             (returnDate && returnDate >= today);
-    });
-  });
+  if (!Array.isArray(eksoplismosData)) {
+    return [];
+  }
   
-  setAvailableEquipment(availableEquipment);
+  // Return array of equipment items that have available quantity
+  return eksoplismosData.filter(equipment => {
+    if (!equipment) return false;
+    
+    // Calculate currently borrowed quantity
+    const borrowedItems = (equipment.daneizetai || []).filter(loan => 
+      loan.katastasi_daneismou !== "Επιστράφηκε" && 
+      (!loan.hmerominia_epistrofis || new Date(loan.hmerominia_epistrofis) >= new Date())
+    );
+    
+    const totalQuantity = equipment.quantity || 1;
+    const borrowedQuantity = borrowedItems.reduce((total, loan) => total + (loan.quantity || 1), 0);
+    const availableQuantity = totalQuantity - borrowedQuantity;
+    
+    return availableQuantity > 0;
+  });
 };
 
   return (
@@ -1268,40 +1323,30 @@ const updateAvailableEquipment = () => {
           title="Προσθήκη Νέου Εξοπλισμού"
         />
 
-        <AddDialog
+        <Dialog
           open={addLoanDialogOpen}
           onClose={() => setAddLoanDialogOpen(false)}
-          handleAddSave={handleAddLoan}
-          title="Προσθήκη Νέου Δανεισμού"
-          fields={loanFormFields}
-          resourceData={{
-            contactsList: contactsList.map(contact => ({
-              ...contact,
-              fullName: `${contact.onoma || ''} ${contact.epitheto || ''}`.trim()
-            })),
-            equipmentList: eksoplismosData.map(equipment => ({
-              // Βελτιωμένος έλεγχος διαθεσιμότητας εξοπλισμού
-              isAvailable: !(equipment.daneizetai || []).some(loan => {
-                // Έλεγχος με βάση την κατάσταση δανεισμού
-                if (loan.katastasi_daneismou === "Επιστράφηκε") {
-                  return false; // Διαθέσιμος αν έχει επιστραφεί
-                }
-                
-                // Έλεγχος για ενεργούς ή εκπρόθεσμους δανεισμούς
-                const today = new Date();
-                const returnDate = loan.hmerominia_epistrofis ? new Date(loan.hmerominia_epistrofis) : null;
-                
-                // Ο εξοπλισμός δεν είναι διαθέσιμος αν:
-                // - Δεν έχει ημερομηνία επιστροφής ΚΑΙ είναι "Σε εκκρεμότητα" ή "Εκπρόθεσμο"
-                // - Ή έχει ημερομηνία επιστροφής που είναι στο μέλλον
-                return (!returnDate && 
-                        (loan.katastasi_daneismou === "Σε εκκρεμότητα" || 
-                         loan.katastasi_daneismou === "Εκπρόθεσμο")) || 
-                       (returnDate && returnDate >= today);
-              })
-            })).filter(equipment => equipment.isAvailable) // Φιλτράρισμα διαθέσιμου εξοπλισμού
-          }}
-        />
+          fullWidth
+          maxWidth="md"
+        >
+          <DialogTitle>Προσθήκη Νέου Δανεισμού</DialogTitle>
+          <DialogContent>
+            <MultiLoanForm
+              contactsList={contactsList.map(contact => ({
+                ...contact,
+                fullName: `${contact.onoma || ''} ${contact.epitheto || ''}`.trim()
+              }))}
+              availableEquipment={eksoplismosData.map(equipment => ({
+                ...equipment,
+                isAvailable: updateAvailableEquipment().some(
+                  avail => parseInt(avail.id_eksoplismou) === parseInt(equipment.id_eksoplismou)
+                )
+              }))}
+              onSuccess={handleAddMultiLoan}
+              onCancel={() => setAddLoanDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
 
         <AddDialog
           open={editLoanDialogOpen}
