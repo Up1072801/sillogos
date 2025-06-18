@@ -32,7 +32,6 @@ model epafes {
 
   @@map("Epafes")
 }
-
 model melos {
   id_melous            Int               @id @map("id_epafis")
   tipo_melous          String
@@ -43,6 +42,7 @@ model melos {
   plironei             plironei[]
   parakolouthisi       parakolouthisi[]
   katavalei            katavalei[]
+  sxolia               String?           // New field for comments
 
   // Νέα σχέση με βαθμό δυσκολίας
   id_vathmou_diskolias Int

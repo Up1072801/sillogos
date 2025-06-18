@@ -4,7 +4,6 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { el } from "date-fns/locale";
 import api from '../utils/api';
-import { Box, Typography, Button } from "@mui/material";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
@@ -142,7 +141,7 @@ const detailPanelConfig = {
       accessor: "subscriptionEndDate",
       header: "Ημερομηνία Λήξης",
       shouldRender: (row) => !row.athlitis
-    }
+    },
   ],
   tables: [
     {
@@ -328,10 +327,113 @@ const detailPanelConfig = {
       getData: (row) => row.ypefthinos_se || [],
       noRowHover: true,
       noRowClick: true
-    }
+    },
+
   ],
+  customSections: [
+    {
+      title: "Σχόλια",
+      order: 3, // This will place it after "Υπεύθυνος Δραστηριοτήτων"
+      render: (row) => (
+        <InlineCommentsEditor 
+          comments={row.melos?.sxolia || ""} 
+          onSave={(newComments) => handleSaveComments(row.id_es_melous, newComments)}
+        />
+      )
+    }
+  ]
 };
 
+// Add this component to melitousillogou.js
+import { Box, Typography, TextField, IconButton } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+
+const InlineCommentsEditor = ({ comments, onSave }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [commentText, setCommentText] = useState(comments || "");
+  
+  const handleSave = () => {
+    onSave(commentText);
+    setIsEditing(false);
+  };
+  
+  return (
+    <Box sx={{ mt: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6" component="h3">Σχόλια</Typography>
+        {!isEditing ? (
+          <IconButton 
+            size="small" 
+            onClick={() => setIsEditing(true)} 
+            sx={{ ml: 1 }}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+        ) : (
+          <IconButton 
+            size="small" 
+            color="primary"
+            onClick={handleSave} 
+            sx={{ ml: 1 }}
+          >
+            <SaveIcon fontSize="small" />
+          </IconButton>
+        )}
+      </Box>
+      
+      {isEditing ? (
+        <TextField
+          fullWidth
+          multiline
+          minRows={3}
+          maxRows={10}
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          variant="outlined"
+          placeholder="Εισάγετε σχόλια..."
+          autoFocus
+          sx={{ backgroundColor: '#f9f9f9' }}
+        />
+      ) : (
+        <Box 
+          sx={{ 
+            p: 2, 
+            border: '1px solid #e0e0e0', 
+            borderRadius: '4px', 
+            backgroundColor: '#f5f5f5',
+            minHeight: '60px',
+            whiteSpace: 'pre-wrap'
+          }}
+        >
+          {commentText || "Δεν υπάρχουν σχόλια"}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+// Add this function to your Meloi component
+const handleSaveComments = async (memberId, newComments) => {
+  try {
+    // Make API call to update comments
+    await api.put(`/melitousillogou/${memberId}`, {
+      melos: {
+        sxolia: newComments
+      }
+    });
+    
+    // Update local state
+    setData(prevData => prevData.map(member => 
+      member.id_es_melous === memberId 
+        ? { ...member, melos: { ...member.melos, sxolia: newComments } }
+        : member
+    ));
+  } catch (error) {
+    console.error("Σφάλμα κατά την αποθήκευση σχολίων:", error);
+    alert("Σφάλμα κατά την αποθήκευση σχολίων. Παρακαλώ δοκιμάστε ξανά.");
+  }
+};
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
 const calculateSubscriptionEndDate = (registrationDateStr, paymentDateStr) => {
@@ -650,7 +752,7 @@ export default function Meloi() {
               subscriptionEndDate: calculateSubscriptionEndDate(registrationDate, paymentDate),
               
               // Διατηρώ τη λίστα των δραστηριοτήτων όπου το μέλος είναι υπεύθυνος
-              ypefthynos_eksormisis: member.ypefthynos_eksormisis || []
+              ypefthinos_eksormisis: member.ypefthynos_eksormisis || []
             };
           })
         );
@@ -691,15 +793,16 @@ export default function Meloi() {
       // Προσαρμοσμένα δεδομένα για το backend
       const requestData = {
         epafes: {
-          onoma: newRow.onoma,
-          epitheto: newRow.epitheto,
+          onoma: newRow.onoma || "",
+          epitheto: newRow.epitheto || "",
           email: newRow.email || "",
           tilefono: newRow.tilefono || "",
         },
         melos: {
           tipo_melous: "esoteriko",
+          sxolia: updatedRow.sxolia || "",
           vathmos_diskolias: {
-            id_vathmou_diskolias: difficultyId // Απευθείας χρήση του ID
+            id_vathmou_diskolias: difficultyId
           }
         },
         esoteriko_melos: {
@@ -765,6 +868,73 @@ export default function Meloi() {
     }
   };
 
+  // Add this new component to your file
+const InlineCommentsEditor = ({ comments, onSave }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [commentText, setCommentText] = useState(comments || "");
+  
+  const handleSave = () => {
+    onSave(commentText);
+    setIsEditing(false);
+  };
+  
+  return (
+    <Box sx={{ mt: 3, mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6" component="h3">Σχόλια</Typography>
+        {!isEditing ? (
+          <IconButton 
+            size="small" 
+            onClick={() => setIsEditing(true)} 
+            sx={{ ml: 1 }}
+            aria-label="Επεξεργασία σχολίων"
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+        ) : (
+          <IconButton 
+            size="small" 
+            color="primary"
+            onClick={handleSave} 
+            sx={{ ml: 1 }}
+            aria-label="Αποθήκευση σχολίων"
+          >
+            <SaveIcon fontSize="small" />
+          </IconButton>
+        )}
+      </Box>
+      
+      {isEditing ? (
+        <TextField
+          fullWidth
+          multiline
+          minRows={3}
+          maxRows={10}
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          variant="outlined"
+          placeholder="Εισάγετε σχόλια..."
+          autoFocus
+          sx={{ backgroundColor: '#f9f9f9' }}
+        />
+      ) : (
+        <Box 
+          sx={{ 
+            p: 2, 
+            border: '1px solid #e0e0e0', 
+            borderRadius: '4px', 
+            backgroundColor: '#f5f5f5',
+            minHeight: '60px',
+            whiteSpace: 'pre-wrap'
+          }}
+        >
+          {commentText || "Δεν υπάρχουν σχόλια"}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
   const handleEditClick = (row) => {
     // Έλεγχος αν το μέλος είναι αθλητής
     const isAthlete = Boolean(row.athlitis);
@@ -781,6 +951,7 @@ export default function Meloi() {
       odos: row.odos || "",
       tk: row.tk || "",
       arithmos_mitroou: row.arithmos_mitroou || "",
+      sxolia: row.melos?.sxolia || "",  // Extract sxolia directly for the form
       // Αποθηκεύουμε την πληροφορία αν είναι αθλητής
       isAthlete: isAthlete,
       
@@ -853,6 +1024,11 @@ export default function Meloi() {
         tilefono: updatedRow.tilefono,
         epipedo: updatedRow.epipedo,
         
+        // Προσθήκη του πεδίου sxolia στη σωστή δομή
+        melos: {
+          sxolia: updatedRow.sxolia || ""
+        },
+        
         // Στοιχεία εσωτερικού μέλους
         hmerominia_gennhshs: formattedBirthDate,
         patronimo: updatedRow.patronimo,
@@ -874,50 +1050,11 @@ export default function Meloi() {
       // Ενημέρωση των τοπικών δεδομένων
       setData(prevData => 
         prevData.map(item => 
-          item.id === id ? {
-            ...item,
-            ...response.data,
-            // Ενημέρωση και των επιπλέον πεδίων
-            fullName: `${updatedRow.epitheto || ""} ${updatedRow.onoma || ""}`.trim(),
-            // Προσθέστε αυτή τη γραμμή για να ενημερώσετε το status για το UI
-            status: !isAthlete ? newStatus : "Αθλητής",
-            melos: {
-              ...item.melos,
-              epafes: {
-                ...item.melos?.epafes,
-                onoma: updatedRow.onoma,
-                epitheto: updatedRow.epitheto,
-                email: updatedRow.email,
-                tilefono: updatedRow.tilefono,
-              },
-              vathmos_diskolias: updatedRow.epipedo ? {
-                id_vathmou_diskolias: parseInt(updatedRow.epipedo),
-                epipedo: difficultyLevels.find(level => level.id_vathmou_diskolias === parseInt(updatedRow.epipedo))?.epipedo || item.melos?.vathmos_diskolias?.epipedo
-              } : item.melos?.vathmos_diskolias,
-            },
-            eidosSindromis: updatedRow.eidosSindromis,
-            sindromitis: {
-              ...item.sindromitis,
-              katastasi_sindromis: newStatus, // Χρησιμοποιούμε τη νέα υπολογισμένη κατάσταση
-              exei: [{
-                ...item.sindromitis?.exei?.[0],
-                hmerominia_pliromis: formattedPaymentDate,
-                sindromi: {
-                  ...item.sindromitis?.exei?.[0]?.sindromi,
-                  hmerominia_enarksis: formattedStartDate,
-                  eidos_sindromis: updatedRow.eidosSindromis
-                }
-              }]
-            },
-            hmerominia_gennhshs: formattedBirthDate,
-            hmerominia_egrafis: formattedStartDate,
-            hmerominia_pliromis: formattedPaymentDate,
-            // Ενημερωμένος υπολογισμός ημερομηνίας λήξης
-            subscriptionEndDate: calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate)
-          } : item
+          item.id === id || item.id_es_melous === id ? 
+          { ...item, ...response.data } : item
         )
       );
-
+      
       setOpenEditDialog(false);
     } catch (error) {
       console.error("Σφάλμα ενημέρωσης:", error);
@@ -1052,6 +1189,12 @@ export default function Meloi() {
   })),
   defaultValue: difficultyLevels.find(level => level.id_vathmou_diskolias === 1)?.id_vathmou_diskolias || difficultyLevels[0]?.id_vathmou_diskolias || 1,
   validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1")
+},
+{ 
+  accessorKey: "sxolia", 
+  header: "Σχόλια", 
+  type: "textarea",
+  validation: yup.string()
 }
     ];
   }, [difficultyLevels, subscriptionTypes, subscriptionStatuses]);
@@ -1489,6 +1632,12 @@ const parseDate = (dateValue) => {
     label: `Βαθμός ${level.epipedo}` 
   })),
   validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1") 
+},
+{ 
+  accessorKey: "sxolia", 
+  header: "Σχόλια", 
+  type: "textarea",
+  validation: yup.string()
 }
           ]}
         />

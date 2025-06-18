@@ -37,7 +37,8 @@ const detailPanelConfig = {
     { accessor: "phone", header: "Τηλέφωνο" },
     { accessor: "arithmosmitroou", header: "Αριθμός Μητρώου" },
     { accessor: "onomasillogou", header: "Όνομα Συλλόγου" },
-    { accessor: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" }
+    { accessor: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" },
+        { accessor: "melos.sxolia", header: "Σχόλια" }
   ],
   tables: [
     {
@@ -250,6 +251,7 @@ export default function MeliAllwn() {
         },
         melos: {
           tipo_melous: "eksoteriko",
+          sxolia: newRow.sxolia || "", // Add the comments field here
           vathmos_diskolias: {
             id_vathmou_diskolias: selectedDifficultyLevel ? selectedDifficultyLevel.id_vathmou_diskolias : 1,
           },
@@ -296,7 +298,8 @@ export default function MeliAllwn() {
       phone: row.phone || row.melos?.epafes?.tilefono || "",
       vathmos_diskolias: difficultyId,
       arithmosmitroou: row.arithmosmitroou || row.arithmos_mitroou || "",
-      onomasillogou: row.onomasillogou || row.onoma_sillogou || ""
+      onomasillogou: row.onomasillogou || row.onoma_sillogou || "",
+      sxolia: row.melos?.sxolia || "" // Add this line for comments
     };
     
     setEditValues(editData);
@@ -320,6 +323,7 @@ export default function MeliAllwn() {
         },
         melos: {
           tipo_melous: "eksoteriko",
+          sxolia: updatedRow.sxolia || "", // Add the comments field here
           vathmos_diskolias: {
             id_vathmou_diskolias: selectedDifficultyLevel ? selectedDifficultyLevel.id_vathmou_diskolias : 1,
           },
@@ -441,6 +445,12 @@ export default function MeliAllwn() {
       { 
         accessorKey: "onomasillogou", 
         header: "Όνομα Συλλόγου", 
+        validation: yup.string()
+      },
+      { 
+        accessorKey: "sxolia", 
+        header: "Σχόλια", 
+        type: "textarea",
         validation: yup.string()
       }
     ];

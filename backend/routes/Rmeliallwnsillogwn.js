@@ -223,6 +223,7 @@ router.post("/", async (req, res) => {
         data: {
           id_melous: newEpafi.id_epafis,
           tipo_melous: "eksoteriko",
+          sxolia: melos?.sxolia || "", // Comments field is correctly handled
           id_vathmou_diskolias: vathmosId,
         }
       });
@@ -303,7 +304,7 @@ router.post("/", async (req, res) => {
 // PUT: Ενημέρωση μέλους άλλου συλλόγου
 router.put("/:id", async (req, res) => {
   try {
-    const { epafes, eksoteriko_melos } = req.body;
+    const { epafes, melos, eksoteriko_melos } = req.body;
     const id = parseInt(req.params.id);
 
     if (isNaN(id)) {
@@ -362,6 +363,16 @@ router.put("/:id", async (req, res) => {
                  ? parseInt(eksoteriko_melos.arithmos_mitroou) 
                  : null)
               : currentMember.arithmos_mitroou,
+          }
+        });
+      }
+
+      // Update melos if needed including comments
+      if (melos?.sxolia !== undefined) {
+        await prismaTransaction.melos.update({
+          where: { id_melous: id },
+          data: {
+            sxolia: melos.sxolia
           }
         });
       }

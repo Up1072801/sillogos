@@ -441,6 +441,26 @@ const EditDialog = ({
           }
         });
         
+      case 'textarea':
+        return (
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            maxRows={6}
+            id={field.accessorKey}
+            name={field.accessorKey}
+            label={field.header}
+            value={formik.values[field.accessorKey] || ''}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey])}
+            helperText={formik.touched[field.accessorKey] && formik.errors[field.accessorKey]}
+            margin="normal"
+            disabled={field.disabled}
+          />
+        );
+        
       default:
         return (
           <div style={{ position: "relative" }}>

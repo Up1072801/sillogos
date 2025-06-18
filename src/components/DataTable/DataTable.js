@@ -3,9 +3,10 @@ import { MaterialReactTable } from "material-react-table";
 import { 
   Box, Button, Typography, Grid, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent, 
-  DialogActions, FormGroup, FormControlLabel, Checkbox, Divider, Alert 
+  DialogActions, FormGroup, FormControlLabel, Checkbox, Divider, Alert,
+  Card, CardContent // Added for better comment display
 } from "@mui/material";
-import { Add, FileDownload, Edit, Delete, KeyboardArrowUp as KeyboardArrowUpIcon, KeyboardArrowDown as KeyboardArrowDownIcon } from "@mui/icons-material";
+import { Add, FileDownload, Edit, Delete, KeyboardArrowUp as KeyboardArrowUpIcon, KeyboardArrowDown as KeyboardArrowDownIcon, Comment as CommentIcon } from "@mui/icons-material";
 import ExportMenu from "./ExportMenu";
 import ActionsCell from "./ActionsCell";
 import * as XLSX from "xlsx";
@@ -78,7 +79,7 @@ const DataTable = React.memo(({
     return (
       <Box sx={{ p: 3, backgroundColor: '#fafafa' }}>
         <Grid container spacing={3}>
-          {/* Main Details Section - Κάθετη διάταξη για εξοικονόμηση χώρου */}
+          {/* Main Details Section */}
           <Grid item xs={12} md={4}>
             <Box sx={{ mb: 3 }}>
               <Typography variant="h6" component="div" gutterBottom>Στοιχεία</Typography>
@@ -128,25 +129,25 @@ const DataTable = React.memo(({
             </Box>
           </Grid>
 
-          {/* Tables Section - Περισσότερος χώρος για τον πίνακα αγώνων */}
+          {/* Tables Section */}
           <Grid item xs={12} md={8}>
+            {/* Render tables first */}
             {detailPanelConfig?.tables?.map((tableConfig, tableIndex) => {
               let tableData = [];
               
               try {
-                // Πρώτα ελέγχουμε αν υπάρχει getData συνάρτηση
+                // Get table data
                 if (typeof tableConfig.getData === 'function') {
                   tableData = tableConfig.getData(row.original) || [];
                 } 
-                // Αν δεν επιστράφηκαν δεδομένα και υπάρχει accessor, δοκιμάζουμε να πάρουμε τα δεδομένα μέσω accessor
                 else if (tableConfig.accessor && tableData.length === 0) {
-                  // Υποστηρίζει και nested accessors με dots (π.χ. "user.address.city")
                   const nestedData = tableConfig.accessor.split('.').reduce((o, i) => o?.[i], row.original);
                   tableData = Array.isArray(nestedData) ? nestedData : [];
                 }
                 
                 return (
-                  <Box key={`table-${tableIndex}`} sx={{ mb: 4 }}>
+                  <Box key={`table-${tableIndex}`} sx={{ mb: 3 }}>
+                    {/* Table content */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6" component="div">{tableConfig.title}</Typography>
                       {tableConfig.onAddNew && (
@@ -156,11 +157,12 @@ const DataTable = React.memo(({
                           startIcon={<Add />}
                           onClick={() => tableConfig.onAddNew(item.id, item.athlima)}
                         >
-                          ΠΡΟΣΘΗΚΗ ΝΕΟΥ
+                          {tableConfig.addNewButtonLabel || "ΠΡΟΣΘΗΚΗ ΝΕΟΥ"}
                         </Button>
                       )}
                     </Box>
 
+                    {/* Table rendering */}
                     {tableData.length === 0 ? (
                       <Typography variant="body2" component="div">Δεν υπάρχουν δεδομένα</Typography>
                     ) : (
@@ -301,6 +303,33 @@ const DataTable = React.memo(({
                 );
               }
             })}
+            
+            {/* Comments Section - Now placed after tables */}
+            {item.melos?.sxolia && (
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" component="div" gutterBottom>Σχόλια</Typography>
+                {item.melos.sxolia ? (
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'rgba(0, 0, 0, 0.04)',
+                      borderRadius: 1,
+                      whiteSpace: 'pre-wrap', 
+                      maxHeight: '180px', 
+                      overflowY: 'auto',
+                      lineHeight: 1.6
+                    }}
+                  >
+                    {item.melos.sxolia}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Δεν υπάρχουν δεδομένα
+                  </Typography>
+                )}
+              </Box>
+            )}
           </Grid>
         </Grid>
       </Box>

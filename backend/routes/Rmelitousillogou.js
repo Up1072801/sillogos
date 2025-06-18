@@ -173,7 +173,9 @@ router.get("/", async (_req, res) => {
             ...member.melos.epafes,
             tilefono: member.melos.epafes.tilefono?.toString()
           } : null,
-          simmetoxi: member.melos.simmetoxi || []
+          simmetoxi: member.melos.simmetoxi || [],
+          sxolia: member.melos.sxolia // Ensure comments are explicitly included
+
         } : null,
         eidosSindromis: member.athlitis
           ? "Αθλητής"
@@ -226,6 +228,7 @@ router.post("/", async (req, res) => {
       const newMelos = await prismaTransaction.melos.create({
         data: {
           tipo_melous: melos?.tipo_melous || "esoteriko",
+          sxolia: melos?.sxolia || "", // Add the comments field
           epafes: {
             connect: { id_epafis: newEpafi.id_epafis }
           },
@@ -353,7 +356,7 @@ router.put("/:id", async (req, res) => {
     // Αποσυμπίεση των δεδομένων του request (στο σωστό format)
     const { 
       hmerominia_gennhshs, patronimo, arithmos_mitroou, odos, tk,
-      onoma, epitheto, email, tilefono, epipedo,
+      onoma, epitheto, email, tilefono, epipedo, sxolia,
       katastasi_sindromis, hmerominia_enarksis, hmerominia_pliromis, eidosSindromis
     } = req.body;
     
@@ -421,7 +424,7 @@ router.put("/:id", async (req, res) => {
     }
     
     // Προσθήκη update για τις επαφές, αν έχουν δοθεί αντίστοιχα πεδία
-    if (onoma || epitheto || email || tilefono) {
+    if (onoma || epitheto || email || tilefono || req.body.melos?.sxolia) {
       updateData.melos = {
         update: {
           epafes: {
@@ -431,7 +434,9 @@ router.put("/:id", async (req, res) => {
               email: email || undefined,
               tilefono: tilefono ? BigInt(tilefono) : undefined
             }
-          }
+          },
+          // Add this line to update the comments
+          sxolia: req.body.melos?.sxolia || undefined
         }
       };
     }
