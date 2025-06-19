@@ -232,8 +232,9 @@ export default function Eksormiseis() {
     { accessorKey: "titlos", header: "Τίτλος", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "proorismos", header: "Προορισμός", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Η τιμή δεν μπορεί να είναι αρνητική") },
-    { accessorKey: "hmerominia_anaxorisis", header: "Ημερομηνία Αναχώρησης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") },
-    { accessorKey: "hmerominia_afiksis", header: "Ημερομηνία Άφιξης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") }
+    { accessorKey: "hmerominia_afiksis", header: "Ημερομηνία Άφιξης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") },
+     { accessorKey: "hmerominia_anaxorisis", header: "Ημερομηνία Αναχώρησης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") }
+
   ], []);
   
   // Στήλες πίνακα
@@ -268,21 +269,23 @@ export default function Eksormiseis() {
       size: 200, // Give title more space
       Cell: ({ row }) => row.original.titlos || "-"
     },
-    { 
-      accessorKey: "hmerominia_anaxorisis", 
-      header: "Ημ. Αναχώρησης",
-      size: 120, // Standard size for dates
-      Cell: ({ row }) => {
-        const value = row.original.hmerominia_anaxorisis;
-        return value ? new Date(value).toLocaleDateString('el-GR') : "-";
-      }
-    },
+   
+    
     { 
       accessorKey: "hmerominia_afiksis", 
       header: "Ημ. Άφιξης",
       size: 120, // Standard size for dates
       Cell: ({ row }) => {
         const value = row.original.hmerominia_afiksis;
+        return value ? new Date(value).toLocaleDateString('el-GR') : "-";
+      }
+    },
+     { 
+      accessorKey: "hmerominia_anaxorisis", 
+      header: "Ημ. Αναχώρησης",
+      size: 120, // Standard size for dates
+      Cell: ({ row }) => {
+        const value = row.original.hmerominia_anaxorisis;
         return value ? new Date(value).toLocaleDateString('el-GR') : "-";
       }
     },
@@ -478,15 +481,16 @@ export default function Eksormiseis() {
     mainDetails: [
       { accessor: "titlos", header: "Τίτλος" },
       { accessor: "proorismos", header: "Προορισμός" },
-      { 
-        accessor: "hmerominia_anaxorisis", 
-        header: "Ημερομηνία Αναχώρησης",
-        format: (value) => value && !isNaN(new Date(value).getTime()) ? 
-          new Date(value).toLocaleDateString('el-GR') : '-'
-      },
+    
       { 
         accessor: "hmerominia_afiksis", 
         header: "Ημερομηνία Άφιξης",
+        format: (value) => value && !isNaN(new Date(value).getTime()) ? 
+          new Date(value).toLocaleDateString('el-GR') : '-'
+      },
+        { 
+        accessor: "hmerominia_anaxorisis", 
+        header: "Ημερομηνία Αναχώρησης",
         format: (value) => value && !isNaN(new Date(value).getTime()) ? 
           new Date(value).toLocaleDateString('el-GR') : '-'
       },

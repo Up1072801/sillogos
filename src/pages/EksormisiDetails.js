@@ -2297,16 +2297,17 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                             <Typography variant="subtitle2" color="text.secondary">Προορισμός</Typography>
                             <Typography variant="body1">{eksormisi.proorismos || '-'}</Typography>
                           </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <Typography variant="subtitle2" color="text.secondary">Ημερομηνία Αναχώρησης</Typography>
-                            <Typography variant="body1">
-                              {eksormisi.hmerominia_anaxorisis ? formatDateGR(eksormisi.hmerominia_anaxorisis) : '-'}
-                            </Typography>
-                          </Grid>
+                         
                           <Grid item xs={12} sm={6}>
                             <Typography variant="subtitle2" color="text.secondary">Ημερομηνία Άφιξης</Typography>
                             <Typography variant="body1">
                               {eksormisi.hmerominia_afiksis ? formatDateGR(eksormisi.hmerominia_afiksis) : '-'}
+                            </Typography>
+                          </Grid>
+                           <Grid item xs={12} sm={6}>
+                            <Typography variant="subtitle2" color="text.secondary">Ημερομηνία Αναχώρησης</Typography>
+                            <Typography variant="body1">
+                              {eksormisi.hmerominia_anaxorisis ? formatDateGR(eksormisi.hmerominia_anaxorisis) : '-'}
                             </Typography>
                           </Grid>
                         </Grid>
@@ -2328,7 +2329,7 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                           <Typography variant="subtitle2" color="text.secondary">Ημέρες Διάρκειας</Typography>
                           <Typography variant="body1">
                             {eksormisi.hmerominia_anaxorisis && eksormisi.hmerominia_afiksis ? 
-                              Math.ceil((new Date(eksormisi.hmerominia_afiksis) - new Date(eksormisi.hmerominia_anaxorisis)) / (1000 * 60 * 60 * 24)) + 1 
+                              Math.ceil(( new Date(eksormisi.hmerominia_anaxorisis) - new Date(eksormisi.hmerominia_afiksis) ) / (1000 * 60 * 60 * 24)) + 1 
                               : '-'}
                           </Typography>
                         </Box>
@@ -2507,8 +2508,9 @@ const updateParticipantActivityLists = (deletedActivityId) => {
               { accessorKey: "titlos", header: "Τίτλος", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
               { accessorKey: "proorismos", header: "Προορισμός", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
               { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Η τιμή δεν μπορεί να είναι αρνητική") },
-              { accessorKey: "hmerominia_anaxorisis", header: "Ημερομηνία Αναχώρησης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") },
-              { accessorKey: "hmerominia_afiksis", header: "Ημερομηνία Άφιξης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") }
+                            { accessorKey: "hmerominia_afiksis", header: "Ημερομηνία Άφιξης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") },
+
+              { accessorKey: "hmerominia_anaxorisis", header: "Ημερομηνία Αναχώρησης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") }
             ]}
           />
         )}
