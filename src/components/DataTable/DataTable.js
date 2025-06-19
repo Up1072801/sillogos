@@ -304,8 +304,15 @@ const DataTable = React.memo(({
               }
             })}
             
-            {/* Comments Section - Now placed after tables */}
-            {item.melos?.sxolia && (
+            {/* Render custom sections */}
+            {detailPanelConfig?.customSections?.map((section, index) => (
+              <Box key={`custom-section-${index}`} sx={{ mt: 3 }}>
+                {section.render ? section.render(item) : null}
+              </Box>
+            ))}
+            
+            {/* Comments Section - Fallback if no customSections defined */}
+            {!detailPanelConfig?.customSections && item.melos?.sxolia && (
               <Box sx={{ mt: 3 }}>
                 <Typography variant="h6" component="div" gutterBottom>Σχόλια</Typography>
                 {item.melos.sxolia ? (

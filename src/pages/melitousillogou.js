@@ -335,10 +335,21 @@ const detailPanelConfig = {
       title: "Σχόλια",
       order: 3, // This will place it after "Υπεύθυνος Δραστηριοτήτων"
       render: (row) => (
-        <InlineCommentsEditor 
-          comments={row.melos?.sxolia || ""} 
-          onSave={(newComments) => handleSaveComments(row.id_es_melous, newComments)}
-        />
+        <Box sx={{ mt: 2, mb: 3 }}>
+          <Typography variant="h6" component="h3" gutterBottom>Σχόλια</Typography>
+          <Box 
+            sx={{ 
+              p: 2, 
+              border: '1px solid #e0e0e0', 
+              borderRadius: '4px', 
+              backgroundColor: '#f5f5f5',
+              minHeight: '60px',
+              whiteSpace: 'pre-wrap'
+            }}
+          >
+            {row.melos?.sxolia || "Δεν υπάρχουν σχόλια"}
+          </Box>
+        </Box>
       )
     }
   ]
@@ -413,7 +424,7 @@ const InlineCommentsEditor = ({ comments, onSave }) => {
   );
 };
 
-// Add this function to your Meloi component
+// Move this function inside the component
 const handleSaveComments = async (memberId, newComments) => {
   try {
     // Make API call to update comments
@@ -423,17 +434,16 @@ const handleSaveComments = async (memberId, newComments) => {
       }
     });
     
-    // Update local state
+    // Now setData is accessible
     setData(prevData => prevData.map(member => 
       member.id_es_melous === memberId 
         ? { ...member, melos: { ...member.melos, sxolia: newComments } }
         : member
     ));
   } catch (error) {
-    console.error("Σφάλμα κατά την αποθήκευση σχολίων:", error);
-    alert("Σφάλμα κατά την αποθήκευση σχολίων. Παρακαλώ δοκιμάστε ξανά.");
   }
 };
+
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
 const calculateSubscriptionEndDate = (registrationDateStr, paymentDateStr) => {
@@ -869,72 +879,6 @@ export default function Meloi() {
   };
 
   // Add this new component to your file
-const InlineCommentsEditor = ({ comments, onSave }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [commentText, setCommentText] = useState(comments || "");
-  
-  const handleSave = () => {
-    onSave(commentText);
-    setIsEditing(false);
-  };
-  
-  return (
-    <Box sx={{ mt: 3, mb: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <Typography variant="h6" component="h3">Σχόλια</Typography>
-        {!isEditing ? (
-          <IconButton 
-            size="small" 
-            onClick={() => setIsEditing(true)} 
-            sx={{ ml: 1 }}
-            aria-label="Επεξεργασία σχολίων"
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-        ) : (
-          <IconButton 
-            size="small" 
-            color="primary"
-            onClick={handleSave} 
-            sx={{ ml: 1 }}
-            aria-label="Αποθήκευση σχολίων"
-          >
-            <SaveIcon fontSize="small" />
-          </IconButton>
-        )}
-      </Box>
-      
-      {isEditing ? (
-        <TextField
-          fullWidth
-          multiline
-          minRows={3}
-          maxRows={10}
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          variant="outlined"
-          placeholder="Εισάγετε σχόλια..."
-          autoFocus
-          sx={{ backgroundColor: '#f9f9f9' }}
-        />
-      ) : (
-        <Box 
-          sx={{ 
-            p: 2, 
-            border: '1px solid #e0e0e0', 
-            borderRadius: '4px', 
-            backgroundColor: '#f5f5f5',
-            minHeight: '60px',
-            whiteSpace: 'pre-wrap'
-          }}
-        >
-          {commentText || "Δεν υπάρχουν σχόλια"}
-        </Box>
-      )}
-    </Box>
-  );
-};
-
   const handleEditClick = (row) => {
     // Έλεγχος αν το μέλος είναι αθλητής
     const isAthlete = Boolean(row.athlitis);

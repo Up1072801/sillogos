@@ -4,10 +4,12 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { el } from "date-fns/locale";
 import api from '../utils/api';
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, TextField, IconButton } from '@mui/material';
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
 import * as yup from "yup";
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
 
 // Ορισμός των στηλών του πίνακα
 const columns = [
@@ -27,163 +29,6 @@ const columns = [
   { accessorKey: "onomasillogou", header: "Όνομα Συλλόγου" },
   { accessorKey: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" }
 ];
-
-// Διαμόρφωση του detail panel
-const detailPanelConfig = {
-  mainDetails: [
-    { accessor: "firstName", header: "Όνομα" },
-    { accessor: "lastName", header: "Επώνυμο" },
-    { accessor: "email", header: "Email" },
-    { accessor: "phone", header: "Τηλέφωνο" },
-    { accessor: "arithmosmitroou", header: "Αριθμός Μητρώου" },
-    { accessor: "onomasillogou", header: "Όνομα Συλλόγου" },
-    { accessor: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" },
-        { accessor: "melos.sxolia", header: "Σχόλια" }
-  ],
-  tables: [
-    {
-      title: "Δραστηριότητες",
-      accessor: "melos.simmetoxi",
-      columns: [
-        {
-          accessor: "eksormisi.titlos",
-          header: "Τίτλος Εξόρμησης",
-          Cell: ({ row }) => {
-            const eksormisiId = row.original.eksormisi?.id_eksormisis;
-            const titlos = row.original.eksormisi?.titlos || "-";
-            return eksormisiId ? (
-              <a
-                href={`/eksormisi/${eksormisiId}`}
-                style={{ color: "#1976d2", textDecoration: "underline", cursor: "pointer" }}
-                onClick={e => { e.stopPropagation(); }}
-              >
-                {titlos}
-              </a>
-            ) : titlos;
-          }
-        },
-        { 
-          accessor: "drastiriotita.titlos", 
-          header: "Τίτλος Δραστηριότητας",
-          Cell: ({ row }) => row.original.drastiriotita?.titlos || "-" 
-        },
-        { 
-          accessor: "drastiriotita.vathmos_diskolias.epipedo", 
-          header: "ΒΔ",
-          Cell: ({ row }) => row.original.drastiriotita?.vathmos_diskolias?.epipedo || "-" 
-        },
-        {
-          accessor: "drastiriotita.hmerominia",
-          header: "Ημερομηνία",
-          Cell: ({ row }) => {
-            const dateValue = row.original.drastiriotita?.hmerominia;
-            if (!dateValue) return "-";
-            
-            try {
-              // Check if the value is already a formatted string (contains /)
-              if (typeof dateValue === 'string' && dateValue.includes('/')) {
-                // Parse the Greek formatted date (D/M/YYYY or DD/MM/YYYY)
-                const parts = dateValue.split('/');
-                if (parts.length === 3) {
-                  // Ensure day and month are always two digits
-                  const day = String(parseInt(parts[0])).padStart(2, '0');
-                  const month = String(parseInt(parts[1])).padStart(2, '0');
-                  const year = parts[2];
-                  
-                  return `${day}/${month}/${year}`;
-                }
-                return dateValue; // Return as-is if we can't parse it
-              }
-              
-              // If it's not already formatted, treat it as a raw date
-              const date = new Date(dateValue);
-              if (isNaN(date.getTime())) return "-";
-              
-              // Explicitly format as DD/MM/YYYY
-              const day = String(date.getDate()).padStart(2, '0');
-              const month = String(date.getMonth() + 1).padStart(2, '0');
-              const year = date.getFullYear();
-              
-              return `${day}/${month}/${year}`;
-            } catch (e) {
-              console.error("Σφάλμα μορφοποίησης ημερομηνίας:", e, dateValue);
-              return "-";
-            }
-          }
-        }
-      ],
-      getData: (row) => {
-        // Get all active participations
-        const simmetoxes = (row.melos?.simmetoxi || []).filter(item => item.katastasi === "Ενεργή");
-        
-        // Flatten the structure to create one row per activity
-        const activities = [];
-        
-        simmetoxes.forEach(simmetoxi => {
-          if (simmetoxi.simmetoxi_drastiriotites && simmetoxi.simmetoxi_drastiriotites.length > 0) {
-            // Create a row for each activity in this participation
-            simmetoxi.simmetoxi_drastiriotites.forEach(rel => {
-              if (rel.drastiriotita) {
-                activities.push({
-                  id_simmetoxis: simmetoxi.id_simmetoxis,
-                  eksormisi: simmetoxi.eksormisi,
-                  drastiriotita: rel.drastiriotita
-                });
-              }
-            });
-          } else if (simmetoxi.drastiriotita) {
-            // Backward compatibility for old data structure
-            activities.push({
-              id_simmetoxis: simmetoxi.id_simmetoxis,
-              eksormisi: simmetoxi.eksormisi,
-              drastiriotita: simmetoxi.drastiriotita
-            });
-          }
-        });
-        
-        return activities;
-      },
-      noRowHover: true,
-      noRowClick: true
-    },
-    {
-      title: "Σχολές",
-      accessor: "melos.parakolouthisi",
-      columns: [
-        {
-          accessor: "sxoli.titlos",
-          header: "Τίτλος Σχολής",
-          Cell: ({ row }) => {
-            const sxoli = row.original.sxoli;
-            if (!sxoli) return "-";
-            const sxoliId = sxoli.id_sxolis;
-            const onomaSxolis = [
-              sxoli.titlos,
-              sxoli.klados,
-              sxoli.epipedo,
-              sxoli.etos
-            ].filter(Boolean).join("   ");
-            return sxoliId ? (
-              <a
-                href={`/sxoles/${sxoliId}`}
-                style={{ color: "#1976d2", textDecoration: "underline", cursor: "pointer" }}
-                onClick={e => {
-                  e.stopPropagation();
-                  window.location.href = `/sxoles/${sxoliId}`;
-                }}
-              >
-                {onomaSxolis}
-              </a>
-            ) : onomaSxolis || "-";
-          }
-        }
-      ],
-      getData: (row) => row.melos?.parakolouthisi || [],
-      noRowHover: true,
-      noRowClick: true
-    }
-  ],
-};
 
 export default function MeliAllwn() {
   const [data, setData] = useState([]);
@@ -471,6 +316,279 @@ export default function MeliAllwn() {
     },
     sorting: [{ id: "fullName", desc: false }]
   }), []);
+
+  // Define handleSaveComments within component scope
+  const handleSaveComments = async (memberId, newComments) => {
+    try {
+      const response = await api.put(`/meliallwnsillogwn/${memberId}`, {
+        epafes: {},
+        eksoteriko_melos: {},
+        melos: {
+          sxolia: newComments
+        }
+      });
+      
+      // Make sure we're properly updating the nested sxolia property
+      setData(prevData => prevData.map(member => 
+        member.id === memberId 
+          ? { 
+              ...member, 
+              melos: { 
+                ...(member.melos || {}),
+                sxolia: newComments 
+              } 
+            }
+          : member
+      ));
+    } catch (error) {
+      console.error("Error updating comments:", error);
+      // Add error handling
+    }
+  };
+
+  // Move detailPanelConfig inside the component
+  const detailPanelConfig = {
+    mainDetails: [
+      { accessor: "firstName", header: "Όνομα" },
+      { accessor: "lastName", header: "Επώνυμο" },
+      { accessor: "email", header: "Email" },
+      { accessor: "phone", header: "Τηλέφωνο" },
+      { accessor: "arithmosmitroou", header: "Αριθμός Μητρώου" },
+      { accessor: "onomasillogou", header: "Όνομα Συλλόγου" },
+      { accessor: "vathmos_diskolias", header: "Βαθμός Δυσκολίας" }
+    ],
+    tables: [
+      {
+        title: "Δραστηριότητες",
+        accessor: "melos.simmetoxi",
+        columns: [
+          {
+            accessor: "eksormisi.titlos",
+            header: "Τίτλος Εξόρμησης",
+            Cell: ({ row }) => {
+              const eksormisiId = row.original.eksormisi?.id_eksormisis;
+              const titlos = row.original.eksormisi?.titlos || "-";
+              return eksormisiId ? (
+                <a
+                  href={`/eksormisi/${eksormisiId}`}
+                  style={{ color: "#1976d2", textDecoration: "underline", cursor: "pointer" }}
+                  onClick={e => { e.stopPropagation(); }}
+                >
+                  {titlos}
+                </a>
+              ) : titlos;
+            }
+          },
+          { 
+            accessor: "drastiriotita.titlos", 
+            header: "Τίτλος Δραστηριότητας",
+            Cell: ({ row }) => row.original.drastiriotita?.titlos || "-" 
+          },
+          { 
+            accessor: "drastiriotita.vathmos_diskolias.epipedo", 
+            header: "ΒΔ",
+            Cell: ({ row }) => row.original.drastiriotita?.vathmos_diskolias?.epipedo || "-" 
+          },
+          {
+            accessor: "drastiriotita.hmerominia",
+            header: "Ημερομηνία",
+            Cell: ({ row }) => {
+              const dateValue = row.original.drastiriotita?.hmerominia;
+              if (!dateValue) return "-";
+              
+              try {
+                // Check if the value is already a formatted string (contains /)
+                if (typeof dateValue === 'string' && dateValue.includes('/')) {
+                  // Parse the Greek formatted date (D/M/YYYY or DD/MM/YYYY)
+                  const parts = dateValue.split('/');
+                  if (parts.length === 3) {
+                    // Ensure day and month are always two digits
+                    const day = String(parseInt(parts[0])).padStart(2, '0');
+                    const month = String(parseInt(parts[1])).padStart(2, '0');
+                    const year = parts[2];
+                    
+                    return `${day}/${month}/${year}`;
+                  }
+                  return dateValue; // Return as-is if we can't parse it
+                }
+                
+                // If it's not already formatted, treat it as a raw date
+                const date = new Date(dateValue);
+                if (isNaN(date.getTime())) return "-";
+                
+                // Explicitly format as DD/MM/YYYY
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                
+                return `${day}/${month}/${year}`;
+              } catch (e) {
+                console.error("Σφάλμα μορφοποίησης ημερομηνίας:", e, dateValue);
+                return "-";
+              }
+            }
+          }
+        ],
+        getData: (row) => {
+          // Get all active participations
+          const simmetoxes = (row.melos?.simmetoxi || []).filter(item => item.katastasi === "Ενεργή");
+          
+          // Flatten the structure to create one row per activity
+          const activities = [];
+          
+          simmetoxes.forEach(simmetoxi => {
+            if (simmetoxi.simmetoxi_drastiriotites && simmetoxi.simmetoxi_drastiriotites.length > 0) {
+              // Create a row for each activity in this participation
+              simmetoxi.simmetoxi_drastiriotites.forEach(rel => {
+                if (rel.drastiriotita) {
+                  activities.push({
+                    id_simmetoxis: simmetoxi.id_simmetoxis,
+                    eksormisi: simmetoxi.eksormisi,
+                    drastiriotita: rel.drastiriotita
+                  });
+                }
+              });
+            } else if (simmetoxi.drastiriotita) {
+              // Backward compatibility for old data structure
+              activities.push({
+                id_simmetoxis: simmetoxi.id_simmetoxis,
+                eksormisi: simmetoxi.eksormisi,
+                drastiriotita: simmetoxi.drastiriotita
+              });
+            }
+          });
+          
+          return activities;
+        },
+        noRowHover: true,
+        noRowClick: true
+      },
+      {
+        title: "Σχολές",
+        accessor: "melos.parakolouthisi",
+        columns: [
+          {
+            accessor: "sxoli.titlos",
+            header: "Τίτλος Σχολής",
+            Cell: ({ row }) => {
+              const sxoli = row.original.sxoli;
+              if (!sxoli) return "-";
+              const sxoliId = sxoli.id_sxolis;
+              const onomaSxolis = [
+                sxoli.titlos,
+                sxoli.klados,
+                sxoli.epipedo,
+                sxoli.etos
+              ].filter(Boolean).join("   ");
+              return sxoliId ? (
+                <a
+                  href={`/sxoles/${sxoliId}`}
+                  style={{ color: "#1976d2", textDecoration: "underline", cursor: "pointer" }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    window.location.href = `/sxoles/${sxoliId}`;
+                  }}
+                >
+                  {onomaSxolis}
+                </a>
+              ) : onomaSxolis || "-";
+            }
+          }
+        ],
+        getData: (row) => row.melos?.parakolouthisi || [],
+        noRowHover: true,
+        noRowClick: true
+      }
+    ],
+    customSections: [
+      {
+        title: "Σχόλια",
+        order: 2, // This will place it after your tables
+        render: (row) => (
+          <Box sx={{ mt: 2, mb: 3 }}>
+            <Typography variant="h6" component="h3" gutterBottom>Σχόλια</Typography>
+            <Box 
+              sx={{ 
+                p: 2, 
+                border: '1px solid #e0e0e0', 
+                borderRadius: '4px', 
+                backgroundColor: '#f5f5f5',
+                minHeight: '60px',
+                whiteSpace: 'pre-wrap'
+              }}
+            >
+              {row.melos?.sxolia || "Δεν υπάρχουν σχόλια"}
+            </Box>
+          </Box>
+        )
+      }
+    ]
+  };
+
+  const InlineCommentsEditor = ({ comments, onSave }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [commentText, setCommentText] = useState(comments || "");
+    
+    const handleSave = () => {
+      onSave(commentText);
+      setIsEditing(false);
+    };
+    
+    return (
+      <Box sx={{ mt: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Typography variant="h6" component="h3">Σχόλια</Typography>
+          {!isEditing ? (
+            <IconButton 
+              size="small" 
+              onClick={() => setIsEditing(true)} 
+              sx={{ ml: 1 }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          ) : (
+            <IconButton 
+              size="small" 
+              color="primary"
+              onClick={handleSave} 
+              sx={{ ml: 1 }}
+            >
+              <SaveIcon fontSize="small" />
+            </IconButton>
+          )}
+        </Box>
+        
+        {isEditing ? (
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            maxRows={10}
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            variant="outlined"
+            placeholder="Εισάγετε σχόλια..."
+            autoFocus
+            sx={{ backgroundColor: '#f9f9f9' }}
+          />
+        ) : (
+          <Box 
+            sx={{ 
+              p: 2, 
+              border: '1px solid #e0e0e0', 
+              borderRadius: '4px', 
+              backgroundColor: '#f5f5f5',
+              minHeight: '60px',
+              whiteSpace: 'pre-wrap'
+            }}
+          >
+            {commentText || "Δεν υπάρχουν σχόλια"}
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>

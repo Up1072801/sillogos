@@ -65,8 +65,13 @@ router.get("/", async (_req, res) => {
       arithmosmitroou: member.arithmos_mitroou,
       onomasillogou: member.onoma_sillogou || "",
       vathmos_diskolias: member.melos?.vathmos_diskolias?.epipedo || 1,
+
       // Προσθήκη των σχετικών δραστηριοτήτων και σχολών στο response
       melos: {
+        epafes: member.melos?.epafes || {},
+            sxolia: member.melos?.sxolia || "" , // Add this line
+
+        vathmos_diskolias: member.melos?.vathmos_diskolias || {},
         simmetoxi: member.melos?.simmetoxi
           ?.filter(s => s.katastasi === "Ενεργή")
           ?.map(s => ({
@@ -282,14 +287,15 @@ router.post("/", async (req, res) => {
         lastName: completeMember.melos?.epafes?.epitheto || "",
         phone: completeMember.melos?.epafes?.tilefono ? completeMember.melos.epafes.tilefono.toString() : "",
         email: completeMember.melos?.epafes?.email || "",
-        arithmosmitroou: completeMember.arithmos_mitroou || null, // Μπορεί να είναι null
+        arithmosmitroou: completeMember.arithmos_mitroou || null,
         onomasillogou: completeMember.onoma_sillogou || "",
         vathmos_diskolias: completeMember.melos?.vathmos_diskolias?.epipedo || 1,
         melos: {
           epafes: completeMember.melos?.epafes || {},
           vathmos_diskolias: completeMember.melos?.vathmos_diskolias || {},
           simmetoxi: completeMember.melos?.simmetoxi || [],
-          parakolouthisi: completeMember.melos?.parakolouthisi || []
+          parakolouthisi: completeMember.melos?.parakolouthisi || [],
+          sxolia: completeMember.melos?.sxolia || "" // Add this line
         }
       };
     });
@@ -367,13 +373,24 @@ router.put("/:id", async (req, res) => {
         });
       }
 
-      // Update melos if needed including comments
+      // Update melos data structure first
+      let melosUpdateData = {};
+
+      // If we need to update vathmos_diskolias
+      if (melos?.vathmos_diskolias?.id_vathmou_diskolias) {
+        melosUpdateData.id_vathmou_diskolias = melos.vathmos_diskolias.id_vathmou_diskolias;
+      }
+
+      // Add sxolia to the same update operation
       if (melos?.sxolia !== undefined) {
+        melosUpdateData.sxolia = melos.sxolia;
+      }
+
+      // Only perform the update if we have data to update
+      if (Object.keys(melosUpdateData).length > 0) {
         await prismaTransaction.melos.update({
           where: { id_melous: id },
-          data: {
-            sxolia: melos.sxolia
-          }
+          data: melosUpdateData
         });
       }
 
@@ -425,7 +442,8 @@ router.put("/:id", async (req, res) => {
         epafes: result.melos?.epafes || {},
         vathmos_diskolias: result.melos?.vathmos_diskolias || {},
         simmetoxi: result.melos?.simmetoxi || [],
-        parakolouthisi: result.melos?.parakolouthisi || []
+        parakolouthisi: result.melos?.parakolouthisi || [],
+        sxolia: result.melos?.sxolia || "" // Add this line
       }
     };
 
