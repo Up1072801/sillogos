@@ -240,19 +240,36 @@ const loanFormFields = [
       { field: "xroma", header: "Χρώμα" }
     ]
   },
-  { 
-    accessorKey: "hmerominia_daneismou", 
-    header: "Ημερομηνία Δανεισμού", 
-    type: "date",
-    defaultValue: new Date().toISOString().split('T')[0],
-    validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία δανεισμού")
-  },
-  { 
-    accessorKey: "hmerominia_epistrofis", 
-    header: "Ημερομηνία Επιστροφής", 
-    type: "date",
-    validation: yup.date().nullable()
-  },
+ // In the loanFormFields array
+{ 
+  accessorKey: "hmerominia_daneismou", 
+  header: "Ημερομηνία Δανεισμού", 
+  type: "date",
+  defaultValue: new Date().toISOString().split('T')[0],
+  validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία δανεισμού")
+},
+{ 
+  accessorKey: "hmerominia_epistrofis", 
+  header: "Ημερομηνία Επιστροφής", 
+  type: "date",
+  validation: yup.date().nullable()
+    .test('epistrofis-after-daneismou', 'Η ημερομηνία επιστροφής πρέπει να είναι μετά ή ίδια με την ημερομηνία δανεισμού', function(value) {
+      const loanDate = this.parent.hmerominia_daneismou;
+      
+      // If either date is missing, validation passes
+      if (!value || !loanDate) return true;
+      
+      // Parse dates to ensure proper comparison
+      const returnDate = new Date(value);
+      const loanDateObj = new Date(loanDate);
+      
+      // Check if dates are valid
+      if (isNaN(returnDate.getTime()) || isNaN(loanDateObj.getTime())) return true;
+      
+      // Return date should be same day or after loan date
+      return returnDate >= loanDateObj;
+    })
+},
   { 
     accessorKey: "quantity", 
     header: "Ποσότητα", 
@@ -278,7 +295,7 @@ const loanFormFields = [
 
 // Προσθέστε αυτόν τον κώδικα μετά τον ορισμό του loanFormFields
 
-// Πεδία για την επεξεργασία δανεισμού - μόνο οι ημερομηνίες
+// Πεδία για την επεξεργασία δανεισμού - μόνο οι ημερομηνίες// Πεδία για την επεξεργασία δανεισμού - μόνο οι ημερομηνίες
 const editLoanFormFields = [
   { 
     accessorKey: "hmerominia_daneismou", 
@@ -291,6 +308,22 @@ const editLoanFormFields = [
     header: "Ημερομηνία Επιστροφής", 
     type: "date",
     validation: yup.date().nullable()
+      .test('epistrofis-after-daneismou', 'Η ημερομηνία επιστροφής πρέπει να είναι μετά ή ίδια με την ημερομηνία δανεισμού', function(value) {
+        const loanDate = this.parent.hmerominia_daneismou;
+        
+        // If either date is missing, validation passes
+        if (!value || !loanDate) return true;
+        
+        // Parse dates to ensure proper comparison
+        const returnDate = new Date(value);
+        const loanDateObj = new Date(loanDate);
+        
+        // Check if dates are valid
+        if (isNaN(returnDate.getTime()) || isNaN(loanDateObj.getTime())) return true;
+        
+        // Return date should be same day or after loan date
+        return returnDate >= loanDateObj;
+      })
   },
   { 
     accessorKey: "katastasi_daneismou", 

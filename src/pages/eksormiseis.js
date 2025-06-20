@@ -228,13 +228,35 @@ export default function Eksormiseis() {
   };
   
   // Πεδία φόρμας για εξόρμηση
+   // Πεδία φόρμας για εξόρμηση
   const eksormisiFields = React.useMemo(() => [
     { accessorKey: "titlos", header: "Τίτλος", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "proorismos", header: "Προορισμός", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Η τιμή δεν μπορεί να είναι αρνητική") },
     { accessorKey: "hmerominia_afiksis", header: "Ημερομηνία Άφιξης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") },
-     { accessorKey: "hmerominia_anaxorisis", header: "Ημερομηνία Αναχώρησης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") }
-
+    { 
+      accessorKey: "hmerominia_anaxorisis", 
+      header: "Ημερομηνία Αναχώρησης", 
+      type: "date", 
+      validation: yup.date()
+        .required("Το πεδίο είναι υποχρεωτικό")
+        .test('anaxorisi-after-afiksi', 'Η ημερομηνία αναχώρησης πρέπει να είναι μετά ή ίδια με την ημερομηνία άφιξης', function(value) {
+          const arrivalDate = this.parent.hmerominia_afiksis;
+          
+          // If either date is missing, validation passes
+          if (!value || !arrivalDate) return true;
+          
+          // Parse dates to ensure proper comparison
+          const departureDate = new Date(value);
+          const arrivalDateObj = new Date(arrivalDate);
+          
+          // Check if dates are valid
+          if (isNaN(departureDate.getTime()) || isNaN(arrivalDateObj.getTime())) return true;
+          
+          // Departure date should be same day or after arrival date
+          return departureDate >= arrivalDateObj;
+        })
+    }
   ], []);
   
   // Στήλες πίνακα

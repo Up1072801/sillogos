@@ -267,18 +267,35 @@ const [deletePaymentDialog, setDeletePaymentDialog] = useState(false);
       })),
       validation: yup.string().required("Παρακαλώ επιλέξτε καταφύγιο")
     },
-    { 
-      accessorKey: "hmerominia_afiksis", 
-      header: "Ημερομηνία Άφιξης", 
-      type: "date",
-      validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία άφιξης")
-    },
-    { 
-      accessorKey: "hmerominia_epistrofis", 
-      header: "Ημερομηνία Αναχώρησης", 
-      type: "date",
-      validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία αναχώρησης")
-    },
+{ 
+    accessorKey: "hmerominia_afiksis", 
+    header: "Ημερομηνία Άφιξης", 
+    type: "date",
+    validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία άφιξης")
+  },
+  { 
+    accessorKey: "hmerominia_epistrofis", 
+    header: "Ημερομηνία Αναχώρησης", 
+    type: "date",
+    validation: yup.date()
+      .required("Παρακαλώ επιλέξτε ημερομηνία αναχώρησης")
+      .test('epistrofis-after-afiksis', 'Η ημερομηνία αναχώρησης πρέπει να είναι μετά την ημερομηνία άφιξης', function(value) {
+        const arrivalDate = this.parent.hmerominia_afiksis;
+        
+        // If either date is missing, validation passes
+        if (!value || !arrivalDate) return true;
+        
+        // Parse dates to ensure proper comparison
+        const departureDate = new Date(value);
+        const arrivalDateObj = new Date(arrivalDate);
+        
+        // Check if dates are valid
+        if (isNaN(departureDate.getTime()) || isNaN(arrivalDateObj.getTime())) return true;
+        
+        // Departure date should be same day or after arrival date
+        return departureDate > arrivalDateObj;
+      })
+  },
     { 
       accessorKey: "eksoterikos_xoros", 
       header: "Εξωτερικός Χώρος", 

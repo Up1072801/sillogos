@@ -1347,18 +1347,36 @@ const convertDateFormat = (dateString) => {
         })
         .typeError("Πρέπει να είναι αριθμός")
     },
-    { 
-      accessorKey: "hmerominiaenarksis", 
-      header: "Ημ/νία Έναρξης Δελτίου", 
-      type: "date",
-      dateFormat: "dd/MM/yyyy",
-    },
-    { 
-      accessorKey: "hmerominialiksis", 
-      header: "Ημ/νία Λήξης Δελτίου", 
-      type: "date", 
-      dateFormat: "dd/MM/yyyy",
-    },
+  // In the athleteFormFields useMemo
+{ 
+  accessorKey: "hmerominiaenarksis", 
+  header: "Ημ/νία Έναρξης Δελτίου", 
+  type: "date",
+  validation: yup.date().nullable(),
+  dateFormat: "dd/MM/yyyy",
+},
+{ 
+  accessorKey: "hmerominialiksis", 
+  header: "Ημ/νία Λήξης Δελτίου", 
+  type: "date", 
+  validation: yup.date().nullable()
+    .test('end-after-start', 'Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης', function(value) {
+      const startDate = this.parent.hmerominiaenarksis;
+      // If either date is missing, validation passes
+      if (!value || !startDate) return true;
+      
+      // Parse dates to ensure proper comparison
+      const endDate = new Date(value);
+      const startDateObj = new Date(startDate);
+      
+      // Check if dates are valid
+      if (isNaN(endDate.getTime()) || isNaN(startDateObj.getTime())) return true;
+      
+      // End date should be same day or after start date
+      return endDate >= startDateObj;
+    }),
+  dateFormat: "dd/MM/yyyy",
+},
     { 
       accessorKey: "athlimata", 
       header: "Αθλήματα", 
