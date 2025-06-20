@@ -850,15 +850,28 @@ export default function Meloi() {
           fullName: `${response.data.melos?.epafes?.epitheto || ""} ${response.data.melos?.epafes?.onoma || ""}`.trim(),
           email: response.data.melos?.epafes?.email || "",
           tilefono: response.data.melos?.epafes?.tilefono || "",
-          odos: response.data.odos || "",  // Use empty string instead of "-"
-          tk: response.data.tk || "",      // Use empty string instead of "-"
-          arithmos_mitroou: response.data.arithmos_mitroou || "",  // Use empty string instead of "-"
-          eidosSindromis: response.data.eidosSindromis || "",  // Use empty string instead of "-"
-          status: calculatedStatus, // Use the calculated status
-          // Use the formatted dates we already have
+          odos: response.data.odos || "",
+          tk: response.data.tk || "",
+          arithmos_mitroou: response.data.arithmos_mitroou || "",
+          eidosSindromis: response.data.eidosSindromis || "",
+          status: calculatedStatus,
+          // Add date fields at both top level and nested structure
           hmerominia_egrafis: formattedStartDate,
           hmerominia_pliromis: formattedPaymentDate,
-          // Calculate subscription end date with our formatted dates
+          // Nested structure for components that expect it
+          sindromitis: {
+            katastasi_sindromis: calculatedStatus,
+            exei: [{
+              hmerominia_pliromis: formattedPaymentDate,
+              sindromi: {
+                hmerominia_enarksis: formattedStartDate,
+                eidos_sindromis: {
+                  titlos: newRow.eidosSindromis
+                }
+              }
+            }]
+          },
+          // Calculate subscription end date
           subscriptionEndDate: formattedPaymentDate ? 
             calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate) : 
             null,
@@ -993,10 +1006,37 @@ export default function Meloi() {
       
       // Ενημέρωση των τοπικών δεδομένων
       setData(prevData => 
-        prevData.map(item => 
-          item.id === id || item.id_es_melous === id ? 
-          { ...item, ...response.data } : item
-        )
+        prevData.map(item => {
+          if (item.id === id || item.id_es_melous === id) {
+            // Create a properly structured updated item
+            return {
+              ...item,
+              ...response.data,
+              // Ensure these fields are at the top level for UI components that expect them there
+              hmerominia_egrafis: formattedStartDate,
+              hmerominia_pliromis: formattedPaymentDate,
+              // Also restructure the data to match expected paths for nested components
+              sindromitis: {
+                ...(item.sindromitis || {}),
+                katastasi_sindromis: newStatus,
+                exei: [{
+                  hmerominia_pliromis: formattedPaymentDate,
+                  sindromi: {
+                    hmerominia_enarksis: formattedStartDate,
+                    eidos_sindromis: {
+                      titlos: updatedRow.eidosSindromis
+                    }
+                  }
+                }]
+              },
+              // Update subscription end date
+              subscriptionEndDate: formattedPaymentDate ? 
+                calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate) : 
+                null,
+            };
+          }
+          return item;
+        })
       );
       
       setOpenEditDialog(false);
