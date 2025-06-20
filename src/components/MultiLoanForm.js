@@ -30,15 +30,31 @@ import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import api from '../utils/api';
 
-const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }) => {
-  // State for form values
-  const [contactId, setContactId] = useState('');
-  const [loanDate, setLoanDate] = useState(new Date());
-  const [returnDate, setReturnDate] = useState(null);
-  const [status, setStatus] = useState('Σε εκκρεμότητα');
-  const [equipmentItems, setEquipmentItems] = useState([
-    { id_eksoplismou: '', quantity: 1 }
-  ]);
+const MultiLoanForm = ({ 
+  contactsList, 
+  availableEquipment, 
+  onSuccess, 
+  onCancel, 
+  editData = null // Προσθήκη prop για τα δεδομένα επεξεργασίας 
+}) => {
+  // State for form values with initialization from editData if available
+  const [contactId, setContactId] = useState(editData ? String(editData.id_epafis) : '');
+  const [loanDate, setLoanDate] = useState(editData?.hmerominia_daneismou ? new Date(editData.hmerominia_daneismou) : new Date());
+  const [returnDate, setReturnDate] = useState(editData?.hmerominia_epistrofis ? new Date(editData.hmerominia_epistrofis) : null);
+  const [status, setStatus] = useState(editData?.katastasi_daneismou || 'Σε εκκρεμότητα');
+  
+  // Initialize equipment items from editData if available
+  const [equipmentItems, setEquipmentItems] = useState(
+    editData?.equipment_items 
+      ? editData.equipment_items.map(item => ({
+          id_eksoplismou: String(item.id_eksoplismou),
+          quantity: item.quantity || 1,
+          id: item.id // Keep original loan ID for updates
+        }))
+      : [{ id_eksoplismou: '', quantity: 1 }]
+  );
+  // Προσθήκη μιας κατάστασης αναφοράς για τα αρχικά αντικείμενα εξοπλισμού
+  const [originalEquipmentItems, setOriginalEquipmentItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -68,6 +84,40 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
     setFilteredContacts(filtered);
     setPage(0); // Reset to first page when filtering
   }, [searchText, contactsList]);
+
+  // Effect to initialize form when editData changes
+  useEffect(() => {
+    if (editData) {
+      setContactId(String(editData.id_epafis || ''));
+      
+      // Proper date parsing
+      if (editData.hmerominia_daneismou) {
+        const loanDateObj = new Date(editData.hmerominia_daneismou);
+        setLoanDate(isNaN(loanDateObj) ? new Date() : loanDateObj);
+      }
+      
+      if (editData.hmerominia_epistrofis) {
+        const returnDateObj = new Date(editData.hmerominia_epistrofis);
+        setReturnDate(isNaN(returnDateObj) ? null : returnDateObj);
+      } else {
+        setReturnDate(null);
+      }
+      
+      setStatus(editData.katastasi_daneismou || 'Σε εκκρεμότητα');
+      
+      if (editData.equipment_items && editData.equipment_items.length > 0) {
+        const formattedItems = editData.equipment_items.map(item => ({
+          id_eksoplismou: String(item.id_eksoplismou || ''),
+          quantity: parseInt(item.quantity) || 1,
+          id: item.id // Keep original loan ID for updates
+        }));
+        
+        setEquipmentItems(formattedItems);
+        // Αποθήκευση των αρχικών αντικειμένων για σύγκριση κατά την υποβολή
+        setOriginalEquipmentItems(formattedItems);
+      }
+    }
+  }, [editData]);
 
   // Equipment handling functions
   const addEquipmentItem = () => {
@@ -100,7 +150,7 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
   const handleSubmit = async () => {
     setError(null);
     
-    // Validation
+    // Validation (keep existing validation code)
     if (!contactId) {
       setError("Παρακαλώ επιλέξτε επαφή");
       return;
@@ -120,7 +170,6 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
     
     // Validation for dates
     if (returnDate && loanDate) {
-      // Make sure returnDate is not before loanDate
       if (new Date(returnDate) < new Date(loanDate)) {
         setError("Η ημερομηνία επιστροφής δεν μπορεί να είναι πριν από την ημερομηνία δανεισμού");
         return;
@@ -130,22 +179,101 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
     setLoading(true);
     
     try {
-      const response = await api.post('/eksoplismos/daneismos-multi', {
-        id_epafis: parseInt(contactId),
-        equipment_items: equipmentItems.map(item => ({
-          id_eksoplismou: parseInt(item.id_eksoplismou),
-          quantity: parseInt(item.quantity) || 1
-        })),
-        hmerominia_daneismou: loanDate.toISOString(),
-        hmerominia_epistrofis: returnDate ? returnDate.toISOString() : null,
-        katastasi_daneismou: status
-      });
+      let response;
+      
+      // Check if we're editing an existing loan or creating a new one
+      if (editData) {
+        // We're in edit mode
+        
+        // 1. Εντοπισμός αντικειμένων προς ενημέρωση (έχουν ID και είναι ακόμα στη φόρμα)
+        const itemsToUpdate = equipmentItems
+          .filter(item => item.id) // Only include items with IDs (existing loans)
+          .map(item => item.id);
+        
+        // 2. Εντοπισμός αντικειμένων προς προσθήκη (δεν έχουν ID)
+        const itemsToAdd = equipmentItems.filter(item => !item.id);
+        
+        // 3. Εντοπισμός αντικειμένων προς διαγραφή (έχουν ID αλλά δεν είναι πλέον στη φόρμα)
+        const itemsToDelete = originalEquipmentItems
+          .filter(original => original.id && !equipmentItems.some(current => current.id === original.id))
+          .map(item => item.id);
+        
+        // Πρώτα, ενημέρωση υπαρχόντων δανεισμών αν υπάρχουν
+        if (itemsToUpdate.length > 0) {
+          // 1. Ενημέρωση του group με τα κοινά στοιχεία (ημερομηνίες και κατάσταση)
+          await api.put('/eksoplismos/daneismos-group/update', {
+            id_epafis: parseInt(contactId),
+            hmerominia_daneismou: loanDate.toISOString(),
+            hmerominia_epistrofis: returnDate ? returnDate.toISOString() : null,
+            katastasi_daneismou: status,
+            equipment_ids: itemsToUpdate
+          });
+          
+          // 2. Ενημέρωση των ποσοτήτων για κάθε δανεισμό ξεχωριστά
+          const quantityUpdatePromises = equipmentItems
+            .filter(item => item.id) // Μόνο τα αντικείμενα με ID (υπάρχοντες δανεισμοί)
+            .map(item => 
+              api.put(`/eksoplismos/daneismos/${item.id}`, {
+                quantity: parseInt(item.quantity) || 1
+              })
+            );
+          
+          if (quantityUpdatePromises.length > 0) {
+            await Promise.all(quantityUpdatePromises);
+          }
+        }
+        
+        // Στη συνέχεια, διαγραφή των δανεισμών που αφαιρέθηκαν
+        const deletePromises = itemsToDelete.map(id => 
+          api.delete(`/eksoplismos/daneismos/${id}`)
+        );
+        
+        if (deletePromises.length > 0) {
+          await Promise.all(deletePromises);
+        }
+        
+        // Τέλος, προσθήκη νέων δανεισμών αν υπάρχουν
+        if (itemsToAdd.length > 0) {
+          const addResponse = await api.post('/eksoplismos/daneismos-multi', {
+            id_epafis: parseInt(contactId),
+            equipment_items: itemsToAdd.map(item => ({
+              id_eksoplismou: parseInt(item.id_eksoplismou),
+              quantity: parseInt(item.quantity) || 1
+            })),
+            hmerominia_daneismou: loanDate.toISOString(),
+            hmerominia_epistrofis: returnDate ? returnDate.toISOString() : null,
+            katastasi_daneismou: status
+          });
+          
+          response = addResponse; // Use this as the final response
+        } else {
+          // If no items were added, create a synthetic response
+          response = {
+            data: {
+              success: true,
+              message: "Οι δανεισμοί ενημερώθηκαν με επιτυχία"
+            }
+          };
+        }
+      } else {
+        // We're creating a new loan (keep existing create code)
+        response = await api.post('/eksoplismos/daneismos-multi', {
+          id_epafis: parseInt(contactId),
+          equipment_items: equipmentItems.map(item => ({
+            id_eksoplismou: parseInt(item.id_eksoplismou),
+            quantity: parseInt(item.quantity) || 1
+          })),
+          hmerominia_daneismou: loanDate.toISOString(),
+          hmerominia_epistrofis: returnDate ? returnDate.toISOString() : null,
+          katastasi_daneismou: status
+        });
+      }
       
       setLoading(false);
       onSuccess(response.data);
     } catch (error) {
       setLoading(false);
-      setError(error.response?.data?.error || "Σφάλμα κατά την προσθήκη δανεισμών");
+      setError(error.response?.data?.error || "Σφάλμα κατά την επεξεργασία δανεισμών");
     }
   };
 
@@ -170,84 +298,96 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
         
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-            Επιλογή Επαφής
+            {editData ? "Δανειζόμενος" : "Επιλογή Επαφής"}
           </Typography>
           
-          <TextField
-            fullWidth
-            placeholder="Αναζήτηση επαφής..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            margin="normal"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              )
-            }}
-          />
-          
-          <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
-            <Table stickyHeader size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell padding="checkbox" width="5%"></TableCell>
-                  <TableCell width="40%">Ονοματεπώνυμο</TableCell>
-                  <TableCell width="30%">Email</TableCell>
-                  <TableCell width="25%">Τηλέφωνο</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredContacts.length > 0 ? (
-                  filteredContacts
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((contact) => (
-                      <TableRow 
-                        key={contact.id_epafis} 
-                        hover 
-                        onClick={() => handleSelectContact(contact)}
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        <TableCell padding="checkbox">
-                          <Checkbox 
-                            checked={contactId === contact.id_epafis.toString()}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              handleSelectContact(contact);
-                            }}
-                          />
+          {editData ? (
+            // When in edit mode, just show the selected contact name
+            <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1, bgcolor: '#f5f5f5' }}>
+              <Typography variant="body1">
+                {contactsList.find(contact => contact.id_epafis.toString() === contactId)?.fullName || 'Άγνωστος'}
+              </Typography>
+            </Box>
+          ) : (
+            // When in create mode, show the full contact selection UI
+            <>
+              <TextField
+                fullWidth
+                placeholder="Αναζήτηση επαφής..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  )
+                }}
+              />
+              
+              <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell padding="checkbox" width="5%"></TableCell>
+                      <TableCell width="40%">Ονοματεπώνυμο</TableCell>
+                      <TableCell width="30%">Email</TableCell>
+                      <TableCell width="25%">Τηλέφωνο</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredContacts.length > 0 ? (
+                      filteredContacts
+                        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                        .map((contact) => (
+                          <TableRow 
+                            key={contact.id_epafis} 
+                            hover 
+                            onClick={() => handleSelectContact(contact)}
+                            sx={{ cursor: 'pointer' }}
+                          >
+                            <TableCell padding="checkbox">
+                              <Checkbox 
+                                checked={contactId === contact.id_epafis.toString()}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectContact(contact);
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>{contact.fullName}</TableCell>
+                            <TableCell>{contact.email || '-'}</TableCell>
+                            <TableCell>{contact.tilefono || '-'}</TableCell>
+                          </TableRow>
+                        ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          Δεν βρέθηκαν επαφές
                         </TableCell>
-                        <TableCell>{contact.fullName}</TableCell>
-                        <TableCell>{contact.email || '-'}</TableCell>
-                        <TableCell>{contact.tilefono || '-'}</TableCell>
                       </TableRow>
-                    ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      Δεν βρέθηκαν επαφές
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
-            component="div"
-            count={filteredContacts.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Ανά σελίδα:"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} από ${count}`}
-          />
-          
-          {!contactId && (
-            <FormHelperText error>Η επιλογή επαφής είναι υποχρεωτική</FormHelperText>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={filteredContacts.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Ανά σελίδα:"
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} από ${count}`}
+              />
+              
+              {!contactId && (
+                <FormHelperText error>Η επιλογή επαφής είναι υποχρεωτική</FormHelperText>
+              )}
+            </>
           )}
         </Box>
 
@@ -256,18 +396,16 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
             label="Ημερομηνία Δανεισμού"
             value={loanDate}
             onChange={(newValue) => setLoanDate(newValue)}
-            // If return date is set, prevent loan date from being after return date
             maxDate={returnDate || undefined}
-            renderInput={(params) => <TextField {...params} fullWidth />}
+            slotProps={{ textField: { fullWidth: true } }}
           />
           
           <DatePicker
             label="Ημερομηνία Επιστροφής"
             value={returnDate}
             onChange={(newValue) => setReturnDate(newValue)}
-            // Prevent return date from being before loan date
             minDate={loanDate || undefined}
-            renderInput={(params) => <TextField {...params} fullWidth />}
+            slotProps={{ textField: { fullWidth: true } }}
           />
           
           <FormControl sx={{ minWidth: 200 }}>
@@ -279,7 +417,6 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
             >
               <MenuItem value="Σε εκκρεμότητα">Σε εκκρεμότητα</MenuItem>
               <MenuItem value="Επιστράφηκε">Επιστράφηκε</MenuItem>
-              <MenuItem value="Εκπρόθεσμο">Εκπρόθεσμο</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -308,12 +445,21 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
               </TableHead>
               <TableBody>
                 {equipmentItems.map((item, index) => {
-                  // Filter out already selected equipment for this dropdown
+                  // Filter logic for available equipment
                   const filteredEquipment = (availableEquipment || []).filter(equip => {
                     // Allow the currently selected item in this row
                     if (item.id_eksoplismou && equip.id_eksoplismou.toString() === item.id_eksoplismou.toString()) {
                       return true;
                     }
+                    
+                    // In edit mode, also allow items that are part of the original loan
+                    if (editData && item.id && originalEquipmentItems.some(
+                      origItem => origItem.id === item.id && 
+                      origItem.id_eksoplismou.toString() === equip.id_eksoplismou.toString()
+                    )) {
+                      return true;
+                    }
+                    
                     // Exclude items that are selected in other rows
                     return !equipmentItems.some(
                       (selectedItem, selectedIndex) => 
@@ -383,7 +529,7 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
             onClick={handleSubmit}
             disabled={loading || equipmentItems.some(item => !item.id_eksoplismou) || !contactId}
           >
-            {loading ? 'Υποβολή...' : 'Αποθήκευση Δανεισμού'}
+            {loading ? 'Υποβολή...' : editData ? 'Ενημέρωση Δανεισμού' : 'Αποθήκευση Δανεισμού'}
           </Button>
         </Box>
       </Box>
