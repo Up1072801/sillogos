@@ -572,7 +572,7 @@ const drastiriotitaFormFields = [
   // Use stringified dates for better compatibility
   minDate: eksormisi?.hmerominia_afiksis,
   maxDate: eksormisi?.hmerominia_anaxorisis,
-  defaultValue: new Date().toISOString().split('T')[0],
+  defaultValue: eksormisi?.hmerominia_afiksis ? new Date(eksormisi.hmerominia_afiksis).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
   validation: yup.string()
     .required("Το πεδίο είναι υποχρεωτικό")
     .test(
