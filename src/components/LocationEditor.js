@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, TextField, Button, IconButton, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Box, TextField, Button, IconButton, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { DatePicker } from '@mui/x-date-pickers';
 
@@ -24,7 +24,6 @@ const LocationEditor = ({ value, onChange }) => {
   const toISODateString = (date) => {
     if (!date) return "";
     try {
-      // Αντί για toISOString(), χρησιμοποιούμε απευθείας τα τοπικά μέρη της ημερομηνίας
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -37,7 +36,6 @@ const LocationEditor = ({ value, onChange }) => {
   // Ensure each location has a unique ID when value changes
   useEffect(() => {
     if (Array.isArray(value) && value.length > 0) {
-      // Διασφαλίζουμε ότι κάθε τοποθεσία έχει μοναδικό id και σωστά ονόματα πεδίων
       setLocations(value.map((loc, idx) => ({
         ...loc,
         id: loc.id !== undefined ? loc.id : idx,
@@ -46,7 +44,6 @@ const LocationEditor = ({ value, onChange }) => {
         end: loc.end || loc.hmerominia_liksis || ""
       })));
     } else {
-      // Αν δεν έχουμε αρχική τιμή, ξεκινάμε με άδειο πίνακα
       setLocations([]);
     }
   }, [value]);
@@ -73,6 +70,25 @@ const LocationEditor = ({ value, onChange }) => {
       return;
     }
     
+    // Check for overlapping dates with existing locations
+    const isOverlapping = locations.some(loc => {
+      const existingStart = new Date(loc.start);
+      const existingEnd = new Date(loc.end);
+      const newStart = new Date(newLocation.start);
+      const newEnd = new Date(newLocation.end);
+      
+      return (
+        (newStart >= existingStart && newStart <= existingEnd) ||
+        (newEnd >= existingStart && newEnd <= existingEnd) ||
+        (newStart <= existingStart && newEnd >= existingEnd)
+      );
+    });
+    
+    if (isOverlapping) {
+      alert("Οι ημερομηνίες επικαλύπτονται με υπάρχουσα τοποθεσία");
+      return;
+    }
+    
     const updatedLocations = [...locations, { ...newLocation, id: Date.now() }];
     setLocations(updatedLocations);
     setNewLocation({ 
@@ -83,8 +99,45 @@ const LocationEditor = ({ value, onChange }) => {
     onChange(updatedLocations);
   };
   
-  // Ενημέρωση υπάρχουσας τοποθεσίας
   const handleUpdateLocation = (id, field, value) => {
+    // For date updates, check for overlapping with other locations
+    if (field === "start" || field === "end") {
+      const currentLoc = locations.find(loc => loc.id === id);
+      if (!currentLoc) return;
+      
+      const updatedDates = {
+        start: field === "start" ? value : currentLoc.start,
+        end: field === "end" ? value : currentLoc.end
+      };
+      
+      // Check for valid date range (end after start)
+      if (new Date(updatedDates.end) < new Date(updatedDates.start)) {
+        alert("Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης");
+        return;
+      }
+      
+      // Check for overlapping with other locations
+      const isOverlapping = locations.some(loc => {
+        if (loc.id === id) return false; // Skip current location
+        
+        const existingStart = new Date(loc.start);
+        const existingEnd = new Date(loc.end);
+        const newStart = new Date(updatedDates.start);
+        const newEnd = new Date(updatedDates.end);
+        
+        return (
+          (newStart >= existingStart && newStart <= existingEnd) ||
+          (newEnd >= existingStart && newEnd <= existingEnd) ||
+          (newStart <= existingStart && newEnd >= existingEnd)
+        );
+      });
+      
+      if (isOverlapping) {
+        alert("Οι ημερομηνίες επικαλύπτονται με άλλη τοποθεσία");
+        return;
+      }
+    }
+    
     const updatedLocations = locations.map(loc => 
       loc.id === id ? { ...loc, [field]: value } : loc
     );
@@ -92,13 +145,11 @@ const LocationEditor = ({ value, onChange }) => {
     onChange(updatedLocations);
   };
   
-  // Διάλογος επιβεβαίωσης για διαγραφή τοποθεσίας
   const confirmDeleteLocation = (id) => {
     setLocationToDelete(id);
     setOpenDeleteDialog(true);
   };
   
-  // Διαγραφή τοποθεσίας μετά από επιβεβαίωση
   const handleDeleteLocation = () => {
     if (locationToDelete === null) return;
     
@@ -110,18 +161,16 @@ const LocationEditor = ({ value, onChange }) => {
   };
   
   return (
-    <Box sx={{ border: '1px solid #e0e0e0', p: 2, borderRadius: 1 }}>
-      <Typography variant="subtitle1" sx={{ mb: 2 }}>Διαχείριση Τοποθεσιών</Typography>
-      
+    <Box sx={{ width: '100%', minWidth: '825px' }}>
       {locations.length > 0 ? (
-        <TableContainer component={Paper} sx={{ mb: 2 }}>
-          <Table size="small">
+        <TableContainer component={Paper} sx={{ mb: 3, width: '100%' }}>
+          <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Τοποθεσία</TableCell>
-                <TableCell>Ημ/νία Έναρξης</TableCell>
-                <TableCell>Ημ/νία Λήξης</TableCell>
-                <TableCell>Ενέργειες</TableCell>
+                <TableCell width="30%">Τοποθεσία</TableCell>
+                <TableCell width="25%">Ημ/νία Έναρξης</TableCell>
+                <TableCell width="25%">Ημ/νία Λήξης</TableCell>
+                <TableCell width="15%">Διαγραφη</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -129,9 +178,10 @@ const LocationEditor = ({ value, onChange }) => {
                 <TableRow key={loc.id !== undefined ? loc.id : `loc-${Date.now()}-${Math.random()}`}>
                   <TableCell>
                     <TextField
-                      size="small"
+                      size="medium"
                       value={loc.topothesia}
                       onChange={(e) => handleUpdateLocation(loc.id, "topothesia", e.target.value)}
+                      fullWidth
                     />
                   </TableCell>
                   <TableCell>
@@ -141,8 +191,28 @@ const LocationEditor = ({ value, onChange }) => {
                       onChange={(newDate) => handleUpdateLocation(loc.id, "start", toISODateString(newDate))}
                       slotProps={{
                         textField: {
-                          size: "small",
-                          fullWidth: true
+                          size: "medium",
+                          fullWidth: true,
+                          sx: { 
+                            '.MuiInputBase-root': {
+                              paddingRight: 1
+                            },
+                            '.MuiInputBase-input': { 
+                              paddingRight: 0,
+                              fontSize: '1rem'
+                            },
+                            '.MuiInputAdornment-root': {
+                              marginLeft: 0,
+                              height: '100%'
+                            },
+                            '.MuiSvgIcon-root': {
+                              fontSize: '1.25rem',
+                              color: '#757575' // Changed from primary.main to gray
+                            }
+                          }
+                        },
+                        field: {
+                          clearable: true
                         }
                       }}
                       maxDate={parseDate(loc.end) || undefined}
@@ -155,16 +225,36 @@ const LocationEditor = ({ value, onChange }) => {
                       onChange={(newDate) => handleUpdateLocation(loc.id, "end", toISODateString(newDate))}
                       slotProps={{
                         textField: {
-                          size: "small",
-                          fullWidth: true
+                          size: "medium",
+                          fullWidth: true,
+                          sx: { 
+                            '.MuiInputBase-root': {
+                              paddingRight: 1
+                            },
+                            '.MuiInputBase-input': { 
+                              paddingRight: 0,
+                              fontSize: '1rem'
+                            },
+                            '.MuiInputAdornment-root': {
+                              marginLeft: 0,
+                              height: '100%'
+                            },
+                            '.MuiSvgIcon-root': {
+                              fontSize: '1.25rem',
+                              color: '#757575' // Changed from primary.main to gray
+                            }
+                          }
+                        },
+                        field: {
+                          clearable: true
                         }
                       }}
                       minDate={parseDate(loc.start) || undefined}
                     />
                   </TableCell>
-                  <TableCell>
-                    <IconButton size="small" onClick={() => confirmDeleteLocation(loc.id)}>
-                      <DeleteIcon fontSize="small" />
+                  <TableCell align="center">
+                    <IconButton size="medium" onClick={() => confirmDeleteLocation(loc.id)}>
+                      <DeleteIcon />
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -172,17 +262,14 @@ const LocationEditor = ({ value, onChange }) => {
             </TableBody>
           </Table>
         </TableContainer>
-      ) : (
-        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-          Δεν έχουν προστεθεί τοποθεσίες.
-        </Typography>
-      )}
+      ) : null}
       
-      <Grid container spacing={2} alignItems="center">
-        <Grid item xs={12} sm={4}>
+      {/* Form for adding new locations - improved spacing and widths */}
+      <Grid container spacing={4} alignItems="center">
+        <Grid item xs={12} md={4}>
           <TextField
             fullWidth
-            size="small"
+            size="medium"
             label="Τοποθεσία"
             value={newLocation.topothesia}
             onChange={(e) => setNewLocation({
@@ -191,7 +278,7 @@ const LocationEditor = ({ value, onChange }) => {
             })}
           />
         </Grid>
-        <Grid item xs={12} sm={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <DatePicker
             format="dd/MM/yyyy"
             label="Ημ/νία Έναρξης"
@@ -202,14 +289,34 @@ const LocationEditor = ({ value, onChange }) => {
             })}
             slotProps={{
               textField: {
-                size: "small",
-                fullWidth: true
+                size: "medium",
+                fullWidth: true,
+                sx: { 
+                  '.MuiInputBase-root': {
+                    paddingRight: 1
+                  },
+                  '.MuiInputBase-input': { 
+                    paddingRight: 0,
+                    fontSize: '1rem'
+                  },
+                  '.MuiInputAdornment-root': {
+                    marginLeft: 0,
+                    height: '100%'
+                  },
+                  '.MuiSvgIcon-root': {
+                    fontSize: '1.25rem',
+                              color: '#757575' // Changed from primary.main to gray
+                  }
+                }
+              },
+              field: {
+                clearable: true
               }
             }}
             maxDate={parseDate(newLocation.end) || undefined}
           />
         </Grid>
-        <Grid item xs={12} sm={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <DatePicker
             format="dd/MM/yyyy"
             label="Ημ/νία Λήξης"
@@ -220,21 +327,47 @@ const LocationEditor = ({ value, onChange }) => {
             })}
             slotProps={{
               textField: {
-                size: "small",
-                fullWidth: true
+                size: "medium",
+                fullWidth: true,
+                sx: { 
+                  '.MuiInputBase-root': {
+                    paddingRight: 1
+                  },
+                  '.MuiInputBase-input': { 
+                    paddingRight: 0,
+                    fontSize: '1rem'
+                  },
+                  '.MuiInputAdornment-root': {
+                    marginLeft: 0,
+                    height: '100%'
+                  },
+                  '.MuiSvgIcon-root': {
+                    fontSize: '1.25rem',
+                              color: '#757575' // Changed from primary.main to gray
+                  }
+                }
+              },
+              field: {
+                clearable: true
               }
             }}
             minDate={parseDate(newLocation.start) || undefined}
           />
         </Grid>
-        <Grid item xs={12} sm={2}>
+        <Grid item xs={12} md={2}>
           <Button 
             fullWidth 
             variant="contained" 
             onClick={handleAddLocation}
             disabled={!newLocation.topothesia || !newLocation.start || !newLocation.end}
+            size="large"
+            sx={{ 
+              height: '48px', 
+              fontSize: '1rem',
+              fontWeight: 'bold'
+            }}
           >
-            Προσθήκη
+            ΠΡΟΣΘΗΚΗ
           </Button>
         </Grid>
       </Grid>

@@ -810,7 +810,7 @@ export default function Meloi() {
         },
         melos: {
           tipo_melous: "esoteriko",
-          sxolia: updatedRow.sxolia || "",
+          sxolia: newRow.sxolia || "", // Fixed variable name
           vathmos_diskolias: {
             id_vathmou_diskolias: difficultyId
           }
@@ -1122,6 +1122,21 @@ export default function Meloi() {
         header: "Ημερομηνία Πληρωμής", 
         type: "date",
         validation: yup.date().nullable()
+    .test('payment-after-start', 'Η ημερομηνία πληρωμής πρέπει να είναι μετά την ημερομηνία έναρξης', function(value) {
+      const startDate = this.parent.hmerominia_enarksis;
+      // If either date is missing, validation passes
+      if (!value || !startDate) return true;
+      
+      // Parse dates to ensure proper comparison
+      const paymentDate = new Date(value);
+      const registrationDate = new Date(startDate);
+      
+      // Check if dates are valid
+      if (isNaN(paymentDate.getTime()) || isNaN(registrationDate.getTime())) return true;
+      
+      // Payment date should be same day or after registration date
+      return paymentDate >= registrationDate;
+    })
       },
  { 
   accessorKey: "epipedo", 
@@ -1565,6 +1580,21 @@ const parseDate = (dateValue) => {
         header: "Ημερομηνία Πληρωμής", 
         type: "date",
         validation: yup.date().nullable()
+    .test('payment-after-start', 'Η ημερομηνία πληρωμής πρέπει να είναι μετά την ημερομηνία έναρξης', function(value) {
+      const startDate = this.parent.hmerominia_enarksis;
+      // If either date is missing, validation passes
+      if (!value || !startDate) return true;
+      
+      // Parse dates to ensure proper comparison
+      const paymentDate = new Date(value);
+      const registrationDate = new Date(startDate);
+      
+      // Check if dates are valid
+      if (isNaN(paymentDate.getTime()) || isNaN(registrationDate.getTime())) return true;
+      
+      // Payment date should be same day or after registration date
+      return paymentDate >= registrationDate;
+    })
       }
     ] : []),
      { 

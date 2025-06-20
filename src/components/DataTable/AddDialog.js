@@ -76,17 +76,41 @@ const AddDialog = ({
       handleAddSave(values);
     },
     enableReinitialize: false, // Σημαντικό: Μην ενεργοποιήσετε αυτό!
+    validateOnChange: true,    // Προσθήκη για άμεση επικύρωση κατά την πληκτρολόγηση
+    validateOnBlur: true       // Προσθήκη για επικύρωση όταν φεύγει το focus
   });
+
+  // Προσθήκη state για την παρακολούθηση της εγκυρότητας της φόρμας
+  const [isFormValid, setIsFormValid] = useState(true);
+  
+  // Έλεγχος εγκυρότητας φόρμας σε κάθε αλλαγή τιμών
+  useEffect(() => {
+    formik.validateForm().then(errors => {
+      setIsFormValid(Object.keys(errors).length === 0);
+    });
+  }, [formik.values]);
 
   // Handler για το Enter key press
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
-      // Αποτροπή προεπιλεγμένης συμπεριφοράς για να αποφύγουμε άλλες ενέργειες
       event.preventDefault();
-      // Εκτέλεση του submit αν η φόρμα είναι έγκυρη
-      if (formik.isValid && !formik.isSubmitting) {
-        formik.handleSubmit();
-      }
+      
+      // Touch all fields
+      Object.keys(formik.values).forEach(field => {
+        formik.setFieldTouched(field, true, true);
+      });
+      
+      // Force validation before submission
+      formik.validateForm().then(errors => {
+        if (Object.keys(errors).length === 0 && !formik.isSubmitting) {
+          formik.handleSubmit();
+        } else {
+          // Focus the first field with an error
+          const firstErrorField = Object.keys(errors)[0];
+          const element = document.getElementById(firstErrorField);
+          if (element) element.focus();
+        }
+      });
     }
   };
 
@@ -273,13 +297,18 @@ const AddDialog = ({
                 } else {
                   formik.setFieldValue(field.accessorKey, "");
                 }
+                // Mark field as touched when changed
+                formik.setFieldTouched(field.accessorKey, true, true);
               }}
               format="dd/MM/yyyy" // Display in Greek format
               slotProps={{
                 textField: {
                   fullWidth: true,
+                  id: field.accessorKey, // Add id for focusing
                   error: formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey]),
-                  helperText: formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
+                  helperText: formik.touched[field.accessorKey] ? formik.errors[field.accessorKey] : "",
+                  // Add onBlur to mark field as touched
+                  onBlur: () => formik.setFieldTouched(field.accessorKey, true, true)
                 }
               }}
             />
@@ -705,9 +734,29 @@ const AddDialog = ({
             type="submit"
             color="primary"
             variant="contained"
-            disabled={!formik.isValid || formik.isSubmitting}
+            disabled={!isFormValid || formik.isSubmitting}
+            onClick={(e) => {
+              e.preventDefault(); // Prevent default form submission
+              
+              // Touch all fields first to show validation errors
+              Object.keys(formik.values).forEach(field => {
+                formik.setFieldTouched(field, true, true);
+              });
+              
+              // Force validation before submission
+              formik.validateForm().then(errors => {
+                if (Object.keys(errors).length === 0) {
+                  formik.handleSubmit(); // Only submit if no errors
+                } else {
+                  // Focus the first field with an error
+                  const firstErrorField = Object.keys(errors)[0];
+                  const element = document.getElementById(firstErrorField);
+                  if (element) element.focus();
+                }
+              });
+            }}
           >
-            {externalInitialValues ? 'Αποθήκευση' : 'Προσθήκη'}
+            Αποθήκευση
           </Button>
         </DialogActions>
       </form>
