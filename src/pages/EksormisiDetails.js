@@ -555,6 +555,7 @@ const fetchInternalMembers = async () => {
   // ========== DRASTIRIOTITA MANAGEMENT HANDLERS ==========
   
   // Fields for drastiriotita forms
+// Fields for drastiriotita forms
 const drastiriotitaFormFields = [
   { 
     accessorKey: "titlos", 
@@ -562,14 +563,49 @@ const drastiriotitaFormFields = [
     required: true,
     validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") 
   },
-  { 
-    accessorKey: "hmerominia", 
-    header: "Ημερομηνία", 
-    type: "date",
-    required: true,
-    defaultValue: new Date().toISOString().split('T')[0],
-    validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") 
-  },
+  // Modify the hmerominia field in drastiriotitaFormFields
+{ 
+  accessorKey: "hmerominia", 
+  header: "Ημερομηνία", 
+  type: "date",
+  required: true,
+  // Use stringified dates for better compatibility
+  minDate: eksormisi?.hmerominia_afiksis,
+  maxDate: eksormisi?.hmerominia_anaxorisis,
+  defaultValue: new Date().toISOString().split('T')[0],
+  validation: yup.string()
+    .required("Το πεδίο είναι υποχρεωτικό")
+    .test(
+      'date-in-range', 
+      'Η ημερομηνία πρέπει να είναι μεταξύ της άφιξης και αναχώρησης της εξόρμησης', 
+      function(value) {
+        if (!value) return true;
+        
+        try {
+          // Make sure all dates are properly normalized (noon UTC for reliable comparison)
+          const normalizeDate = (dateStr) => {
+            if (!dateStr) return null;
+            const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+            return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+          };
+
+          const selectedDate = normalizeDate(value);
+          const arrivalDate = normalizeDate(eksormisi?.hmerominia_afiksis);
+          const departureDate = normalizeDate(eksormisi?.hmerominia_anaxorisis);
+          
+          if (!arrivalDate || !departureDate) return true;
+          
+          // Check if valid dates before comparing
+          if (isNaN(selectedDate) || isNaN(arrivalDate) || isNaN(departureDate)) return true;
+          
+          return selectedDate >= arrivalDate && selectedDate <= departureDate;
+        } catch (e) {
+          console.error("Date validation error:", e);
+          return false;
+        }
+      }
+    )
+},
   { 
     accessorKey: "ores_poreias", 
     header: "Ώρες Πορείας", 

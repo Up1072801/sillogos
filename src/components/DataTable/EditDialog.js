@@ -252,8 +252,12 @@ const EditDialog = ({
                 }
               }}
               // Add these lines for dynamic date constraints
-              minDate={field.minDateField ? new Date(formik.values[field.minDateField]) : undefined}
-              maxDate={field.maxDateField ? new Date(formik.values[field.maxDateField]) : undefined}
+              minDate={field.minDateField 
+                ? new Date(formik.values[field.minDateField]) 
+                : (field.minDate ? new Date(field.minDate) : undefined)}
+              maxDate={field.maxDateField 
+                ? new Date(formik.values[field.maxDateField]) 
+                : (field.maxDate ? new Date(field.maxDate) : undefined)}
               // For disabling past dates if needed
               disablePast={field.disablePast === true}
             />
