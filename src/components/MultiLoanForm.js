@@ -307,50 +307,67 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
                 </TableRow>
               </TableHead>
               <TableBody>
-                {equipmentItems.map((item, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      <FormControl fullWidth>
-                        <Select
-                          value={item.id_eksoplismou}
-                          onChange={(e) => updateEquipmentItem(index, 'id_eksoplismou', e.target.value)}
-                          displayEmpty
-                          required
+                {equipmentItems.map((item, index) => {
+                  // Filter out already selected equipment for this dropdown
+                  const filteredEquipment = (availableEquipment || []).filter(equip => {
+                    // Allow the currently selected item in this row
+                    if (item.id_eksoplismou && equip.id_eksoplismou.toString() === item.id_eksoplismou.toString()) {
+                      return true;
+                    }
+                    // Exclude items that are selected in other rows
+                    return !equipmentItems.some(
+                      (selectedItem, selectedIndex) => 
+                        selectedIndex !== index && 
+                        selectedItem.id_eksoplismou && 
+                        selectedItem.id_eksoplismou.toString() === equip.id_eksoplismou.toString()
+                    );
+                  });
+
+                  return (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <FormControl fullWidth>
+                          <Select
+                            value={item.id_eksoplismou}
+                            onChange={(e) => updateEquipmentItem(index, 'id_eksoplismou', e.target.value)}
+                            displayEmpty
+                            required
+                          >
+                            <MenuItem value="" disabled>Επιλέξτε εξοπλισμό</MenuItem>
+                            {filteredEquipment.map((equip) => (
+                              <MenuItem 
+                                key={equip.id_eksoplismou} 
+                                value={equip.id_eksoplismou}
+                              >
+                                {equip.onoma} 
+                                {equip.marka && ` - ${equip.marka}`}
+                                {equip.xroma && ` (${equip.xroma})`}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </TableCell>
+                      <TableCell align="right">
+                        <TextField
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => updateEquipmentItem(index, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                          InputProps={{ inputProps: { min: 1 } }}
+                          size="small"
+                          sx={{ width: 80 }}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton 
+                          onClick={() => removeEquipmentItem(index)}
+                          disabled={equipmentItems.length === 1}
                         >
-                          <MenuItem value="" disabled>Επιλέξτε εξοπλισμό</MenuItem>
-                          {(availableEquipment || []).map((equip) => (
-                            <MenuItem 
-                              key={equip.id_eksoplismou} 
-                              value={equip.id_eksoplismou}
-                            >
-                              {equip.onoma} 
-                              {equip.marka && ` - ${equip.marka}`}
-                              {equip.xroma && ` (${equip.xroma})`}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </TableCell>
-                    <TableCell align="right">
-                      <TextField
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateEquipmentItem(index, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
-                        InputProps={{ inputProps: { min: 1 } }}
-                        size="small"
-                        sx={{ width: 80 }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton 
-                        onClick={() => removeEquipmentItem(index)}
-                        disabled={equipmentItems.length === 1}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
