@@ -36,7 +36,8 @@ const EditDialog = ({
   resourceData = {} // Added parameter for additional data needed by custom field types
 }) => {
   const [searchText, setSearchText] = useState('');
-  
+  const [isFormValid, setIsFormValid] = useState(true);
+
   const validationSchema = yup.object(
     fields.reduce((schema, field) => {
       if (field.validation) {
@@ -109,6 +110,12 @@ const EditDialog = ({
       });
     }
   }, [editValues, fields]);
+
+  useEffect(() => {
+    formik.validateForm().then(errors => {
+      setIsFormValid(Object.keys(errors).length === 0);
+    });
+  }, [formik.values]);
 
   const renderField = (field) => {
     // Έλεγχος για το locationEditor type
@@ -224,16 +231,24 @@ const EditDialog = ({
                   const day = String(date.getDate()).padStart(2, '0');
                   const localDateString = `${year}-${month}-${day}`;
                   formik.setFieldValue(field.accessorKey, localDateString);
+                  
+                  // Mark field as touched and run validation immediately
+                  formik.setFieldTouched(field.accessorKey, true, true);
                 } else {
                   formik.setFieldValue(field.accessorKey, "");
+                  formik.setFieldTouched(field.accessorKey, true, true);
                 }
+                formik.validateForm(); // Still keep this
               }}
               format="dd/MM/yyyy" // Display in Greek format
               slotProps={{
                 textField: {
                   fullWidth: true,
+                  id: field.accessorKey, // Add id for focusing
                   error: formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey]),
-                  helperText: formik.touched[field.accessorKey] && formik.errors[field.accessorKey]
+                  helperText: formik.touched[field.accessorKey] ? formik.errors[field.accessorKey] : "",
+                  // Add onBlur to mark field as touched
+                  onBlur: () => formik.setFieldTouched(field.accessorKey, true, true)
                 }
               }}
             />
@@ -538,7 +553,7 @@ const EditDialog = ({
           <Button 
             type="submit" 
             color="primary" 
-            disabled={Object.keys(formik.errors).length > 0}
+            disabled={!isFormValid || formik.isSubmitting}
           >
             Αποθήκευση
           </Button>

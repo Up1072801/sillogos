@@ -145,8 +145,14 @@ router.get("/", async (_req, res) => {
     });
 
     const formattedData = members.map((member) => {
-      const latestPayment = member.sindromitis?.exei?.[0]?.hmerominia_pliromis || null;
-      const registrationDate = member.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis || null;
+      // Extract the dates and ensure they are formatted consistently as strings
+      const latestPayment = member.sindromitis?.exei?.[0]?.hmerominia_pliromis 
+        ? member.sindromitis.exei[0].hmerominia_pliromis.toISOString().split('T')[0] 
+        : null;
+      
+      const registrationDate = member.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis 
+        ? member.sindromitis.exei[0].sindromi.hmerominia_enarksis.toISOString().split('T')[0] 
+        : null;
 
       // Μορφοποίηση δραστηριοτήτων με σωστή ημερομηνία
       if (member.melos?.simmetoxi) {
@@ -182,8 +188,10 @@ router.get("/", async (_req, res) => {
           : member.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "-",
         hmerominia_egrafis: registrationDate,
         hmerominia_pliromis: latestPayment,
-        // Προσθέτουμε με σαφήνεια την ημερομηνία γέννησης από το σωστό πεδίο
-        hmerominia_gennhshs: member.hmerominia_gennhshs
+        // Format birth date the same way
+        hmerominia_gennhshs: member.hmerominia_gennhshs 
+          ? new Date(member.hmerominia_gennhshs).toISOString().split('T')[0]
+          : null
       };
       return formattedMember;
     });
@@ -337,8 +345,13 @@ router.post("/", async (req, res) => {
           } : null
         } : null,
         eidosSindromis: completeMember.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "-",
-        hmerominia_egrafis: completeMember.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis,
-        hmerominia_pliromis: completeMember.sindromitis?.exei?.[0]?.hmerominia_pliromis
+        // Add these explicit formatted dates to the response
+        hmerominia_egrafis: completeMember.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis 
+          ? completeMember.sindromitis.exei[0].sindromi.hmerominia_enarksis.toISOString().split('T')[0] 
+          : null,
+        hmerominia_pliromis: completeMember.sindromitis?.exei?.[0]?.hmerominia_pliromis 
+          ? completeMember.sindromitis.exei[0].hmerominia_pliromis.toISOString().split('T')[0] 
+          : null
       };
     });
 
@@ -557,6 +570,9 @@ router.put("/:id", async (req, res) => {
           }
         }))
       },
+      // Add these explicit top-level properties to match the GET response structure
+      hmerominia_egrafis: updatedMember.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis?.toISOString().split('T')[0] || null,
+      hmerominia_pliromis: updatedMember.sindromitis?.exei?.[0]?.hmerominia_pliromis?.toISOString().split('T')[0] || null,
       eidosSindromis: updatedMember.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || eidosSindromis
     };
     

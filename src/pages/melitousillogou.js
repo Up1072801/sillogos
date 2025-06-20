@@ -728,14 +728,25 @@ export default function Meloi() {
           { value: "Διαγραμμένη", label: "Διαγραμμένη" }
         ]);
 
+
         setData(
           membersRes.data.map((member) => {
-            // Εύρεση της ημερομηνίας γέννησης (προσθέτουμε έλεγχο null/undefined)
+            // Look for dates in all possible locations
             const birthDate = member.hmerominia_gennhshs || 
-                           member.esoteriko_melos?.hmerominia_gennhshs || null;
+                          member.esoteriko_melos?.hmerominia_gennhshs || null;
             
-            const registrationDate = member.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis || null;
-            const paymentDate = member.sindromitis?.exei?.[0]?.hmerominia_pliromis || null;
+            // Try both top-level and nested paths for registration and payment dates
+            const registrationDate = member.hmerominia_egrafis || 
+                                 member.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis || null;
+            const paymentDate = member.hmerominia_pliromis || 
+                            member.sindromitis?.exei?.[0]?.hmerominia_pliromis || null;
+            
+            // Log the dates for debugging
+            console.log(`Member ${member.id_es_melous} dates:`, {
+              name: `${member.melos?.epafes?.onoma} ${member.melos?.epafes?.epitheto}`,
+              registrationDate, 
+              paymentDate
+            });
             
             return {
               ...member,
@@ -749,20 +760,25 @@ export default function Meloi() {
               eidosSindromis: member.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "",
               status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || "",
               
-              // Διατηρούμε τις αρχικές ημερομηνίες για εσωτερική χρήση
-              _hmerominia_gennhshs: birthDate,
-              _hmerominia_egrafis: registrationDate,
-              _hmerominia_pliromis: paymentDate,
-              
-              // Και τις αποθηκεύουμε και σε κανονική μορφή για το UI
+              // Always use the consolidated dates from above
               hmerominia_gennhshs: birthDate,
               hmerominia_egrafis: registrationDate,
               hmerominia_pliromis: paymentDate,
-              // Ενημέρωση κλήσης της συνάρτησης με δύο παραμέτρους
-              subscriptionEndDate: calculateSubscriptionEndDate(registrationDate, paymentDate),
               
-              // Διατηρώ τη λίστα των δραστηριοτήτων όπου το μέλος είναι υπεύθυνος
-              ypefthinos_eksormisis: member.ypefthynos_eksormisis || []
+              // Update nested structure to maintain consistency
+              sindromitis: member.sindromitis ? {
+                ...member.sindromitis,
+                exei: member.sindromitis.exei?.map(item => ({
+                  ...item,
+                  hmerominia_pliromis: paymentDate || item.hmerominia_pliromis,
+                  sindromi: {
+                    ...item.sindromi,
+                    hmerominia_enarksis: registrationDate || item.sindromi?.hmerominia_enarksis
+                  }
+                }))
+              } : null,
+              
+              subscriptionEndDate: calculateSubscriptionEndDate(registrationDate, paymentDate),
             };
           })
         );
@@ -947,7 +963,7 @@ export default function Meloi() {
       // Αν είναι αθλητής, αφαιρούμε τα πεδία συνδρομής
       const isAthlete = editValues.isAthlete;
       
-      // Έλεγχος ότι η ημερομηνία εγγραφής δεν είναι μεταγενέστερη της πληρωμής
+      // Έλεγχος ημερομηνιών
       if (!isAthlete && updatedRow.hmerominia_enarksis && updatedRow.hmerominia_pliromis) {
         if (!validateDates(updatedRow.hmerominia_enarksis, updatedRow.hmerominia_pliromis)) {
           alert("Η ημερομηνία έναρξης δεν μπορεί να είναι μεταγενέστερη της ημερομηνίας πληρωμής");
@@ -955,69 +971,89 @@ export default function Meloi() {
         }
       }
 
-      // Μετατροπή ημερομηνιών σε ISO format
-      const formattedBirthDate = toISODate(updatedRow.hmerominia_gennhshs);
+      // Μετατροπή ημερομηνιών
+      let formData = { ...updatedRow };
+      if (!isAthlete) {
+        // Map hmerominia_enarksis to hmerominia_egrafis for consistency
+        // We need both fields for different parts of the code
+        if (formData.hmerominia_enarksis) {
+          // Convert to Date and back to ensure consistent format
+          const startDate = new Date(formData.hmerominia_enarksis);
+          if (!isNaN(startDate.getTime())) {
+            // Store in ISO format for backend
+            formData.hmerominia_egrafis = startDate.toISOString().split('T')[0];
+          }
+        }
+      }
+
+      const formattedBirthDate = toISODate(formData.hmerominia_gennhshs);
+      // Use hmerominia_enarksis for backend API
+      const formattedStartDate = !isAthlete ? toISODate(formData.hmerominia_enarksis) : undefined;
+      const formattedPaymentDate = !isAthlete ? toISODate(formData.hmerominia_pliromis) : undefined;
       
-      // Προετοιμασία για τα πεδία συνδρομής (μόνο για μη αθλητες)
-      const formattedStartDate = !isAthlete ? toISODate(updatedRow.hmerominia_enarksis) : undefined;
-      const formattedPaymentDate = !isAthlete ? toISODate(updatedRow.hmerominia_pliromis) : undefined;
-      const subscriptionStatus = !isAthlete ? updatedRow.katastasi_sindromis : undefined;
-      
-      // Προσδιορισμός της κατάστασης συνδρομής μόνο για μη αθλητές
+      // Υπολογισμός κατάστασης
       const newStatus = !isAthlete ? 
-  (updatedRow.katastasi_sindromis === "Διαγραμμένη" ? "Διαγραμμένη" : 
-  determineSubscriptionStatus(
-    formattedStartDate, 
-    formattedPaymentDate, 
-    updatedRow.katastasi_sindromis || "Ενεργή"
-  )) : undefined;
-      
-      // Ενημέρωση της κατάστασης στα δεδομένα που θα αποσταλούν
+        (updatedRow.katastasi_sindromis === "Διαγραμμένη" ? "Διαγραμμένη" : 
+        determineSubscriptionStatus(
+          formattedStartDate, 
+          formattedPaymentDate, 
+          updatedRow.katastasi_sindromis || "Ενεργή"
+        )) : undefined;
+    
+      // API Request
       const requestData = {
-        // Βασικά στοιχεία μέλους
+        // Personal info
+        hmerominia_gennhshs: formattedBirthDate,
+        patronimo: updatedRow.patronimo || "",
+        arithmos_mitroou: updatedRow.arithmos_mitroou || "",
+        odos: updatedRow.odos || "",
+        tk: updatedRow.tk || "",
+        
+        // Contact info
         onoma: updatedRow.onoma,
         epitheto: updatedRow.epitheto,
-        email: updatedRow.email,
-        tilefono: updatedRow.tilefono,
+        email: updatedRow.email || "",
+        tilefono: updatedRow.tilefono || "",
+        
+        // Other fields
         epipedo: updatedRow.epipedo,
+        sxolia: updatedRow.sxolia || "",
         
-        // Προσθήκη του πεδίου sxolia στη σωστή δομή
-        melos: {
-          sxolia: updatedRow.sxolia || ""
-        },
-        
-        // Στοιχεία εσωτερικού μέλους
-        hmerominia_gennhshs: formattedBirthDate,
-        patronimo: updatedRow.patronimo,
-        arithmos_mitroou: updatedRow.arithmos_mitroou,
-        odos: updatedRow.odos,
-        tk: updatedRow.tk,
-        
-        // Στοιχεία συνδρομής - μόνο για μη αθλητές
-        ...(isAthlete ? {} : {
-          katastasi_sindromis: newStatus,
-          hmerominia_enarksis: formattedStartDate,
-          hmerominia_pliromis: formattedPaymentDate,
-          eidosSindromis: updatedRow.eidosSindromis
-        })
+        // Subscription fields - note the correct field names for backend
+        katastasi_sindromis: !isAthlete ? updatedRow.katastasi_sindromis : undefined,
+ hmerominia_enarksis: formattedStartDate, // Field name expected by backend
+  hmerominia_egrafis: formattedStartDate,   // Field name used in frontend
+  hmerominia_pliromis: formattedPaymentDate,
+        eidosSindromis: !isAthlete ? updatedRow.eidosSindromis : undefined
       };
       
       const response = await api.put(`/melitousillogou/${id}`, requestData);
       
-      // Ενημέρωση των τοπικών δεδομένων
+      // Update local state with consistent date structure
       setData(prevData => 
         prevData.map(item => {
           if (item.id === id || item.id_es_melous === id) {
-            // Create a properly structured updated item
-            return {
+            console.log("Updating member data:", {
+              regDate: formattedStartDate,
+              payDate: formattedPaymentDate
+            });
+            
+            // First create a base object without the dates
+            const baseObj = {
               ...item,
               ...response.data,
-              // Ensure these fields are at the top level for UI components that expect them there
-              hmerominia_egrafis: formattedStartDate,
-              hmerominia_pliromis: formattedPaymentDate,
-              // Also restructure the data to match expected paths for nested components
+            };
+            
+            // Then explicitly set the dates AFTER spreading response.data
+            return {
+              ...baseObj,
+              // Explicitly set these dates at top level to ensure they're never overwritten
+              hmerominia_egrafis: formattedStartDate || baseObj.hmerominia_egrafis || item.hmerominia_egrafis, 
+              hmerominia_enarksis: formattedStartDate || baseObj.hmerominia_enarksis || item.hmerominia_enarksis,
+              hmerominia_pliromis: formattedPaymentDate || baseObj.hmerominia_pliromis || item.hmerominia_pliromis,
+              // Update nested structure
               sindromitis: {
-                ...(item.sindromitis || {}),
+                ...(baseObj.sindromitis || {}),
                 katastasi_sindromis: newStatus,
                 exei: [{
                   hmerominia_pliromis: formattedPaymentDate,
@@ -1029,10 +1065,8 @@ export default function Meloi() {
                   }
                 }]
               },
-              // Update subscription end date
-              subscriptionEndDate: formattedPaymentDate ? 
-                calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate) : 
-                null,
+              // Recalculate subscription end date
+              subscriptionEndDate: calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate)
             };
           }
           return item;
@@ -1042,8 +1076,7 @@ export default function Meloi() {
       setOpenEditDialog(false);
     } catch (error) {
       console.error("Σφάλμα ενημέρωσης:", error);
-      // Εμφάνιση λεπτομερών πληροφοριών σφάλματος
-        if (error.response?.data) {
+      if (error.response?.data) {
         alert(`Σφάλμα: ${JSON.stringify(error.response.data)}`);
       } else {
         alert("Σφάλμα κατά την ενημέρωση του μέλους.");
@@ -1141,6 +1174,9 @@ export default function Meloi() {
         header: "Είδος Συνδρομής",
         type: "select",
         options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
+        // Add default value - find subscription type with ID 1 or use first available
+        defaultValue: subscriptionTypes.find(type => type.id_eidous_sindromis === 1)?.titlos || 
+                      (subscriptionTypes.length > 0 ? subscriptionTypes[0].titlos : ""),
         validation: yup.string() // Αφαίρεση .required()
       },
       { 
