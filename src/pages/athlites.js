@@ -1348,10 +1348,13 @@ const convertDateFormat = (dateString) => {
         .typeError("Πρέπει να είναι αριθμός")
     },
   // In the athleteFormFields useMemo
+// In the athleteFormFields useMemo
 { 
   accessorKey: "hmerominiaenarksis", 
   header: "Ημ/νία Έναρξης Δελτίου", 
   type: "date",
+  // Προσθήκη μέγιστης ημερομηνίας (δεν επιτρέπει επιλογή μετά την ημερομηνία λήξης)
+  maxDateField: "hmerominialiksis",
   validation: yup.date().nullable(),
   dateFormat: "dd/MM/yyyy",
 },
@@ -1359,8 +1362,10 @@ const convertDateFormat = (dateString) => {
   accessorKey: "hmerominialiksis", 
   header: "Ημ/νία Λήξης Δελτίου", 
   type: "date", 
+  // Προσθήκη ελάχιστης ημερομηνίας (δεν επιτρέπει επιλογή πριν την ημερομηνία έναρξης)
+  minDateField: "hmerominiaenarksis",
   validation: yup.date().nullable()
-    .test('end-after-start', 'Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης', function(value) {
+    .test('end-after-start', 'Η ημερομηνία λήξης πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης', function(value) {
       const startDate = this.parent.hmerominiaenarksis;
       // If either date is missing, validation passes
       if (!value || !startDate) return true;

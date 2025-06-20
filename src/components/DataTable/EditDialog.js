@@ -251,6 +251,11 @@ const EditDialog = ({
                   onBlur: () => formik.setFieldTouched(field.accessorKey, true, true)
                 }
               }}
+              // Add these lines for dynamic date constraints
+              minDate={field.minDateField ? new Date(formik.values[field.minDateField]) : undefined}
+              maxDate={field.maxDateField ? new Date(formik.values[field.maxDateField]) : undefined}
+              // For disabling past dates if needed
+              disablePast={field.disablePast === true}
             />
           </LocalizationProvider>
         );

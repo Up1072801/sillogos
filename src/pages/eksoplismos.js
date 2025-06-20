@@ -246,12 +246,16 @@ const loanFormFields = [
   header: "Ημερομηνία Δανεισμού", 
   type: "date",
   defaultValue: new Date().toISOString().split('T')[0],
+  // Set maxDate to be the return date if it exists
+  maxDateField: "hmerominia_epistrofis",
   validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία δανεισμού")
 },
 { 
   accessorKey: "hmerominia_epistrofis", 
   header: "Ημερομηνία Επιστροφής", 
   type: "date",
+  // Set minDate to be the loan date
+  minDateField: "hmerominia_daneismou",
   validation: yup.date().nullable()
     .test('epistrofis-after-daneismou', 'Η ημερομηνία επιστροφής πρέπει να είναι μετά ή ίδια με την ημερομηνία δανεισμού', function(value) {
       const loanDate = this.parent.hmerominia_daneismou;
@@ -301,12 +305,16 @@ const editLoanFormFields = [
     accessorKey: "hmerominia_daneismou", 
     header: "Ημερομηνία Δανεισμού", 
     type: "date",
+    // Set maxDate to be the return date if it exists
+    maxDateField: "hmerominia_epistrofis",
     validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία δανεισμού")
   },
   { 
     accessorKey: "hmerominia_epistrofis", 
     header: "Ημερομηνία Επιστροφής", 
     type: "date",
+    // Set minDate to be the loan date
+    minDateField: "hmerominia_daneismou",
     validation: yup.date().nullable()
       .test('epistrofis-after-daneismou', 'Η ημερομηνία επιστροφής πρέπει να είναι μετά ή ίδια με την ημερομηνία δανεισμού', function(value) {
         const loanDate = this.parent.hmerominia_daneismou;
@@ -936,7 +944,7 @@ const handleEditLoanClick = (loan) => {
       katastasi_daneismou: loan.katastasi_daneismou
     });
   } else {
-    // Για μεμονωμένους δανεισμούς
+    // Για μεμονωμένα δανεισμούς
     setEditLoanData({
       id: loan.id,
       id_epafis: loan.id_epafis,
@@ -1267,7 +1275,7 @@ const loanDetailPanelConfig = {
   ]
 };
 
-  // Πλήρης αναδιάρθρωση του equipmentDetailPanelConfig
+// Πλήρης αναδιάρθρωση του equipmentDetailPanelConfig
 // Change date format in equipment detail panel
 const equipmentDetailPanelConfig = {
   mainDetails: [

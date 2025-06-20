@@ -229,15 +229,25 @@ export default function Eksormiseis() {
   
   // Πεδία φόρμας για εξόρμηση
    // Πεδία φόρμας για εξόρμηση
+   // Πεδία φόρμας για εξόρμηση
   const eksormisiFields = React.useMemo(() => [
     { accessorKey: "titlos", header: "Τίτλος", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "proorismos", header: "Προορισμός", validation: yup.string().required("Το πεδίο είναι υποχρεωτικό") },
     { accessorKey: "timi", header: "Τιμή", type: "number", validation: yup.number().min(0, "Η τιμή δεν μπορεί να είναι αρνητική") },
-    { accessorKey: "hmerominia_afiksis", header: "Ημερομηνία Άφιξης", type: "date", validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") },
+    { 
+      accessorKey: "hmerominia_afiksis", 
+      header: "Ημερομηνία Άφιξης", 
+      type: "date",
+      // Προσθήκη μέγιστης ημερομηνίας (δεν επιτρέπει επιλογή μετά την ημερομηνία αναχώρησης)
+      maxDateField: "hmerominia_anaxorisis",
+      validation: yup.date().required("Το πεδίο είναι υποχρεωτικό") 
+    },
     { 
       accessorKey: "hmerominia_anaxorisis", 
       header: "Ημερομηνία Αναχώρησης", 
-      type: "date", 
+      type: "date",
+      // Προσθήκη ελάχιστης ημερομηνίας (δεν επιτρέπει επιλογή πριν την ημερομηνία άφιξης)
+      minDateField: "hmerominia_afiksis",
       validation: yup.date()
         .required("Το πεδίο είναι υποχρεωτικό")
         .test('anaxorisi-after-afiksi', 'Η ημερομηνία αναχώρησης πρέπει να είναι μετά ή ίδια με την ημερομηνία άφιξης', function(value) {

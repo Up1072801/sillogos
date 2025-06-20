@@ -267,32 +267,52 @@ const [deletePaymentDialog, setDeletePaymentDialog] = useState(false);
       })),
       validation: yup.string().required("Παρακαλώ επιλέξτε καταφύγιο")
     },
+// Update the arrival date field in bookingFormFields
+// In the bookingFormFields array for hmerominia_afiksis field
 { 
     accessorKey: "hmerominia_afiksis", 
     header: "Ημερομηνία Άφιξης", 
     type: "date",
-    validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία άφιξης")
+    // Add max date constraint based on departure date
+    maxDateField: "hmerominia_epistrofis",
+    validation: yup.date()
+      .required("Παρακαλώ επιλέξτε ημερομηνία άφιξης")
+      // Update validation to ensure arrival date is strictly before departure date
+      .test('afiksis-before-epistrofis', 'Η ημερομηνία άφιξης πρέπει να είναι πριν από την ημερομηνία αναχώρησης', function(value) {
+        const departureDate = this.parent.hmerominia_epistrofis;
+        
+        // If either date is missing, validation passes
+        if (!value || !departureDate) return true;
+        
+        // Parse dates to ensure proper comparison
+        const arrivalDate = new Date(value);
+        const departureDateObj = new Date(departureDate);
+        
+        // Check if dates are valid
+        if (isNaN(arrivalDate.getTime()) || isNaN(departureDateObj.getTime())) return true;
+        
+        // Arrival date should be strictly before departure date (changed <= to <)
+        return arrivalDate < departureDateObj;
+      })
   },
   { 
     accessorKey: "hmerominia_epistrofis", 
     header: "Ημερομηνία Αναχώρησης", 
     type: "date",
+    minDateField: "hmerominia_afiksis", // This will dynamically set the min date based on arrival date
     validation: yup.date()
       .required("Παρακαλώ επιλέξτε ημερομηνία αναχώρησης")
       .test('epistrofis-after-afiksis', 'Η ημερομηνία αναχώρησης πρέπει να είναι μετά την ημερομηνία άφιξης', function(value) {
+        // Keep the validation logic as a safety measure
         const arrivalDate = this.parent.hmerominia_afiksis;
         
-        // If either date is missing, validation passes
         if (!value || !arrivalDate) return true;
         
-        // Parse dates to ensure proper comparison
         const departureDate = new Date(value);
         const arrivalDateObj = new Date(arrivalDate);
         
-        // Check if dates are valid
         if (isNaN(departureDate.getTime()) || isNaN(arrivalDateObj.getTime())) return true;
         
-        // Departure date should be same day or after arrival date
         return departureDate > arrivalDateObj;
       })
   },
@@ -329,16 +349,39 @@ const [deletePaymentDialog, setDeletePaymentDialog] = useState(false);
 // Δημιουργία περιορισμένης λίστας επεξεργάσιμων πεδίων για κρατήσεις
 const editBookingFormFields = [
   // Μόνο τα παρακάτω πεδία θα είναι διαθέσιμα για επεξεργασία
-  { 
+ // Update the arrival date field in editBookingFormFields
+// In the editBookingFormFields array for hmerominia_afiksis field
+{ 
     accessorKey: "hmerominia_afiksis", 
     header: "Ημερομηνία Άφιξης", 
     type: "date",
-    validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία άφιξης")
+    // Add max date constraint based on departure date
+    maxDateField: "hmerominia_epistrofis",
+    validation: yup.date()
+      .required("Παρακαλώ επιλέξτε ημερομηνία άφιξης")
+      // Update validation to ensure arrival date is strictly before departure date
+      .test('afiksis-before-epistrofis', 'Η ημερομηνία άφιξης πρέπει να είναι πριν από την ημερομηνία αναχώρησης', function(value) {
+        const departureDate = this.parent.hmerominia_epistrofis;
+        
+        // If either date is missing, validation passes
+        if (!value || !departureDate) return true;
+        
+        // Parse dates to ensure proper comparison
+        const arrivalDate = new Date(value);
+        const departureDateObj = new Date(departureDate);
+        
+        // Check if dates are valid
+        if (isNaN(arrivalDate.getTime()) || isNaN(departureDateObj.getTime())) return true;
+        
+        // Arrival date should be strictly before departure date
+        return arrivalDate < departureDateObj;
+      })
   },
   { 
     accessorKey: "hmerominia_epistrofis", 
     header: "Ημερομηνία Αναχώρησης", 
     type: "date",
+    minDateField: "hmerominia_afiksis", // This will dynamically set the min date based on arrival date
     validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία αναχώρησης")
   },
   { 

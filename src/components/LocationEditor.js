@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, TextField, Button, IconButton, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Box, TextField, Button, IconButton, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Alert } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { DatePicker } from '@mui/x-date-pickers';
 
@@ -9,6 +9,7 @@ const LocationEditor = ({ value, onChange }) => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState("");
   
   // Parse date string to Date object
   const parseDate = (dateString) => {
@@ -65,12 +66,21 @@ const LocationEditor = ({ value, onChange }) => {
     return endDateObj >= startDateObj;
   };
   
+  // Validate if input contains only letters (Greek and Latin)
+  const validateLettersOnly = (value) => {
+    if (!value) return true;
+    return /^[A-Za-zΑ-Ωα-ωίϊΐόάέύϋΰήώ\s]*$/.test(value);
+  };
+  
   // Προσθήκη νέας τοποθεσίας με βελτιωμένο validation
   const handleAddLocation = () => {
+    setErrorMessage("");
     const errors = {};
     
     if (!newLocation.topothesia) {
       errors.topothesia = "Παρακαλώ συμπληρώστε την τοποθεσία";
+    } else if (!validateLettersOnly(newLocation.topothesia)) {
+      errors.topothesia = "Επιτρέπονται μόνο γράμματα";
     }
     
     if (!newLocation.start) {
@@ -85,31 +95,11 @@ const LocationEditor = ({ value, onChange }) => {
       errors.end = "Η ημερομηνία λήξης πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης";
     }
     
-    // Check for overlapping dates with existing locations
-    if (newLocation.start && newLocation.end) {
-      const isOverlapping = locations.some(loc => {
-        const existingStart = new Date(loc.start);
-        const existingEnd = new Date(loc.end);
-        const newStart = new Date(newLocation.start);
-        const newEnd = new Date(newLocation.end);
-        
-        return (
-          (newStart >= existingStart && newStart <= existingEnd) ||
-          (newEnd >= existingStart && newEnd <= existingEnd) ||
-          (newStart <= existingStart && newEnd >= existingEnd)
-        );
-      });
-      
-      if (isOverlapping) {
-        errors.overlap = "Οι ημερομηνίες επικαλύπτονται με υπάρχουσα τοποθεσία";
-      }
-    }
-    
     setValidationErrors(errors);
     
     if (Object.keys(errors).length > 0) {
-      // Show the first error message
-      alert(Object.values(errors)[0]);
+      // Show the first error message in the Alert component
+      setErrorMessage(Object.values(errors)[0]);
       return;
     }
     
@@ -125,7 +115,15 @@ const LocationEditor = ({ value, onChange }) => {
   };
   
   const handleUpdateLocation = (id, field, value) => {
-    // For date updates, check for overlapping with other locations
+    setErrorMessage("");
+    
+    // Add validation for topothesia field when updating
+    if (field === "topothesia" && !validateLettersOnly(value)) {
+      setErrorMessage("Επιτρέπονται μόνο γράμματα στο πεδίο τοποθεσίας");
+      return;
+    }
+    
+    // For date updates, check for valid range only (αφαιρέθηκε ο έλεγχος επικάλυψης)
     if (field === "start" || field === "end") {
       const currentLoc = locations.find(loc => loc.id === id);
       if (!currentLoc) return;
@@ -137,32 +135,11 @@ const LocationEditor = ({ value, onChange }) => {
       
       // Check for valid date range using the same validation pattern
       if (updatedDates.start && updatedDates.end && !validateDates(updatedDates.start, updatedDates.end)) {
-        alert("Η ημερομηνία λήξης πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης");
+        setErrorMessage("Η ημερομηνία λήξης πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης");
         return;
       }
       
-      // Check for overlapping with other locations
-      if (updatedDates.start && updatedDates.end) {
-        const isOverlapping = locations.some(loc => {
-          if (loc.id === id) return false; // Skip current location
-          
-          const existingStart = new Date(loc.start);
-          const existingEnd = new Date(loc.end);
-          const newStart = new Date(updatedDates.start);
-          const newEnd = new Date(updatedDates.end);
-          
-          return (
-            (newStart >= existingStart && newStart <= existingEnd) ||
-            (newEnd >= existingStart && newEnd <= existingEnd) ||
-            (newStart <= existingStart && newEnd >= existingEnd)
-          );
-        });
-        
-        if (isOverlapping) {
-          alert("Οι ημερομηνίες επικαλύπτονται με άλλη τοποθεσία");
-          return;
-        }
-      }
+      // ΑΦΑΙΡΕΘΗΚΕ: Έλεγχος για επικαλυπτόμενες ημερομηνίες με άλλες τοποθεσίες
     }
     
     const updatedLocations = locations.map(loc => 
@@ -189,6 +166,10 @@ const LocationEditor = ({ value, onChange }) => {
   
   return (
     <Box sx={{ width: '100%', minWidth: '825px' }}>
+      {errorMessage && (
+        <Alert severity="error" sx={{ mb: 2 }}>{errorMessage}</Alert>
+      )}
+      
       {locations.length > 0 ? (
         <TableContainer component={Paper} sx={{ mb: 3, width: '100%' }}>
           <Table>
@@ -207,8 +188,31 @@ const LocationEditor = ({ value, onChange }) => {
                     <TextField
                       size="medium"
                       value={loc.topothesia}
-                      onChange={(e) => handleUpdateLocation(loc.id, "topothesia", e.target.value)}
+                      onChange={(e) => {
+                        // Always update the state to show what the user is typing
+                        const updatedLocations = locations.map(l => 
+                          l.id === loc.id ? { ...l, topothesia: e.target.value } : l
+                        );
+                        setLocations(updatedLocations);
+                        
+                        // Only update parent component (and validate) if the input is valid
+                        if (validateLettersOnly(e.target.value)) {
+                          onChange(updatedLocations);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // When leaving the field, if invalid, revert to last valid value
+                        if (!validateLettersOnly(e.target.value)) {
+                          const updatedLocations = locations.map(l => 
+                            l.id === loc.id ? { ...l, topothesia: l.topothesia.replace(/[^A-Za-zΑ-Ωα-ωίϊΐόάέύϋΰήώ\s]/g, '') } : l
+                          );
+                          setLocations(updatedLocations);
+                          onChange(updatedLocations);
+                        }
+                      }}
                       fullWidth
+                      error={!validateLettersOnly(loc.topothesia)}
+                      helperText={!validateLettersOnly(loc.topothesia) ? "Επιτρέπονται μόνο γράμματα" : ""}
                     />
                   </TableCell>
                   <TableCell>
@@ -234,7 +238,7 @@ const LocationEditor = ({ value, onChange }) => {
                             },
                             '.MuiSvgIcon-root': {
                               fontSize: '1.25rem',
-                              color: '#757575' // Changed from primary.main to gray
+                              color: '#757575'
                             }
                           }
                         },
@@ -268,7 +272,7 @@ const LocationEditor = ({ value, onChange }) => {
                             },
                             '.MuiSvgIcon-root': {
                               fontSize: '1.25rem',
-                              color: '#757575' // Changed from primary.main to gray
+                              color: '#757575'
                             }
                           }
                         },
@@ -291,7 +295,7 @@ const LocationEditor = ({ value, onChange }) => {
         </TableContainer>
       ) : null}
       
-      {/* Form for adding new locations - improved spacing and widths */}
+      {/* Form for adding new locations - improved error handling and visibility */}
       <Grid container spacing={4} alignItems="center">
         <Grid item xs={12} md={4}>
           <TextField
@@ -299,10 +303,29 @@ const LocationEditor = ({ value, onChange }) => {
             size="medium"
             label="Τοποθεσία"
             value={newLocation.topothesia}
-            onChange={(e) => setNewLocation({
-              ...newLocation, 
-              topothesia: e.target.value
-            })}
+            onChange={(e) => {
+              // Ενημερώνουμε πάντα το state για να εμφανίζεται το input,
+              // αλλά θα δείχνουμε σφάλμα αν περιέχει μη έγκυρους χαρακτήρες
+              setNewLocation({
+                ...newLocation, 
+                topothesia: e.target.value
+              });
+              
+              // Καθαρίζουμε ή θέτουμε validation errors αναλόγως
+              if (!validateLettersOnly(e.target.value)) {
+                setValidationErrors({
+                  ...validationErrors,
+                  topothesia: "Επιτρέπονται μόνο γράμματα"
+                });
+              } else {
+                // Αν είναι έγκυρο, αφαιρούμε τυχόν validation error
+                const newErrors = {...validationErrors};
+                delete newErrors.topothesia;
+                setValidationErrors(newErrors);
+              }
+            }}
+            error={!!validationErrors.topothesia}
+            helperText={validationErrors.topothesia}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -318,6 +341,8 @@ const LocationEditor = ({ value, onChange }) => {
               textField: {
                 size: "medium",
                 fullWidth: true,
+                error: !!validationErrors.start,
+                helperText: validationErrors.start,
                 sx: { 
                   '.MuiInputBase-root': {
                     paddingRight: 1
@@ -332,7 +357,7 @@ const LocationEditor = ({ value, onChange }) => {
                   },
                   '.MuiSvgIcon-root': {
                     fontSize: '1.25rem',
-                              color: '#757575' // Changed from primary.main to gray
+                    color: '#757575'
                   }
                 }
               },
@@ -356,6 +381,8 @@ const LocationEditor = ({ value, onChange }) => {
               textField: {
                 size: "medium",
                 fullWidth: true,
+                error: !!validationErrors.end,
+                helperText: validationErrors.end,
                 sx: { 
                   '.MuiInputBase-root': {
                     paddingRight: 1
@@ -370,7 +397,7 @@ const LocationEditor = ({ value, onChange }) => {
                   },
                   '.MuiSvgIcon-root': {
                     fontSize: '1.25rem',
-                              color: '#757575' // Changed from primary.main to gray
+                    color: '#757575'
                   }
                 }
               },
@@ -386,7 +413,12 @@ const LocationEditor = ({ value, onChange }) => {
             fullWidth 
             variant="contained" 
             onClick={handleAddLocation}
-            disabled={!newLocation.topothesia || !newLocation.start || !newLocation.end}
+            disabled={
+              !newLocation.topothesia || 
+              !newLocation.start || 
+              !newLocation.end || 
+              !validateLettersOnly(newLocation.topothesia)
+            }
             size="large"
             sx={{ 
               height: '48px', 

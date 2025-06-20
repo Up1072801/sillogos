@@ -118,6 +118,15 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
       return;
     }
     
+    // Validation for dates
+    if (returnDate && loanDate) {
+      // Make sure returnDate is not before loanDate
+      if (new Date(returnDate) < new Date(loanDate)) {
+        setError("Η ημερομηνία επιστροφής δεν μπορεί να είναι πριν από την ημερομηνία δανεισμού");
+        return;
+      }
+    }
+    
     setLoading(true);
     
     try {
@@ -247,6 +256,8 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
             label="Ημερομηνία Δανεισμού"
             value={loanDate}
             onChange={(newValue) => setLoanDate(newValue)}
+            // If return date is set, prevent loan date from being after return date
+            maxDate={returnDate || undefined}
             renderInput={(params) => <TextField {...params} fullWidth />}
           />
           
@@ -254,6 +265,8 @@ const MultiLoanForm = ({ contactsList, availableEquipment, onSuccess, onCancel }
             label="Ημερομηνία Επιστροφής"
             value={returnDate}
             onChange={(newValue) => setReturnDate(newValue)}
+            // Prevent return date from being before loan date
+            minDate={loanDate || undefined}
             renderInput={(params) => <TextField {...params} fullWidth />}
           />
           

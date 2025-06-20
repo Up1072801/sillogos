@@ -1187,18 +1187,23 @@ export default function Meloi() {
         defaultValue: "Ενεργή",
         validation: yup.string() // Αφαίρεση .required()
       },
-      { 
-        accessorKey: "hmerominia_enarksis", 
-        header: "Ημερομηνία Έναρξης Συνδρομής", 
-        type: "date",
-        validation: yup.date().nullable()
-      },
-      { 
-        accessorKey: "hmerominia_pliromis", 
-        header: "Ημερομηνία Πληρωμής", 
-        type: "date",
-        validation: yup.date().nullable()
-    .test('payment-after-start', 'Η ημερομηνία πληρωμής πρέπει να είναι μετά την ημερομηνία έναρξης', function(value) {
+// Στον πίνακα addFields - ενημέρωση των πεδίων ημερομηνίας
+{ 
+  accessorKey: "hmerominia_enarksis", 
+  header: "Ημερομηνία Έναρξης Συνδρομής", 
+  type: "date",
+  // Προσθήκη μέγιστης ημερομηνίας (δεν επιτρέπει επιλογή μετά την ημερομηνία πληρωμής)
+  maxDateField: "hmerominia_pliromis",
+  validation: yup.date().nullable()
+},
+{ 
+  accessorKey: "hmerominia_pliromis", 
+  header: "Ημερομηνία Πληρωμής", 
+  type: "date",
+  // Προσθήκη ελάχιστης ημερομηνίας (δεν επιτρέπει επιλογή πριν την ημερομηνία έναρξης)
+  minDateField: "hmerominia_enarksis",
+  validation: yup.date().nullable()
+    .test('payment-after-start', 'Η ημερομηνία πληρωμής πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης', function(value) {
       const startDate = this.parent.hmerominia_enarksis;
       // If either date is missing, validation passes
       if (!value || !startDate) return true;
@@ -1213,7 +1218,7 @@ export default function Meloi() {
       // Payment date should be same day or after registration date
       return paymentDate >= registrationDate;
     })
-      },
+},
  { 
   accessorKey: "epipedo", 
   header: "Βαθμός Δυσκολίας", 
@@ -1645,18 +1650,23 @@ const parseDate = (dateValue) => {
         options: subscriptionStatuses,
         validation: yup.string() // Αφαίρεση .required()
       },
-      { 
-        accessorKey: "hmerominia_enarksis", 
-        header: "Ημερομηνία Έναρξης Συνδρομής", 
-        type: "date",
-        validation: yup.date().nullable()
-      },
-      { 
-        accessorKey: "hmerominia_pliromis", 
-        header: "Ημερομηνία Πληρωμής", 
-        type: "date",
-        validation: yup.date().nullable()
-    .test('payment-after-start', 'Η ημερομηνία πληρωμής πρέπει να είναι μετά την ημερομηνία έναρξης', function(value) {
+ // Στη φόρμα επεξεργασίας - EditDialog
+{ 
+  accessorKey: "hmerominia_enarksis", 
+  header: "Ημερομηνία Έναρξης Συνδρομής", 
+  type: "date",
+  // Προσθήκη μέγιστης ημερομηνίας
+  maxDateField: "hmerominia_pliromis",
+  validation: yup.date().nullable()
+},
+{ 
+  accessorKey: "hmerominia_pliromis", 
+  header: "Ημερομηνία Πληρωμής", 
+  type: "date",
+  // Προσθήκη ελάχιστης ημερομηνίας
+  minDateField: "hmerominia_enarksis",
+  validation: yup.date().nullable()
+    .test('payment-after-start', 'Η ημερομηνία πληρωμής πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης', function(value) {
       const startDate = this.parent.hmerominia_enarksis;
       // If either date is missing, validation passes
       if (!value || !startDate) return true;
@@ -1671,7 +1681,7 @@ const parseDate = (dateValue) => {
       // Payment date should be same day or after registration date
       return paymentDate >= registrationDate;
     })
-      }
+}
     ] : []),
      { 
   accessorKey: "epipedo", 
