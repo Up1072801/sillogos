@@ -19,7 +19,12 @@ import {
   Typography,
   InputAdornment,
   TablePagination,
-  Checkbox
+  Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -63,6 +68,10 @@ const MultiLoanForm = ({
   const [filteredContacts, setFilteredContacts] = useState(contactsList || []);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  
+  // New state variables for delete confirmation dialog
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [itemToDeleteIndex, setItemToDeleteIndex] = useState(null);
   
   // Effect to filter contacts based on search text
   useEffect(() => {
@@ -144,6 +153,23 @@ const MultiLoanForm = ({
     } else {
       setContactId(contact.id_epafis.toString());
     }
+  };
+
+  // Handle delete click
+  const handleDeleteClick = (index) => {
+    setItemToDeleteIndex(index);
+    setOpenDeleteDialog(true);
+  };
+
+  // Confirm delete
+  const confirmRemoveEquipmentItem = () => {
+    if (itemToDeleteIndex === null || equipmentItems.length === 1) return;
+    
+    const updatedItems = [...equipmentItems];
+    updatedItems.splice(itemToDeleteIndex, 1);
+    setEquipmentItems(updatedItems);
+    setOpenDeleteDialog(false);
+    setItemToDeleteIndex(null);
   };
 
   // Form submission
@@ -505,7 +531,7 @@ const MultiLoanForm = ({
                       </TableCell>
                       <TableCell align="right">
                         <IconButton 
-                          onClick={() => removeEquipmentItem(index)}
+                          onClick={() => handleDeleteClick(index)}
                           disabled={equipmentItems.length === 1}
                         >
                           <DeleteIcon />
@@ -532,6 +558,26 @@ const MultiLoanForm = ({
             {loading ? 'Υποβολή...' : editData ? 'Ενημέρωση Δανεισμού' : 'Αποθήκευση Δανεισμού'}
           </Button>
         </Box>
+        
+        <Dialog
+          open={openDeleteDialog}
+          onClose={() => setOpenDeleteDialog(false)}
+        >
+          <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Είστε σίγουρος ότι θέλετε να διαγράψετε αυτόν τον εξοπλισμό;
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenDeleteDialog(false)} color="primary">
+              Ακύρωση
+            </Button>
+            <Button onClick={confirmRemoveEquipmentItem} color="error" autoFocus>
+              Διαγραφή
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </LocalizationProvider>
   );
