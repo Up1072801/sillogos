@@ -14,15 +14,27 @@ import SaveIcon from '@mui/icons-material/Save';
 // Ορισμός των στηλών του πίνακα
 const columns = [
   { accessorKey: "id", header: "ID" },
-  { 
-    accessorKey: "fullName", 
-    header: "Ονοματεπώνυμο", 
-    Cell: ({ row }) => `${row.original.lastName || ''} ${row.original.firstName || ''}`,
-    filterFn: (row, id, filterValue) => {
-      const name = `${row.original.lastName || ''} ${row.original.firstName || ''}`.toLowerCase();
-      return name.includes(filterValue.toLowerCase());
-    }
+ { 
+  accessorKey: "lastName", 
+  header: "Επώνυμο", 
+  filterFn: (row, id, filterValue) => {
+    const lastName = (row.original.lastName || '').toLowerCase();
+    return lastName.includes(filterValue.toLowerCase());
   },
+  sortingFn: (rowA, rowB) => {
+    const lastNameA = (rowA.original.lastName || "").toLowerCase();
+    const lastNameB = (rowB.original.lastName || "").toLowerCase();
+    return lastNameA.localeCompare(lastNameB, "el");
+  }
+},
+{ 
+  accessorKey: "firstName", 
+  header: "Όνομα", 
+  filterFn: (row, id, filterValue) => {
+    const firstName = (row.original.firstName || '').toLowerCase();
+    return firstName.includes(filterValue.toLowerCase());
+  }
+},
   { accessorKey: "phone", header: "Τηλέφωνο" },
   { accessorKey: "email", header: "Email" },
   { accessorKey: "arithmosmitroou", header: "Αριθμός Μητρώου", enableHiding: true },
@@ -301,21 +313,24 @@ export default function MeliAllwn() {
     ];
   }, [difficultyLevels]);
 
-  const tableInitialState = useMemo(() => ({
-    columnOrder: [
-      "fullName",
-      "phone",
-      "email",
-      "onomasillogou",
-      "vathmos_diskolias",
-      "mrt-actions",
-    ],
-    columnVisibility: {
-      id: false,
-      arithmosmitroou: false,
-    },
-    sorting: [{ id: "fullName", desc: false }]
-  }), []);
+const tableInitialState = useMemo(() => ({
+  columnOrder: [
+    "lastName",
+    "firstName",
+    "phone",
+    "email",
+    "onomasillogou",
+    "vathmos_diskolias",
+    "mrt-actions",
+  ],
+  columnVisibility: {
+    id: false,
+    arithmosmitroou: false,
+        vathmos_diskolias: false, 
+
+  },
+  sorting: [{ id: "lastName", desc: false }]
+}), []);
 
   // Define handleSaveComments within component scope
   const handleSaveComments = async (memberId, newComments) => {

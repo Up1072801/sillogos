@@ -178,19 +178,27 @@ export default function Epafes() {
   };
 
   // Προσαρμογή των στηλών για την εμφάνιση του ονόματος και επωνύμου σε μία στήλη με sorting/φίλτρο όπως melitousillogou.js
+  // Προσαρμογή των στηλών για εμφάνιση ξεχωριστών στηλών επωνύμου και ονόματος
   const columns = [
     {
-      accessorKey: "fullName",
-      header: "Όνοματεπώνυμο",
-      Cell: ({ row }) => `${row.original.epitheto || ""} ${row.original.onoma || ""}`,
+      accessorKey: "epitheto",
+      header: "Επώνυμο",
       filterFn: (row, id, filterValue) => {
-        const name = `${row.original.epitheto || ""} ${row.original.onoma || ""}`.toLowerCase();
-        return name.includes(filterValue.toLowerCase());
+        const lastName = (row.original.epitheto || '').toLowerCase();
+        return lastName.includes(filterValue.toLowerCase());
       },
       sortingFn: (rowA, rowB) => {
-        const a = `${rowA.original.epitheto || ""} ${rowA.original.onoma || ""}`.toLowerCase();
-        const b = `${rowB.original.epitheto || ""} ${rowB.original.onoma || ""}`.toLowerCase();
-        return a.localeCompare(b, "el");
+        const lastNameA = (rowA.original.epitheto || "").toLowerCase();
+        const lastNameB = (rowB.original.epitheto || "").toLowerCase();
+        return lastNameA.localeCompare(lastNameB, "el");
+      }
+    },
+    {
+      accessorKey: "onoma",
+      header: "Όνομα",
+      filterFn: (row, id, filterValue) => {
+        const firstName = (row.original.onoma || '').toLowerCase();
+        return firstName.includes(filterValue.toLowerCase());
       }
     },
     ...fields.filter((field) => field.accessorKey !== "onoma" && field.accessorKey !== "epitheto"),
@@ -198,7 +206,7 @@ export default function Epafes() {
 
   // Αρχικό state για sorting με βάση το επώνυμο
   const tableInitialState = useMemo(() => ({
-    sorting: [{ id: "fullName", desc: false }]
+    sorting: [{ id: "epitheto", desc: false }]
   }), []);
 
   return (

@@ -20,20 +20,28 @@ import { Add, Edit, Delete, KeyboardArrowUp as KeyboardArrowUpIcon, KeyboardArro
 // Στήλες για τον πίνακα αθλητών
 const athleteColumns = [
   { accessorKey: "id", header: "ID", enableHiding: true },
-  { 
-    accessorKey: "fullName", 
-    header: "Ονοματεπώνυμο", 
-    Cell: ({ row }) => `${row.original.lastName || ""} ${row.original.firstName || ""}`,
-    filterFn: (row, id, filterValue) => {
-      const name = `${row.original.lastName || ""} ${row.original.firstName || ""}`.toLowerCase();
-      return name.includes(filterValue.toLowerCase());
-    },
-    sortingFn: (rowA, rowB, columnId) => {
-      const lastNameA = rowA.original.lastName || "";
-      const lastNameB = rowB.original.lastName || "";
-      return lastNameA.localeCompare(lastNameB);
-    }
+// Replace the fullName column definition in athleteColumns array with these two separate columns
+{ 
+  accessorKey: "lastName", 
+  header: "Επώνυμο", 
+  filterFn: (row, id, filterValue) => {
+    const lastName = (row.original.lastName || '').toLowerCase();
+    return lastName.includes(filterValue.toLowerCase());
   },
+  sortingFn: (rowA, rowB, columnId) => {
+    const lastNameA = rowA.original.lastName || "";
+    const lastNameB = rowB.original.lastName || "";
+    return lastNameA.localeCompare(lastNameB);
+  }
+},
+{ 
+  accessorKey: "firstName", 
+  header: "Όνομα", 
+  filterFn: (row, id, filterValue) => {
+    const firstName = (row.original.firstName || '').toLowerCase();
+    return firstName.includes(filterValue.toLowerCase());
+  }
+},
   { accessorKey: "phone", header: "Τηλέφωνο" },
   { accessorKey: "email", header: "Email" },
   { accessorKey: "odos", header: "Διεύθυνση", enableHiding: true },
@@ -401,43 +409,93 @@ const handleEditCompetition = (competition) => {
   };
 
   // Χειρισμός προσθήκης αθλητή σε αγώνα - με φιλτράρισμα για αθλητές που ήδη υπάρχουν
-  const handleAddAthleteToCompetition = (competitionId) => {
-    const competition = sportsData.flatMap(s => s.agones).find(a => a.id === competitionId || a.id_agona === competitionId);
-    if (competition) {
-      setSelectedCompetitionId(competitionId);
-      
-      // Αποθήκευση των ID των αθλητών που ήδη συμμετέχουν
-      const existingAthleteIds = competition.summetexontes?.map(athlete => 
-        athlete.id || athlete.id_athliti
-      ) || [];
-      
-      // Φόρτωση αθλητών για αυτό το άθλημα
-      fetchAthletesBySport(competition.id_athlimatos || competition.sportId).then((allAthletes) => {
-        // Φιλτράρισμα μόνο των αθλητών που δεν συμμετέχουν ήδη
-        const filteredAthletes = allAthletes.filter(athlete => {
-          const athleteId = athlete.id || athlete.id_athliti;
-          return !existingAthleteIds.some(id => id === athleteId);
-        });
-        
-        
-        // Διαμόρφωση αθλητών για εμφάνιση
-        const formattedAthletes = filteredAthletes.map(athlete => ({
-          ...athlete,
-          id: athlete.id || athlete.id_athliti,
-          name: `${athlete.lastName || ""} ${athlete.firstName || ""}`.trim(),
-          fullName: `${athlete.lastName || ""} ${athlete.firstName || ""}`.trim(),
-          athleteNumber: athlete.athleteNumber || athlete.arithmosdeltiou || "-"
-        }));
-        
-        // Ενημέρωση του state με τους φιλτραρισμένους αθλητές
-        setAthletesBySport(formattedAthletes);
-        
-        // Άνοιγμα του dialog με κενή επιλογή
+ // Χειρισμός προσθήκης αθλητή σε αγώνα - με φιλτράρισμα για αθλητές που ήδη υπάρχουν
+const handleAddAthleteToCompetition = (competitionId) => {
+  console.log("Adding athlete to competition:", competitionId);
+  
+  // Early check for undefined competitionId
+  if (!competitionId) {
+    console.error("Competition ID is undefined");
+    setAthletesBySport([]);
+    setSelectedAthletes([]);
+    setOpenAthleteSelectionDialog(true);
+    return;
+  }
+  
+  // Set competition ID first
+  setSelectedCompetitionId(competitionId);
+  
+  const competition = sportsData.flatMap(s => s.agones).find(a => 
+    (a.id && a.id.toString() === competitionId.toString()) || 
+    (a.id_agona && a.id_agona.toString() === competitionId.toString())
+  );
+  
+  if (!competition) {
+    console.error("Competition not found for ID:", competitionId);
+    // Still open dialog with empty list
+    setAthletesBySport([]);
+    setSelectedAthletes([]);
+    setOpenAthleteSelectionDialog(true);
+    return;
+  }
+  
+  // Rest of your existing function...
+  const existingAthleteIds = competition.summetexontes?.map(athlete => 
+    athlete.id || athlete.id_athliti
+  ) || [];
+  
+  
+  // Use a try/catch block to handle any errors
+  try {
+    const sportId = competition.id_athlimatos || competition.sportId;
+    
+    // Φόρτωση αθλητών για αυτό το άθλημα
+    fetchAthletesBySport(sportId).then((allAthletes) => {
+      if (!allAthletes || allAthletes.length === 0) {
+        console.log("No athletes found for sport ID:", sportId);
+        setAthletesBySport([]);
         setSelectedAthletes([]);
         setOpenAthleteSelectionDialog(true);
+        return;
+      }
+      
+      // Φιλτράρισμα μόνο των αθλητών που δεν συμμετέχουν ήδη
+      const filteredAthletes = allAthletes.filter(athlete => {
+        const athleteId = athlete.id || athlete.id_athliti;
+        return !existingAthleteIds.some(id => id === athleteId);
       });
-    }
-  };
+      
+      // Διαμόρφωση αθλητών για εμφάνιση
+      const formattedAthletes = filteredAthletes.map(athlete => ({
+        ...athlete,
+        id: athlete.id || athlete.id_athliti,
+        name: `${athlete.lastName || ""} ${athlete.firstName || ""}`.trim(),
+        fullName: `${athlete.lastName || ""} ${athlete.firstName || ""}`.trim(),
+        athleteNumber: athlete.athleteNumber || athlete.arithmosdeltiou || "-"
+      }));
+      
+      // Ενημέρωση του state με τους φιλτραρισμένους αθλητές
+      setAthletesBySport(formattedAthletes);
+      
+      // Άνοιγμα του dialog με κενή επιλογή
+      setSelectedAthletes([]);
+      console.log("Opening athlete selection dialog");
+      setOpenAthleteSelectionDialog(true);
+    }).catch(error => {
+      console.error("Error fetching athletes:", error);
+      // Still open dialog with empty list
+      setAthletesBySport([]);
+      setSelectedAthletes([]);
+      setOpenAthleteSelectionDialog(true);
+    });
+  } catch (error) {
+    console.error("Error in handleAddAthleteToCompetition:", error);
+    // Still open dialog with empty list
+    setAthletesBySport([]);
+    setSelectedAthletes([]);
+    setOpenAthleteSelectionDialog(true);
+  }
+};
 
   // Προσθέστε αυτή τη συνάρτηση μετά τον ορισμό του state expandedCompetitions και πριν το sportDetailPanelConfig
   const toggleCompetition = (competitionId) => {
@@ -758,16 +816,15 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
                                         <IconButton 
                                           size="small" 
                                           color="error"
-                                          onClick={(e) => {
-                                            e.stopPropagation(); // Prevent event bubbling
-                                            const competitionId = competition.id_agona || competition.id;
-                                            const athleteId = athlete.id_athliti || athlete.id;
-                                            showDeleteConfirmation(
-                                              athleteId, 
-                                              'athlete-from-competition',
-                                              () => handleDeleteAthleteFromCompetition(competitionId, athleteId)
-                                            );
-                                          }}
+onClick={(e) => {
+  e.stopPropagation(); // Prevent event bubbling
+  const competitionId = competition.id_agona || competition.id;
+  const athleteId = athlete.id_athliti || athlete.id;
+  
+  setConfirmDialogMessage("Είστε βέβαιοι ότι θέλετε να αφαιρέσετε τον αθλητή από αυτόν τον αγώνα;");
+  setConfirmDialogCallback(() => () => handleDeleteAthleteFromCompetition(competitionId, athleteId));
+  setConfirmDialogOpen(true);
+}}
                                         >
                                           <Delete fontSize="small" />
                                         </IconButton>
@@ -1661,44 +1718,73 @@ const handleAthleteCompetitionTableDelete = (athlete, competition) => {
 };
 
   // Διαμόρφωση του detail panel για τους αγώνες - διορθώνουμε το ορθογραφικό
-  const competitionDetailPanelConfig = useMemo(() => ({
-    mainDetails: [
-      { accessor: "onoma", header: "Όνομα Αγώνα" },
-      { accessor: "sportName", header: "Άθλημα" },
-      { accessor: "hmerominia", header: "Ημερομηνία", format: (value) => (value ? new Date(value).toLocaleDateString("el-GR", {day: '2-digit', month: '2-digit', year: 'numeric'}) : "-") },
-      { accessor: "perigrafi", header: "Περιγραφή" }
-    ],
-    tables: [
-      {
-        title: "Συμμετοχές Αθλητών",
-        accessor: "summetexontes",
-        columns: [
-          { accessor: "fullName", header: "Οματεπώνυμο" },
-          { accessor: "arithmosdeltiou", header: "Αριθμός Δελτίου" }
-        ],
-        // Use the adapter function which handles the parameter order correctly
-onDelete: (athlete, competition) => {
-  // The athlete object contains the athlete to remove
-  const athleteId = athlete.id || athlete.id_athliti;
+ // Update your competitionDetailPanelConfig to include onAddNew handler for the athletes table
+ // Update your competitionDetailPanelConfig
+const competitionDetailPanelConfig = useMemo(() => ({
+  mainDetails: [
+    { accessor: "onoma", header: "Όνομα Αγώνα" },
+    { accessor: "sportName", header: "Άθλημα" },
+    { accessor: "hmerominia", header: "Ημερομηνία", format: (value) => (value ? new Date(value).toLocaleDateString("el-GR", {day: '2-digit', month: '2-digit', year: 'numeric'}) : "-") },
+    { accessor: "perigrafi", header: "Περιγραφή" }
+  ],
+  tables: [
+    {
+      title: "Συμμετοχές Αθλητών",
+      accessor: "summetexontes",
+      columns: [
+        { accessor: "fullName", header: "Ονοματεπώνυμο" },
+        { accessor: "arithmosdeltiou", header: "Αριθμός Δελτίου" }
+      ],
+      // Fix the bug in the onAddNew handler
+ // Fix the bug in the onAddNew handler
+onAddNew: (rowData) => {
+  console.log("onAddNew called with data:", rowData);
   
-  // The competition is the parent context
-  const competitionId = competition.id_agona || competition.id;
+  // Handle case where rowData is directly the competition ID (number)
+  let competitionId = rowData;
+  
+  // If rowData is an object, try to extract ID from its properties
+  if (typeof rowData === 'object' && rowData !== null) {
+    if (rowData.tableData && rowData.tableData.parentId) {
+      competitionId = rowData.tableData.parentId;
+    }
+    else if (rowData.id_agona || rowData.id) {
+      competitionId = rowData.id_agona || rowData.id;
+    }
+  }
+  
+  if (!competitionId) {
+    console.error("Could not extract competition ID from:", rowData);
+    return;
+  }
+  
+  console.log("Extracted competition ID:", competitionId);
+  handleAddAthleteToCompetition(competitionId);
+},
+onDelete: (athlete, competition) => {
+  // If competition is directly an ID
+  let competitionId = (typeof competition === 'object' && competition !== null) 
+    ? (competition.id_agona || competition.id) 
+    : competition;
+    
+  // If athlete is directly an ID
+  let athleteId = (typeof athlete === 'object' && athlete !== null)
+    ? (athlete.id_athliti || athlete.id)
+    : athlete;
   
   if (!athleteId || !competitionId) {
     console.error("Missing ID for athlete or competition:", { athlete, competition });
     return;
   }
   
-  // Use the confirmation dialog instead of direct deletion
   setConfirmDialogMessage("Είστε βέβαιοι ότι θέλετε να αφαιρέσετε τον αθλητή από αυτόν τον αγώνα;");
   setConfirmDialogCallback(() => () => handleDeleteAthleteFromCompetition(competitionId, athleteId));
   setConfirmDialogOpen(true);
 }
-      }
-    ],
-    showEditButton: true
-  }), [handleAddAthleteToCompetition]);
-
+    }
+  ],
+  showEditButton: true
+}), [handleAddAthleteToCompetition]); // Keep the dependency array
 
   // Διορθωμένη συνάρτηση filterCompetitions
   const filterCompetitions = () => {
@@ -1871,30 +1957,30 @@ const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
           columns={athleteColumns}
           detailPanelConfig={athleteDetailPanelConfig}
           getRowId={(row) => row.id}
-          initialState={{
-            columnVisibility: {
-              id: false,
-              odos: false,
-              tk: false,
-              arithmosdeltiou: false,
-              hmerominiaenarksis: false,
-              athlima: false,
-              totalParticipation: false
-            },
-            columnOrder: [
-
-              "fullName",
-                                                     "phone",
-              "email",
-              "arithmosdeltiou",
-              "athlima",
-              "totalParticipation",
-              "mrt-actions",
-            ],
-            sorting: [
-              { id: "fullName", desc: false }
-            ]
-          }}
+ initialState={{
+  columnVisibility: {
+    id: false,
+    odos: false,
+    tk: false,
+    arithmosdeltiou: false,
+    hmerominiaenarksis: false,
+    athlima: false,
+    totalParticipation: false
+  },
+  columnOrder: [
+    "lastName",   // Last name first
+    "firstName",  // First name second
+    "phone",
+    "email",
+    "arithmosdeltiou",
+    "athlima",
+    "totalParticipation",
+    "mrt-actions",
+  ],
+  sorting: [
+    { id: "lastName", desc: false } // Sort by last name alphabetically
+  ]
+}}
           state={{ isLoading: loading }}
           onAddNew={() => setOpenAddAthleteDialog(true)}
           handleEditClick={handleEditAthlete}

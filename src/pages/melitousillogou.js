@@ -12,12 +12,26 @@ import * as XLSX from 'xlsx';
 
 const fields = [
   { 
-    accessorKey: "fullName", 
-    header: "Ονοματεπώνυμο", 
-    Cell: ({ row }) => `${row.original.melos?.epafes?.epitheto || ''} ${row.original.melos?.epafes?.onoma || ''}`,
+    accessorKey: "epitheto", 
+    header: "Επώνυμο", 
+    Cell: ({ row }) => row.original.melos?.epafes?.epitheto || '',
     filterFn: (row, id, filterValue) => {
-      const fullName = `${row.original.melos?.epafes?.epitheto || ''} ${row.original.melos?.epafes?.onoma || ''}`;
-      return fullName.toLowerCase().includes(filterValue.toLowerCase());
+      const epitheto = (row.original.melos?.epafes?.epitheto || '').toLowerCase();
+      return epitheto.includes(filterValue.toLowerCase());
+    },
+    sortingFn: (rowA, rowB) => {
+      const a = (rowA.original.melos?.epafes?.epitheto || '').toLowerCase();
+      const b = (rowB.original.melos?.epafes?.epitheto || '').toLowerCase();
+      return a.localeCompare(b, "el");
+    }
+  },
+  { 
+    accessorKey: "onoma", 
+    header: "Όνομα", 
+    Cell: ({ row }) => row.original.melos?.epafes?.onoma || '',
+    filterFn: (row, id, filterValue) => {
+      const onoma = (row.original.melos?.epafes?.onoma || '').toLowerCase();
+      return onoma.includes(filterValue.toLowerCase());
     }
   },
   { accessorKey: "patronimo", header: "Πατρώνυμο", validation: yup.string() }, // Αφαίρεση .required()
@@ -683,33 +697,34 @@ export default function Meloi() {
   // const handleTablePreferenceChange = (type, value) => {...};
 
   const tableInitialState = useMemo(() => ({
-    columnOrder: [
-      "fullName",
-      "patronimo",
-      "melos.epafes.email",
-      "melos.epafes.tilefono",
-      "status",
-      "eidosSindromis",
-      "melos.vathmos_diskolias.epipedo",
-      "arithmos_mitroou",
-      "mrt-actions",
-    ],
-    columnVisibility: {
-      // Κρύψιμο των ζητούμενων στηλών
-      "patronimo": false,
-      "eidosSindromis": false,
-      "melos.vathmos_diskolias.epipedo": false,
-      "odos": false,
-      "tk": false,
-      "subscriptionEndDate": false,
-      // Επιπλέον στήλες που θέλουμε να κρύψουμε
-      "arithmos_mitroou": false,
-      "hmerominia_gennhshs": false,
-      "hmerominia_egrafis": false,
-      "hmerominia_pliromis": false
-    },
-    sorting: [{ id: "fullName", desc: false }] // Προσθήκη αλφαβητικής ταξινόμησης
-  }), []); // Το άδειο array εξαρτήσεων εξασφαλίζει ότι δημιουργείται μόνο μία φορά
+  columnOrder: [
+    "epitheto", // Last name first
+    "onoma",    // First name second
+    "patronimo",
+    "melos.epafes.email",
+    "melos.epafes.tilefono",
+    "status",
+    "eidosSindromis",
+    "melos.vathmos_diskolias.epipedo",
+    "arithmos_mitroou",
+    "mrt-actions",
+  ],
+  columnVisibility: {
+    // Κρύψιμο των ζητούμενων στηλών
+    "patronimo": false,
+    "eidosSindromis": false,
+    "melos.vathmos_diskolias.epipedo": false,
+    "odos": false,
+    "tk": false,
+    "subscriptionEndDate": false,
+    // Επιπλέον στήλες που θέλουμε να κρύψουμε
+    "arithmos_mitroou": false,
+    "hmerominia_gennhshs": false,
+    "hmerominia_egrafis": false,
+    "hmerominia_pliromis": false
+  },
+  sorting: [{ id: "epitheto", desc: false }] // Sort by last name alphabetically
+}), []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -751,7 +766,9 @@ export default function Meloi() {
             return {
               ...member,
               id: member.id_es_melous,
-              fullName: `${member.melos?.epafes?.epitheto || ""} ${member.melos?.epafes?.onoma || ""}`.trim(),
+              // Remove the fullName field
+              epitheto: member.melos?.epafes?.epitheto || "",
+              onoma: member.melos?.epafes?.onoma || "",
               email: member.melos?.epafes?.email || "",
               tilefono: member.melos?.epafes?.tilefono || "",
               odos: member.odos || "",
@@ -863,7 +880,8 @@ export default function Meloi() {
         const newMember = {
           ...response.data,
           id: response.data.id_es_melous,
-          fullName: `${response.data.melos?.epafes?.epitheto || ""} ${response.data.melos?.epafes?.onoma || ""}`.trim(),
+          epitheto: response.data.melos?.epafes?.epitheto || "",
+          onoma: response.data.melos?.epafes?.onoma || "",
           email: response.data.melos?.epafes?.email || "",
           tilefono: response.data.melos?.epafes?.tilefono || "",
           odos: response.data.odos || "",
@@ -1472,7 +1490,8 @@ const parseDate = (dateValue) => {
       const newMember = {
         ...response.data,
         id: response.data.id_es_melous,
-        fullName: `${response.data.melos?.epafes?.epitheto || ""} ${response.data.melos?.epafes?.onoma || ""}`.trim(),
+        epitheto: response.data.melos?.epafes?.epitheto || "",
+        onoma: response.data.melos?.epafes?.onoma || "",
         email: response.data.melos?.epafes?.email || null,
         tilefono: response.data.melos?.epafes?.tilefono || "",
         status: "Ενεργή",
@@ -1654,6 +1673,7 @@ const parseDate = (dateValue) => {
 { 
   accessorKey: "hmerominia_enarksis", 
   header: "Ημερομηνία Έναρξης Συνδρομής", 
+  
   type: "date",
   // Προσθήκη μέγιστης ημερομηνίας
   maxDateField: "hmerominia_pliromis",
