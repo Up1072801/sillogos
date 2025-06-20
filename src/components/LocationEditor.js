@@ -8,6 +8,7 @@ const LocationEditor = ({ value, onChange }) => {
   const [newLocation, setNewLocation] = useState({ topothesia: "", start: "", end: "" });
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
   
   // Parse date string to Date object
   const parseDate = (dateString) => {
@@ -48,44 +49,67 @@ const LocationEditor = ({ value, onChange }) => {
     }
   }, [value]);
   
-  // Προσθήκη νέας τοποθεσίας με validation
+  // Validate dates (similar to the Yup validation pattern)
+  const validateDates = (startDate, endDate) => {
+    // If either date is missing, validation passes
+    if (!startDate || !endDate) return true;
+    
+    // Parse dates to ensure proper comparison
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    // Check if dates are valid
+    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) return true;
+    
+    // End date should be same day or after start date
+    return endDateObj >= startDateObj;
+  };
+  
+  // Προσθήκη νέας τοποθεσίας με βελτιωμένο validation
   const handleAddLocation = () => {
+    const errors = {};
+    
     if (!newLocation.topothesia) {
-      alert("Παρακαλώ συμπληρώστε την τοποθεσία");
-      return;
+      errors.topothesia = "Παρακαλώ συμπληρώστε την τοποθεσία";
     }
     
     if (!newLocation.start) {
-      alert("Παρακαλώ επιλέξτε ημερομηνία έναρξης");
-      return;
+      errors.start = "Παρακαλώ επιλέξτε ημερομηνία έναρξης";
     }
     
     if (!newLocation.end) {
-      alert("Παρακαλώ επιλέξτε ημερομηνία λήξης");
-      return;
+      errors.end = "Παρακαλώ επιλέξτε ημερομηνία λήξης";
     }
     
-    if (new Date(newLocation.end) < new Date(newLocation.start)) {
-      alert("Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης");
-      return;
+    if (newLocation.start && newLocation.end && !validateDates(newLocation.start, newLocation.end)) {
+      errors.end = "Η ημερομηνία λήξης πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης";
     }
     
     // Check for overlapping dates with existing locations
-    const isOverlapping = locations.some(loc => {
-      const existingStart = new Date(loc.start);
-      const existingEnd = new Date(loc.end);
-      const newStart = new Date(newLocation.start);
-      const newEnd = new Date(newLocation.end);
+    if (newLocation.start && newLocation.end) {
+      const isOverlapping = locations.some(loc => {
+        const existingStart = new Date(loc.start);
+        const existingEnd = new Date(loc.end);
+        const newStart = new Date(newLocation.start);
+        const newEnd = new Date(newLocation.end);
+        
+        return (
+          (newStart >= existingStart && newStart <= existingEnd) ||
+          (newEnd >= existingStart && newEnd <= existingEnd) ||
+          (newStart <= existingStart && newEnd >= existingEnd)
+        );
+      });
       
-      return (
-        (newStart >= existingStart && newStart <= existingEnd) ||
-        (newEnd >= existingStart && newEnd <= existingEnd) ||
-        (newStart <= existingStart && newEnd >= existingEnd)
-      );
-    });
+      if (isOverlapping) {
+        errors.overlap = "Οι ημερομηνίες επικαλύπτονται με υπάρχουσα τοποθεσία";
+      }
+    }
     
-    if (isOverlapping) {
-      alert("Οι ημερομηνίες επικαλύπτονται με υπάρχουσα τοποθεσία");
+    setValidationErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
+      // Show the first error message
+      alert(Object.values(errors)[0]);
       return;
     }
     
@@ -97,6 +121,7 @@ const LocationEditor = ({ value, onChange }) => {
       end: "" 
     });
     onChange(updatedLocations);
+    setValidationErrors({});
   };
   
   const handleUpdateLocation = (id, field, value) => {
@@ -110,31 +135,33 @@ const LocationEditor = ({ value, onChange }) => {
         end: field === "end" ? value : currentLoc.end
       };
       
-      // Check for valid date range (end after start)
-      if (new Date(updatedDates.end) < new Date(updatedDates.start)) {
-        alert("Η ημερομηνία λήξης πρέπει να είναι μετά την ημερομηνία έναρξης");
+      // Check for valid date range using the same validation pattern
+      if (updatedDates.start && updatedDates.end && !validateDates(updatedDates.start, updatedDates.end)) {
+        alert("Η ημερομηνία λήξης πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης");
         return;
       }
       
       // Check for overlapping with other locations
-      const isOverlapping = locations.some(loc => {
-        if (loc.id === id) return false; // Skip current location
+      if (updatedDates.start && updatedDates.end) {
+        const isOverlapping = locations.some(loc => {
+          if (loc.id === id) return false; // Skip current location
+          
+          const existingStart = new Date(loc.start);
+          const existingEnd = new Date(loc.end);
+          const newStart = new Date(updatedDates.start);
+          const newEnd = new Date(updatedDates.end);
+          
+          return (
+            (newStart >= existingStart && newStart <= existingEnd) ||
+            (newEnd >= existingStart && newEnd <= existingEnd) ||
+            (newStart <= existingStart && newEnd >= existingEnd)
+          );
+        });
         
-        const existingStart = new Date(loc.start);
-        const existingEnd = new Date(loc.end);
-        const newStart = new Date(updatedDates.start);
-        const newEnd = new Date(updatedDates.end);
-        
-        return (
-          (newStart >= existingStart && newStart <= existingEnd) ||
-          (newEnd >= existingStart && newEnd <= existingEnd) ||
-          (newStart <= existingStart && newEnd >= existingEnd)
-        );
-      });
-      
-      if (isOverlapping) {
-        alert("Οι ημερομηνίες επικαλύπτονται με άλλη τοποθεσία");
-        return;
+        if (isOverlapping) {
+          alert("Οι ημερομηνίες επικαλύπτονται με άλλη τοποθεσία");
+          return;
+        }
       }
     }
     
