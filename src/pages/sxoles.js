@@ -434,6 +434,9 @@ const extractId = (obj) => {
     }
   ];
 
+  // Add this code after your existing sxoliFormFields definition (around line 370)
+const addSxoliFormFields = sxoliFormFields.filter(field => field.accessorKey !== "topothesies");
+
   // Φόρτωση δεδομένων όταν αλλάζει το refreshDataTrigger
   useEffect(() => {
     fetchData();
@@ -1879,16 +1882,16 @@ const formatDateForInput = (dateString) => {
         </Box>
         
         {/* Dialog για προσθήκη σχολής */}
-        <AddDialog 
-          open={addSxoliDialogOpen}
-          onClose={() => setAddSxoliDialogOpen(false)}
-          handleAddSave={handleAddSxoli}
-          title="Προσθήκη Νέας Σχολής"
-          fields={sxoliFormFields}
-          fieldComponents={{
-            locationEditor: LocationEditor
-          }}
-        />
+<AddDialog 
+  open={addSxoliDialogOpen}
+  onClose={() => setAddSxoliDialogOpen(false)}
+  handleAddSave={handleAddSxoli}
+  title="Προσθήκη Νέας Σχολής"
+  fields={addSxoliFormFields} // Changed from sxoliFormFields to addSxoliFormFields
+  fieldComponents={{
+    locationEditor: LocationEditor
+  }}
+/>
         
         {/* Dialog για επεξεργασία σχολής */}
         <EditDialog 
