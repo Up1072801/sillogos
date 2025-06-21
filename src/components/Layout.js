@@ -28,6 +28,7 @@ const Layout = ({ children, user, onLogout }) => {
   const [tokenStatus, setTokenStatus] = useState("active");
   const [refreshing, setRefreshing] = useState(false);
   const [expeditionData, setExpeditionData] = useState({});
+  const [schoolData, setSchoolData] = useState({}); // New state for school data
 
   // Load expedition details for breadcrumbs when needed
   useEffect(() => {
@@ -48,6 +49,27 @@ const Layout = ({ children, user, onLogout }) => {
     };
     
     fetchExpeditionData();
+  }, [location.pathname]);
+
+  // New useEffect to fetch school data when needed
+  useEffect(() => {
+    const fetchSchoolData = async () => {
+      // Check if we're on a school details page (URL like /sxoles/123)
+      if (pathnames.length >= 2 && pathnames[0] === 'sxoles' && !isNaN(pathnames[1])) {
+        try {
+          const id = pathnames[1];
+          const response = await api.get(`/sxoles/${id}`);
+          setSchoolData(prev => ({ 
+            ...prev, 
+            [id]: response.data 
+          }));
+        } catch (error) {
+          console.error("Error fetching school data for breadcrumbs:", error);
+        }
+      }
+    };
+    
+    fetchSchoolData();
   }, [location.pathname]);
 
   // Έλεγχος κατάστασης token κάθε 30 δευτερόλεπτα
@@ -236,6 +258,16 @@ const Layout = ({ children, user, onLogout }) => {
                     name = expedition.proorismos || expedition.titlos || `Εξόρμηση #${value}`;
                   } else {
                     name = `Εξόρμηση #${value}`;
+                  }
+                }
+
+                // Show formatted name for school IDs
+                if (pathnames[0] === 'sxoles' && index === 1 && !isNaN(value)) {
+                  const school = schoolData[value];
+                  if (school) {
+                    name = `${school.klados || ''} ${school.epipedo || ''}${school.etos ? `(${school.etos})` : ''}`.trim() || `Σχολή #${value}`;
+                  } else {
+                    name = `Σχολή #${value}`;
                   }
                 }
 

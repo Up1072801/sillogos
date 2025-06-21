@@ -1069,6 +1069,14 @@ export default function Meloi() {
               hmerominia_egrafis: formattedStartDate || baseObj.hmerominia_egrafis || item.hmerominia_egrafis, 
               hmerominia_enarksis: formattedStartDate || baseObj.hmerominia_enarksis || item.hmerominia_enarksis,
               hmerominia_pliromis: formattedPaymentDate || baseObj.hmerominia_pliromis || item.hmerominia_pliromis,
+              // Make sure we preserve the comments field
+              melos: {
+                ...(baseObj.melos || {}),
+                sxolia: updatedRow.sxolia || baseObj.melos?.sxolia || item.melos?.sxolia || "",
+                // Preserve other melos fields
+                epafes: baseObj.melos?.epafes || item.melos?.epafes,
+                vathmos_diskolias: baseObj.melos?.vathmos_diskolias || item.melos?.vathmos_diskolias
+              },
               // Update nested structure
               sindromitis: {
                 ...(baseObj.sindromitis || {}),

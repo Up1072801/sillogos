@@ -917,7 +917,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
       Cell: ({ row }) => {
         const firstName = row.original.melos?.epafes?.onoma || '';
         const lastName = row.original.melos?.epafes?.epitheto || '';
-        return `${firstName} ${lastName}`.trim() || row.original.memberName || "Άγνωστο όνομα";
+        return `${lastName} ${firstName}`.trim() || row.original.memberName || "Άγνωστο όνομα";
       }
     },
     { 
@@ -987,84 +987,104 @@ const handleRemovePayment = async (paymentId, participantId) => {
   ];
 
   // Detail panel configuration for participants - ΔΙΟΡΘΩΜΕΝΟ
-  const participantDetailPanel = {
-    mainDetails: [
-      { 
-        accessor: "melos.epafes.onoma", 
-        header: "Όνομα",
-        value: (row) => row.melos?.epafes?.onoma || "-"
+// Update the participantDetailPanel to include a custom section for the payment button
+// Update the participantDetailPanel to properly place payment elements above the table
+const participantDetailPanel = {
+  mainDetails: [
+    { 
+      accessor: "melos.epafes.onoma", 
+      header: "Όνομα",
+      value: (row) => row.melos?.epafes?.onoma || "-"
+    },
+    { 
+      accessor: "melos.epafes.epitheto", 
+      header: "Επώνυμο", 
+      value: (row) => row.melos?.epafes?.epitheto || "-"
+    },
+    { 
+      accessor: "melos.epafes.email", 
+      header: "Email", 
+      value: (row) => row.melos?.epafes?.email || "-"
+    },
+    { 
+      accessor: "melos.epafes.tilefono", 
+      header: "Τηλέφωνο", 
+      value: (row) => row.melos?.epafes?.tilefono || "-"
+    },
+    { 
+      accessor: "timi", 
+      header: "Τιμή", 
+      value: (row) => `${row.timi || 0}€`
+    },
+    { 
+      accessor: "hmerominia_dilosis", 
+      header: "Ημερομηνία Δήλωσης",
+      format: (value) => formatDate(value)
+    }
+  ],
+  // Remove the customSections array completely
+  tables: [
+    {
+      // Add title directly as a property of the table section
+      title: "Ιστορικό Πληρωμών",
+      // Add a function that renders before the table
+      beforeTable: (row) => (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6">Ιστορικό Πληρωμών</Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={() => handleOpenPaymentDialog(row)}
+          >
+            Προσθήκη 
+          </Button>
+        </Box>
+      ),
+      getData: (row) => {
+        return (row.katavalei || []).map(payment => ({
+          id: payment.id || payment.id_katavalei,
+          id_katavalei: payment.id || payment.id_katavalei,
+          poso: payment.poso,
+          hmerominia_katavolhs: payment.hmerominia_katavolhs,
+          participantId: row.id_parakolouthisis
+        }));
       },
-      { 
-        accessor: "melos.epafes.epitheto", 
-        header: "Επώνυμο", 
-        value: (row) => row.melos?.epafes?.epitheto || "-"
+      onDelete: (payment, participant) => {
+        const paymentId = payment.id || payment.id_katavalei;
+        const participantId = participant.id_parakolouthisis;
+        
+        if (!paymentId || !participantId) {
+          console.error("Missing ID for payment or participant:", { payment, participant });
+          return;
+        }
+        
+        // Store the payment and participant IDs and open the dialog
+        setPaymentToDelete({ paymentId, participantId });
+        setDeletePaymentDialog(true);
       },
-      { 
-        accessor: "melos.epafes.email", 
-        header: "Email", 
-        value: (row) => row.melos?.epafes?.email || "-"
-      },
-      { 
-        accessor: "melos.epafes.tilefono", 
-        header: "Τηλέφωνο", 
-        value: (row) => row.melos?.epafes?.tilefono || "-"
-      },
-      { 
-        accessor: "timi", 
-        header: "Τιμή", 
-        value: (row) => `${row.timi || 0}€`
-      },
-      { 
-        accessor: "hmerominia_dilosis", 
-        header: "Ημερομηνία Δήλωσης",
-        format: (value) => formatDate(value)
-      }
-    ],
-    tables: [
-      {
-        title: "Ιστορικό Πληρωμών",
-        getData: (row) => {
-          return (row.katavalei || []).map(payment => ({
-            id: payment.id || payment.id_katavalei,
-            id_katavalei: payment.id || payment.id_katavalei,
-            poso: payment.poso,
-            hmerominia_katavolhs: payment.hmerominia_katavolhs,
-            participantId: row.id_parakolouthisis
-          }));
-        },
-        onDelete: (payment, participant) => {
-          const paymentId = payment.id || payment.id_katavalei;
-          const participantId = participant.id_parakolouthisis;
-          
-          if (!paymentId || !participantId) {
-            console.error("Missing ID for payment or participant:", { payment, participant });
-            return;
+      columns: [
+        { 
+          accessorKey: "poso", 
+          header: "Ποσό",
+          Cell: ({ row }) => {
+            if (!row?.original) return "0€";
+            return `${row.original.poso || 0}€`;
           }
-          
-          // Store the payment and participant IDs and open the dialog
-          setPaymentToDelete({ paymentId, participantId });
-          setDeletePaymentDialog(true);
         },
-        columns: [
-          { 
-            accessorKey: "poso", 
-            header: "Ποσό",
-            Cell: ({ row }) => {
-              if (!row?.original) return "0€";
-              return `${row.original.poso || 0}€`;
-            }
-          },
-          { 
-            accessorKey: "hmerominia_katavolhs", 
-            header: "Ημερομηνία",
-            Cell: ({ row }) => formatDate(row.original?.hmerominia_katavolhs)
-          }
-        ],
-        getRowId: (row) => row?.id || row?.id_katavalei || `payment-${Math.random().toString(36).substring(2)}`,
-        emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές"
-      }
-    ]
-  };
+        { 
+          accessorKey: "hmerominia_katavolhs", 
+          header: "Ημερομηνία",
+          Cell: ({ row }) => formatDate(row.original?.hmerominia_katavolhs)
+        }
+      ],
+      getRowId: (row) => row?.id || row?.id_katavalei || `payment-${Math.random().toString(36).substring(2)}`,
+      emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές"
+    }
+  ],
+  // Remove customSections since we're using beforeTable function instead
+  customSections: []
+};
 
   // Αντικατάσταση της συνάρτησης formatDate για μορφή ημερομηνίας ΗΗ/ΜΜ/ΕΕΕΕ
 const formatDate = (dateString) => {

@@ -147,24 +147,30 @@ const DataTable = React.memo(({
                 
                 return (
                   <Box key={`table-${tableIndex}`} sx={{ mb: 3 }}>
-                    {/* Table content */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6" component="div">{tableConfig.title}</Typography>
-                      {tableConfig.onAddNew && (
-                        <Button
-                          variant="contained"
-                          size="small"
-                          startIcon={<Add />}
-                          onClick={() => tableConfig.onAddNew(item.id, item.athlima)}
-                        >
-                          {tableConfig.addNewButtonLabel || "ΠΡΟΣΘΗΚΗ ΝΕΟΥ"}
-                        </Button>
-                      )}
-                    </Box>
+                    {/* Table header - Modified to support beforeTable function */}
+                    {tableConfig.beforeTable ? (
+                      // Render the custom beforeTable content if provided
+                      tableConfig.beforeTable(row.original)
+                    ) : (
+                      // Otherwise render the default title and add button
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6" component="div">{tableConfig.title}</Typography>
+                        {tableConfig.onAddNew && (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<Add />}
+                            onClick={() => tableConfig.onAddNew(item.id, item.athlima)}
+                          >
+                            {tableConfig.addNewButtonLabel || "ΠΡΟΣΘΗΚΗ ΝΕΟΥ"}
+                          </Button>
+                        )}
+                      </Box>
+                    )}
 
                     {/* Table rendering */}
                     {tableData.length === 0 ? (
-                      <Typography variant="body2" component="div">Δεν υπάρχουν δεδομένα</Typography>
+                      <Typography variant="body2" component="div">{tableConfig.emptyMessage || "Δεν υπάρχουν δεδομένα"}</Typography>
                     ) : (
                       <TableContainer component={Paper}>
                         <Table size="small">
