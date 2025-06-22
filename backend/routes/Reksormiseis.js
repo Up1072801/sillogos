@@ -799,6 +799,55 @@ router.post("/simmetoxi/:id/payment", async (req, res) => {
   }
 });
 
+// PUT: Update payment for a participant
+router.put("/simmetoxi/:simmetoxiId/payment/:paymentId", async (req, res) => {
+  try {
+    const paymentId = parseInt(req.params.paymentId);
+    const simmetoxiId = parseInt(req.params.simmetoxiId);
+    
+    if (isNaN(paymentId) || isNaN(simmetoxiId)) {
+      return res.status(400).json({ error: "Μη έγκυρα IDs" });
+    }
+    
+    const { poso, hmerominia_pliromis } = req.body;
+    
+    if (!poso) {
+      return res.status(400).json({ error: "Το ποσό είναι υποχρεωτικό" });
+    }
+    
+    // Check if the payment exists
+    const payment = await prisma.plironei.findFirst({
+      where: { 
+        id: paymentId,
+        id_simmetoxis: simmetoxiId
+      }
+    });
+    
+    if (!payment) {
+      return res.status(404).json({ error: "Η πληρωμή δεν βρέθηκε" });
+    }
+    
+    // Update the payment
+    const updatedPayment = await prisma.plironei.update({
+      where: { id: paymentId },
+      data: {
+        poso_pliromis: parseFloat(poso),
+        hmerominia_pliromis: hmerominia_pliromis ? new Date(hmerominia_pliromis) : payment.hmerominia_pliromis
+      }
+    });
+    
+    res.json({
+      id: updatedPayment.id,
+      id_simmetoxis: updatedPayment.id_simmetoxis,
+      poso_pliromis: updatedPayment.poso_pliromis,
+      hmerominia_pliromis: updatedPayment.hmerominia_pliromis
+    });
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση πληρωμής:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση πληρωμής" });
+  }
+});
+
 // DELETE: Διαγραφή εξόρμησης
 router.delete("/:id", async (req, res) => {
   try {

@@ -64,7 +64,8 @@ const [teacherToDelete, setTeacherToDelete] = useState(null);
 
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [currentLocations, setCurrentLocations] = useState([]);
-
+const [paymentToEdit, setPaymentToEdit] = useState(null);
+const [editPaymentDialog, setEditPaymentDialog] = useState(false);
   // Refresh data function
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
@@ -229,6 +230,70 @@ try {
 
   // ========== SCHOOL MANAGEMENT HANDLERS ==========
   
+  // Handle editing payment with local state update
+const handleEditPayment = async (updatedPayment) => {
+  try {
+    if (!paymentToEdit) {
+      alert("Σφάλμα: Δεν βρέθηκε πληρωμή για επεξεργασία.");
+      return;
+    }
+
+    const { paymentId, participantId } = paymentToEdit;
+    
+    if (!paymentId || !participantId) {
+      alert("Σφάλμα: Δεν βρέθηκαν έγκυρα IDs πληρωμής ή συμμετέχοντα.");
+      return;
+    }
+
+    // Prepare payment data
+    const formattedPayment = {
+      poso: parseInt(updatedPayment.poso),
+      hmerominia_katavolhs: updatedPayment.hmerominia_katavolhs || new Date().toISOString().split('T')[0]
+    };
+
+    // Send to API
+    const response = await api.put(
+      `/sxoles/${id}/parakolouthisi/${participantId}/payment/${paymentId}`, 
+      formattedPayment
+    );
+
+    // Update local state
+    setParticipants(prevParticipants => 
+      prevParticipants.map(p => {
+        if (p.id_parakolouthisis === participantId) {
+          const updatedPayments = p.katavalei.map(pay => {
+            if (pay.id === paymentId || pay.id_katavalei === paymentId) {
+              return {
+                ...pay,
+                poso: formattedPayment.poso,
+                hmerominia_katavolhs: formattedPayment.hmerominia_katavolhs
+              };
+            }
+            return pay;
+          });
+          
+          const totalPaid = updatedPayments.reduce((sum, pay) => sum + (pay.poso || 0), 0);
+          const ypoloipo = Math.max(0, (p.timi || 0) - totalPaid);
+          
+          return {
+            ...p,
+            katavalei: updatedPayments,
+            ypoloipo: ypoloipo
+          };
+        }
+        return p;
+      })
+    );
+
+    // Close the dialog
+    setEditPaymentDialog(false);
+    setPaymentToEdit(null);
+  } catch (error) {
+    console.error("Σφάλμα κατά την επεξεργασία πληρωμής:", error);
+    alert(`Σφάλμα: ${error.message}`);
+  }
+};
+
   // Handle editing school
   const handleEditSchoolClick = () => {
     setEditedSchool({
@@ -1022,12 +1087,9 @@ const participantDetailPanel = {
       format: (value) => formatDate(value)
     }
   ],
-  // Remove the customSections array completely
   tables: [
     {
-      // Add title directly as a property of the table section
       title: "Ιστορικό Πληρωμών",
-      // Add a function that renders before the table
       beforeTable: (row) => (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="h6">Ιστορικό Πληρωμών</Typography>
@@ -1050,6 +1112,23 @@ const participantDetailPanel = {
           participantId: row.id_parakolouthisis
         }));
       },
+onEdit: (payment) => {
+  const paymentId = payment.id || payment.id_katavalei;
+  const participantId = payment.participantId; // Get from payment record instead
+  
+  if (!paymentId || !participantId) {
+    console.error("Missing ID for payment or participant:", { payment });
+    return;
+  }
+  
+  setPaymentToEdit({
+    paymentId,
+    participantId,
+    poso: payment.poso,
+    hmerominia_katavolhs: formatDateForInput(payment.hmerominia_katavolhs)
+  });
+  setEditPaymentDialog(true);
+},
       onDelete: (payment, participant) => {
         const paymentId = payment.id || payment.id_katavalei;
         const participantId = participant.id_parakolouthisis;
@@ -1079,11 +1158,10 @@ const participantDetailPanel = {
         }
       ],
       getRowId: (row) => row?.id || row?.id_katavalei || `payment-${Math.random().toString(36).substring(2)}`,
-      emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές"
+      emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές",
+      enableEdit: true // Enable the edit button in DataTable
     }
-  ],
-  // Remove customSections since we're using beforeTable function instead
-  customSections: []
+  ]
 };
 
   // Αντικατάσταση της συνάρτησης formatDate για μορφή ημερομηνίας ΗΗ/ΜΜ/ΕΕΕΕ
@@ -1605,6 +1683,38 @@ const calculateBalance = (participant) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {paymentToEdit && (
+        <EditDialog
+          open={editPaymentDialog}
+          onClose={() => {
+            setEditPaymentDialog(false);
+            setPaymentToEdit(null);
+          }}
+          handleEditSave={handleEditPayment}
+          editValues={{
+            poso: paymentToEdit.poso,
+            hmerominia_katavolhs: paymentToEdit.hmerominia_katavolhs
+          }}
+          title="Επεξεργασία Πληρωμής"
+          fields={[
+            { 
+              accessorKey: "poso", 
+              header: "Ποσό", 
+              type: "number", 
+              validation: yup.number()
+                .min(0.01, "Το ποσό πρέπει να είναι μεγαλύτερο από 0")
+                .required("Το ποσό είναι υποχρεωτικό") 
+            },
+            { 
+              accessorKey: "hmerominia_katavolhs", 
+              header: "Ημερομηνία", 
+              type: "date",
+              validation: yup.date().nullable()
+            }
+          ]}
+        />
+      )}
     </LocalizationProvider>
   );
 }

@@ -808,4 +808,79 @@ router.get("/:id/available-members", async (req, res) => {
   }
 });
 
+// PUT: Update payment for a participant
+router.put("/:id/parakolouthisi/:paraId/payment/:paymentId", async (req, res) => {
+  try {
+    const id_parakolouthisis = parseInt(req.params.paraId);
+    const id_payment = parseInt(req.params.paymentId);
+    
+    if (isNaN(id_parakolouthisis) || isNaN(id_payment)) {
+      return res.status(400).json({ error: "Μη έγκυρα IDs" });
+    }
+    
+    const { poso, hmerominia_katavolhs } = req.body;
+    
+    if (!poso) {
+      return res.status(400).json({ error: "Το ποσό είναι υποχρεωτικό" });
+    }
+    
+    // Check if the payment exists
+    const payment = await prisma.katavalei.findFirst({
+      where: { 
+        id: id_payment,
+        id_parakolouthisis: id_parakolouthisis
+      }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: "Η πληρωμή δεν βρέθηκε" });
+    }
+    
+    // Update the payment
+    const updatedPayment = await prisma.katavalei.update({
+      where: { id: id_payment },
+      data: {
+        poso: parseInt(poso),
+        hmerominia_katavolhs: hmerominia_katavolhs ? new Date(hmerominia_katavolhs) : payment.hmerominia_katavolhs
+      }
+    });
+    
+    // Recalculate remaining balance
+    const allPayments = await prisma.katavalei.findMany({
+      where: { id_parakolouthisis: id_parakolouthisis }
+    });
+    
+    const parakolouthisi = await prisma.parakolouthisi.findUnique({
+      where: { id_parakolouthisis }
+    });
+    
+    const totalPaid = allPayments.reduce((sum, payment) => sum + (payment.poso || 0), 0);
+    const newBalance = Math.max(0, (parakolouthisi.timi || 0) - totalPaid);
+    
+    // Update remaining balance
+    const updatedParticipant = await prisma.parakolouthisi.update({
+      where: { id_parakolouthisis },
+      data: { ypoloipo: newBalance },
+      include: { katavalei: true }
+    });
+    
+    res.json({
+      payment: {
+        id: updatedPayment.id,
+        poso: updatedPayment.poso,
+        hmerominia_katavolhs: updatedPayment.hmerominia_katavolhs
+      },
+      participant: {
+        id_parakolouthisis: updatedParticipant.id_parakolouthisis,
+        ypoloipo: updatedParticipant.ypoloipo,
+        payments: updatedParticipant.katavalei
+      }
+    });
+    
+  } catch (error) {
+    console.error("Σφάλμα κατά την ενημέρωση πληρωμής:", error);
+    res.status(500).json({ error: "Σφάλμα κατά την ενημέρωση πληρωμής" });
+  }
+});
+
 module.exports = router;

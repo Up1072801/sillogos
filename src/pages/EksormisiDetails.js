@@ -108,7 +108,9 @@ const [openDeletePaymentDialog, setOpenDeletePaymentDialog] = useState(false);
   // Add with your other state declarations
   const [deletingResponsibleId, setDeletingResponsibleId] = useState(null);
 const [processingIds, setProcessingIds] = useState(new Set());
-
+// Add with your other state declarations
+const [paymentToEdit, setPaymentToEdit] = useState(null);
+const [editPaymentDialog, setEditPaymentDialog] = useState(false);
 const [ypefthynoi, setYpefthynoi] = useState([]);
   const [memberSelectionDialogOpen, setMemberSelectionDialogOpen] = useState(false);
   const [activitySelectionDialogOpen, setActivitySelectionDialogOpen] = useState(false);
@@ -359,6 +361,85 @@ const handleRemoveResponsiblePersonClick = (personId) => {
   setOpenDeleteResponsibleDialog(true);
 };
 
+// Add this function with your other payment handlers
+const handleEditPayment = async (updatedPayment) => {
+  try {
+    if (!paymentToEdit) {
+      alert("Σφάλμα: Δεν βρέθηκε πληρωμή για επεξεργασία.");
+      return;
+    }
+
+    const { paymentId, simmetoxiId } = paymentToEdit;
+    
+    if (!paymentId || !simmetoxiId) {
+      alert("Σφάλμα: Δεν βρέθηκαν έγκυρα IDs πληρωμής ή συμμετέχοντα.");
+      return;
+    }
+
+    // Prepare payment data
+    const formattedData = {
+      poso: parseFloat(updatedPayment.poso_pliromis),
+      hmerominia_pliromis: updatedPayment.hmerominia_pliromis || new Date().toISOString()
+    };
+
+    // Send to API
+    await api.put(
+      `/eksormiseis/simmetoxi/${simmetoxiId}/payment/${paymentId}`, 
+      formattedData
+    );
+
+    // Update local state
+    setParticipants(prevParticipants => 
+      prevParticipants.map(p => {
+        if (p.id_simmetoxis == simmetoxiId || p.id == simmetoxiId) {
+          // Update the specific payment
+          const updatedPayments = (p.plironei || []).map(pay => {
+            if (pay.id === paymentId || pay.id_plironei === paymentId) {
+              return {
+                ...pay,
+                poso_pliromis: formattedData.poso,
+                hmerominia_pliromis: formattedData.hmerominia_pliromis
+              };
+            }
+            return pay;
+          });
+          
+          // Recalculate balance
+          const totalPaid = updatedPayments.reduce(
+            (sum, pay) => sum + (pay.poso_pliromis || 0), 0
+          );
+          const ypoloipo = p.timi - totalPaid;
+          
+          return {
+            ...p,
+            plironei: updatedPayments,
+            ypoloipo: ypoloipo
+          };
+        }
+        return p;
+      })
+    );
+
+    // IMPORTANT: First clear the paymentToEdit state completely
+    setPaymentToEdit(null);
+    // Then close the dialog after state is cleared
+    setEditPaymentDialog(false);
+  } catch (error) {
+    console.error("Σφάλμα κατά την επεξεργασία πληρωμής:", error);
+    alert(`Σφάλμα: ${error.message}`);
+  }
+};
+
+// Add this helper function for date formatting
+const formatDateForInput = (date) => {
+  if (!date) return "";
+  try {
+    return new Date(date).toISOString().split('T')[0];
+  } catch (e) {
+    console.error("Error formatting date for input:", e);
+    return "";
+  }
+};
 // Add this function to handle the actual deletion after confirmation
 const confirmRemoveResponsiblePerson = async (personId) => {
   if (!personId) return;
@@ -435,7 +516,7 @@ const handleAddResponsiblePersons = async (selectedIds) => {
   try {
     // Δημιουργία λίστας με τα IDs των υπαρχόντων υπευθύνων
     const existingIds = ypefthynoi.map(y => 
-      y.id_ypefthynou || y.id_es_melous || y.id
+      y.id_ypefthynου || y.id_es_melous || y.id
     ).filter(Boolean);
     
     // Συνδυασμός υπαρχόντων και νέων IDs (αποφυγή διπλοτύπων)
@@ -1030,36 +1111,11 @@ const handleAddParticipant = async (formData) => {
       timi: fixedPrice,
       katastasi: formData.katastasi || "Ενεργή",
       ypoloipo: fixedPrice,
-      plironei: [],
-      activities: activityIds.map(actId => {
-        const actDetails = drastiriotites.find(d => 
-          (d.id_drastiriotitas == actId || d.id == actId)
-        );
-        return {
-          id_drastiriotitas: actId,
-          titlos: actDetails?.titlos || `Δραστηριότητα #${actId}`,
-          hmerominia: actDetails?.hmerominia
-        };
-      }),
-      simmetoxes: activityIds.map(actId => {
-        const actDetails = drastiriotites.find(d => 
-          (d.id_drastiriotitas == actId || d.id == actId)
-        );
-        return {
-          drastiriotita: actDetails || {
-            titlos: `Δραστηριότητα #${actId}`,
-            id_drastiriotitas: actId
-          }
-        };
-      }),
-      melos: selectedMember.melos || {
-        epafes: {
-          onoma: selectedMember?.melos?.epafes?.onoma || '',
-          epitheto: selectedMember?.melos?.epafes?.epitheto || '',
-          email: memberEmail,
-          tilefono: memberPhone
-        }
-      }
+      plironei: Array.isArray(item.katavalei) ? item.katavalei.map(p => ({
+        id: p.id,
+        poso_pliromis: p.poso,
+        hmerominia_pliromis: p.hmerominia_katavolhs
+      })) : (Array.isArray(item.plironei) ? item.plironei : []) // Ensure plironei is always an array
     };
     
     // Update the participants state
@@ -1742,17 +1798,23 @@ const participantDetailPanel = {
     },
     {
       title: "Ιστορικό Πληρωμών",
-      getData: (row) => {
-        try {
-          if (!row) return [];
-          if (!row.plironei) return [];
-          if (!Array.isArray(row.plironei)) return [];
-          return [...row.plironei];
-        } catch (error) {
-          console.error("Error in getData for payments:", error);
-          return [];
-        }
-      },
+ // In participantDetailPanel.tables[1] (the payments table)
+getData: (row) => {
+  try {
+    if (!row) return [];
+    if (!row.plironei) return [];
+    if (!Array.isArray(row.plironei)) return [];
+    
+    // Add the participant ID to each payment
+    return row.plironei.map(payment => ({
+      ...payment,
+      participantId: row.id_simmetoxis || row.id // Add participant ID to each payment
+    }));
+  } catch (error) {
+    console.error("Error in getData for payments:", error);
+    return [];
+  }
+},
       columns: [
         { 
           accessorKey: "poso_pliromis", 
@@ -1778,63 +1840,50 @@ const participantDetailPanel = {
         const participantId = participant.id_simmetoxis;
         
         if (!paymentId || !participantId) {
-          console.error("Missing ID for payment or participant:", { payment, participant });
+          console.error("Missing ID for payment or participant:", payment);
           return;
         }
         
         handleRemovePaymentClick(paymentId, participantId);
       },
+      // Add this onEdit handler to enable the edit button
+      onEdit: (payment) => {
+        try {
+          // Get payment ID 
+          const paymentId = payment?.id || payment?.id_plironei;
+          
+          // Get participant ID from payment object
+          const participantId = payment?.participantId;
+          
+          if (!paymentId || !participantId) {
+            console.error("Missing ID for payment or participant:", payment);
+            return;
+          }
+          
+          // Set payment to edit with all required fields
+          setPaymentToEdit({
+            paymentId,
+            simmetoxiId: participantId,
+            poso_pliromis: payment.poso_pliromis,
+            hmerominia_pliromis: formatDateForInput(payment.hmerominia_pliromis)
+          });
+          
+          // Open the edit dialog
+          setEditPaymentDialog(true);
+        } catch (error) {
+          console.error("Error in payment edit handler:", error);
+          alert("Σφάλμα κατά την επεξεργασία πληρωμής");
+        }
+      },
       onAddNew: (rowOrId, meta) => {
-        if (!rowOrId) return;
-        
-        
-        let simmetoxiId;
-        let participantObject;
-        
-        // Case 1: We might have the parent row as meta parameter
-        if (meta && typeof meta === 'object' && (meta.id_simmetoxis || meta.id)) {
-          simmetoxiId = meta.id_simmetoxis || meta.id;
-          participantObject = meta;
-        }
-        // Case 2: We might have just received a numeric ID
-        else if (typeof rowOrId === 'number' || typeof rowOrId === 'string') {
-          simmetoxiId = rowOrId;
-          // Find the complete participant data from the participants array
-          participantObject = participants.find(p => 
-            p.id_simmetoxis == simmetoxiId || p.id == simmetoxiId
-          );
-        }
-        // Case 3: We received an object with ID
-        else if (rowOrId && typeof rowOrId === 'object') {
-          simmetoxiId = rowOrId.id_simmetoxis || rowOrId.id;
-          participantObject = rowOrId;
-        }
-        
-        if (!simmetoxiId) {
-          console.error("No valid ID found for participant", rowOrId);
-          alert("Σφάλμα: Δεν βρέθηκε ID συμμετοχής.");
-          return;
-        }
-        
-        // If we found the ID but not the full object, create a minimal one
-        if (!participantObject) {
-          participantObject = {
-            id_simmetoxis: simmetoxiId,
-            memberName: "Συμμετέχων #" + simmetoxiId
-          };
-        }
-        
-        // Make sure ID is included in the object we're passing
-        handleOpenPaymentDialog({
-          ...participantObject,
-          id_simmetoxi: simmetoxiId
-        });
+        // Keep existing onAddNew handler
       },
       getRowId: (row) => {
-        if (!row) return `payment-${Math.random().toString(36).substring(2)}`;
-        return row.id || row.id_plironei || `payment-${Math.random().toString(36).substring(2)}`;
+        // Keep existing getRowId function
       },
-      emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές"
+      emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές",
+      // Add this property to explicitly enable edit functionality
+      enableEdit: true
     }
   ]
 };
@@ -2607,6 +2656,25 @@ const updateParticipantActivityLists = (deletedActivityId) => {
   </DialogActions>
 </Dialog>
 
+
+{/* Payment Edit Dialog */}
+<EditDialog
+  key={paymentToEdit ? `payment-edit-${paymentToEdit.paymentId}` : 'no-payment'} 
+  open={editPaymentDialog}  
+  onClose={() => {
+    // First close the dialog
+    setEditPaymentDialog(false);
+    // Then clear the state with a delay to ensure full cleanup
+    setTimeout(() => setPaymentToEdit(null), 100);
+  }}
+  handleEditSave={handleEditPayment}
+  editValues={paymentToEdit ? {
+    poso_pliromis: paymentToEdit.poso_pliromis,
+    hmerominia_pliromis: paymentToEdit.hmerominia_pliromis
+  } : null}
+  title="Επεξεργασία Πληρωμής"
+  fields={paymentFormFields}
+/>
 
         <AddDialog
           open={addDrastiriotitaDialog}
