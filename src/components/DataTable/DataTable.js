@@ -418,19 +418,8 @@ const DataTable = React.memo(({
         const rowId = getRowId(row);
         newRow['__rowId'] = rowId;
         
-        return newRow;
-      });
-      
-      // If payment columns are selected, gather payment data
-      let allData = [...mainData];
-      
-      if (paymentColumnKeys.length > 0 && detailPanelConfig && detailPanelConfig.tables) {
-        const paymentRows = [];
-        
-        // Process each row to extract payment data
-        tableData.forEach(row => {
-          const rowId = getRowId(row);
-          
+        // If payment columns are selected, add them directly to the member row
+        if (paymentColumnKeys.length > 0 && detailPanelConfig && detailPanelConfig.tables) {
           // Find payment tables in the detail panel config
           const paymentTables = detailPanelConfig.tables.filter(table => 
             table.title && table.title.toLowerCase().includes('πληρωμ')
@@ -441,42 +430,78 @@ const DataTable = React.memo(({
             if (typeof table.getData === 'function') {
               const payments = table.getData(row) || [];
               
-              // Extract selected payment columns
-              payments.forEach(payment => {
-                const paymentRow = { '__rowId': rowId };
-                
-                // Copy the main row data that's been selected
-                mainData.find(mr => mr.__rowId === rowId && 
-                  Object.entries(mr).forEach(([key, value]) => {
-                    if (key !== '__rowId') {
-                      paymentRow[key] = value;
-                    }
-                  })
+              // Add payment summary fields to the member row
+              if (payments.length > 0) {
+                // Calculate total amount paid
+                const totalPaid = payments.reduce(
+                  (sum, payment) => sum + (parseFloat(payment.poso || payment.poso_pliromis || payment.amount || 0) || 0), 
+                  0
                 );
                 
-                // Add payment data
-                paymentColumnKeys.forEach(key => {
-                  const origKey = key.replace('payment_', '');
-                  let value = payment[origKey];
-                  paymentRow[table.title + ': ' + (table.columns.find(col => 
-                    (col.accessorKey || col.accessor) === origKey
-                  )?.header || origKey)] = formatDateIfNeeded(value);
+                // Add total payments with euro symbol
+                newRow[`${table.title}: Συνολικό Ποσό`] = `${totalPaid.toFixed(2)}€`;
+                
+                // Add payment count
+                newRow[`${table.title}: Πλήθος`] = payments.length;
+                
+                // Add latest payment date
+                const paymentDates = payments
+                  .map(p => new Date(p.hmerominia || p.hmerominia_katavolhs || p.hmerominia_pliromis || p.date))
+                  .filter(date => !isNaN(date.getTime()))
+                  .sort((a, b) => b - a);
+                
+                     
+                // Consolidate payment information instead of creating multiple columns
+                const consolidatedPayments = [];
+                
+                // Process each payment, respecting the selected fields
+                payments.forEach((payment, idx) => {
+                  const paymentDetails = {};
+                  
+                  paymentColumnKeys.forEach(key => {
+                    const origKey = key.replace('payment_', '');
+                    const columnDef = table.columns.find(col => 
+                      (col.accessorKey || col.accessor) === origKey
+                    );
+                    
+                    if (columnDef && payment[origKey] !== undefined) {
+                      let formattedValue = formatDateIfNeeded(payment[origKey]);
+                      
+                      // Add Euro symbol to amounts if needed
+                      if (origKey.toLowerCase().includes('poso') || 
+                          origKey.toLowerCase().includes('amount') || 
+                          columnDef.header.toLowerCase().includes('ποσό')) {
+                        formattedValue = formattedValue ? `${formattedValue}€` : '';
+                      }
+                      
+                      paymentDetails[columnDef.header] = formattedValue;
+                    }
+                  });
+                  
+                  consolidatedPayments.push(paymentDetails);
                 });
                 
-                paymentRows.push(paymentRow);
-              });
+                // Add consolidated payment information as JSON strings
+                newRow[`${table.title}: Αναλυτικά`] = consolidatedPayments
+                  .map((payment, idx) => {
+                    const details = Object.entries(payment)
+                      .map(([key, value]) => `${key}: ${value}`)
+                      .join(', ');
+                    return `#${idx+1}: ${details}`;
+                  })
+                  .join('\n');
+              } else {
+                newRow[`${table.title}: Κατάσταση`] = 'Καμία πληρωμή';
+              }
             }
           });
-        });
-        
-        // If we have payment rows, use those instead (they include the main row data)
-        if (paymentRows.length > 0) {
-          allData = paymentRows;
         }
-      }
+        
+        return newRow;
+      });
       
       // Remove temporary row ID
-      allData = allData.map(row => {
+      const allData = mainData.map(row => {
         const {__rowId, ...rest} = row;
         return rest;
       });
