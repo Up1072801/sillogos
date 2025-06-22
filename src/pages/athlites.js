@@ -12,10 +12,13 @@ import {
 import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
 import SelectionDialog from "../components/SelectionDialog";
+// Add this import at the top with your other imports
+import CheckboxSportsSelector from '../components/CheckboxSportsSelector';
 import api from '../utils/api';
 import * as yup from "yup";
 import "./App.css";
 import { Add, Edit, Delete, KeyboardArrowUp as KeyboardArrowUpIcon, KeyboardArrowDown as KeyboardArrowDownIcon } from '@mui/icons-material';
+import TransformIcon from '@mui/icons-material/Transform';
 
 // Στήλες για τον πίνακα αθλητών
 const athleteColumns = [
@@ -158,6 +161,7 @@ const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 const [confirmDialogMessage, setConfirmDialogMessage] = useState("");
 const [confirmDialogCallback, setConfirmDialogCallback] = useState(null);
 const [confirmDialogItem, setConfirmDialogItem] = useState(null);
+const [availableMembers, setAvailableMembers] = useState([]);
 
 // Φόρτωση δεδομένων
   useEffect(() => {
@@ -408,8 +412,142 @@ const handleEditCompetition = (competition) => {
     setOpenAddCompetitionDialog(true);
   };
 
+
+  // Add this with your other state variables
+const [openConvertMemberDialog, setOpenConvertMemberDialog] = useState(false);
+
+// Add this with your other useMemo hooks
+const convertMemberFormFields = useMemo(() => [
+  { 
+    accessorKey: "memberId", 
+    header: "Επιλογή Μέλους", 
+    type: "tableSelect",
+    dataKey: "availableMembers",
+    singleSelect: true,
+    columns: [
+      { field: "fullName", header: "Ονοματεπώνυμο" },
+      { field: "email", header: "Email" },
+      { field: "tilefono", header: "Τηλέφωνο" }
+    ],
+    validation: yup.string().required("Παρακαλώ επιλέξτε μέλος")
+  },
+  { 
+  accessorKey: "memberType", 
+  header: "Τύπος Μέλους", 
+  type: "select",
+  options: [
+    { value: "athlete", label: "Αθλητής" },
+    { value: "both", label: "Αθλητής και Συνδρομητής" }
+  ],
+  defaultValue: "both",
+  validation: yup.string().required("Παρακαλώ επιλέξτε τύπο μέλους")
+},
+  { 
+    accessorKey: "arithmosdeltiou", 
+    header: "Αριθμός Δελτίου", 
+    validation: yup
+      .number()
+      .nullable()
+      .transform((value, originalValue) => {
+        if (originalValue === '' || originalValue === null) return null;
+        return value;
+      })
+      .typeError("Πρέπει να είναι αριθμός")
+  },
+  { 
+    accessorKey: "hmerominiaenarksis", 
+    header: "Ημ/νία Έναρξης Δελτίου", 
+    type: "date",
+    maxDateField: "hmerominialiksis",
+    validation: yup.date().nullable(),
+    dateFormat: "dd/MM/yyyy",
+  },
+  { 
+    accessorKey: "hmerominialiksis", 
+    header: "Ημ/νία Λήξης Δελτίου", 
+    type: "date", 
+    minDateField: "hmerominiaenarksis",
+    validation: yup.date().nullable()
+      .test('end-after-start', 'Η ημερομηνία λήξης πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης', function(value) {
+        const startDate = this.parent.hmerominiaenarksis;
+        if (!value || !startDate) return true;
+        const endDate = new Date(value);
+        const startDateObj = new Date(startDate);
+        if (isNaN(endDate.getTime()) || isNaN(startDateObj.getTime())) return true;
+        return endDate >= startDateObj;
+      }),
+    dateFormat: "dd/MM/yyyy",
+  },
+  { 
+    accessorKey: "athlimata", 
+    header: "Αθλήματα", 
+    type: "custom",
+    validation: yup.array().min(1, "Τουλάχιστον ένα άθλημα είναι υποχρεωτικό"), 
+    renderInput: ({ field, fieldState }) => (
+      <CheckboxSportsSelector
+        options={sportsListData.map(sport => ({ 
+          value: sport.id_athlimatos, 
+          label: sport.onoma 
+        }))}
+        value={field.value || []}
+        onChange={field.onChange}
+        error={fieldState.error?.message}
+      />
+    )
+  },
+], [sportsListData]);
+
+// Add this new function to handle the conversion
+const handleConvertMember = async (formData) => {
+  try {
+    const requestData = {
+      existingMemberId: parseInt(formData.memberId),
+      athlitis: {
+        arithmos_deltiou: formData.arithmosdeltiou ? parseInt(formData.arithmosdeltiou) : null,
+        // Use proper ISO strings for dates
+        hmerominia_enarksis_deltiou: formData.hmerominiaenarksis ? new Date(formData.hmerominiaenarksis).toISOString() : null,
+        hmerominia_liksis_deltiou: formData.hmerominialiksis ? new Date(formData.hmerominialiksis).toISOString() : null,
+      },
+      athlimata: formData.athlimata && Array.isArray(formData.athlimata) 
+        ? formData.athlimata.map(id => parseInt(id)).filter(id => !isNaN(id))
+        : [],
+      keepSubscriber: formData.memberType === "both" // Add this parameter
+    };
+
+    const response = await api.post("/athlites/athlete", requestData);
+    
+    // Format the response for UI update
+    const formattedAthlete = {
+      ...response.data,
+      fullName: `${response.data.esoteriko_melos?.melos?.epafes?.onoma || ""} ${response.data.esoteriko_melos?.melos?.epafes?.epitheto || ""}`.trim(),
+      firstName: response.data.esoteriko_melos?.melos?.epafes?.onoma || "",
+      lastName: response.data.esoteriko_melos?.melos?.epafes?.epitheto || "",
+      email: response.data.esoteriko_melos?.melos?.epafes?.email || "",
+      phone: response.data.esoteriko_melos?.melos?.epafes?.tilefono || "",
+      arithmosdeltiou: response.data.arithmos_deltiou || "",
+      hmerominiaenarksis: response.data.hmerominia_enarksis_deltiou ? 
+        new Date(response.data.hmerominia_enarksis_deltiou).toISOString().split('T')[0] : "",
+      hmerominialiksis: response.data.hmerominia_liksis_deltiou ? 
+        new Date(response.data.hmerominia_liksis_deltiou).toISOString().split('T')[0] : "",
+      athlima: response.data.asxoleitai?.map(a => a.athlima.onoma).join(", ") || "",
+      agones: [],
+      totalParticipation: 0,
+    };
+
+    setAthletesData(prev => [...prev, formattedAthlete]);
+    setOpenConvertMemberDialog(false);
+    await refreshData();
+
+    // Update available members list by filtering out the newly converted athlete
+    setAvailableMembers(prev => prev.filter(member => member.id !== formData.memberId));
+    
+  } catch (error) {
+    console.error("Σφάλμα κατά τη μετατροπή μέλους σε αθλητή:", error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message;
+    alert(`Σφάλμα: ${errorMessage}`);
+  }
+};
   // Χειρισμός προσθήκης αθλητή σε αγώνα - με φιλτράρισμα για αθλητές που ήδη υπάρχουν
- // Χειρισμός προσθήκης αθλητή σε αγώνα - με φιλτράρισμα για αθλητές που ήδη υπάρχουν
 const handleAddAthleteToCompetition = (competitionId) => {
   console.log("Adding athlete to competition:", competitionId);
   
@@ -763,7 +901,27 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
                             </Typography>
                           </Box>
                         </Box>
-                        
+
+<Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+  <Button 
+    variant="contained" 
+    color="primary"
+    startIcon={<Add />}
+    onClick={() => setOpenAddAthleteDialog(true)}
+  >
+    Προσθήκη Νέου Αθλητή
+  </Button>
+  
+  <Button 
+    variant="outlined" 
+    color="secondary"
+    startIcon={<TransformIcon />}
+    onClick={() => setOpenConvertMemberDialog(true)}
+  >
+    Μετατροπή Μέλους σε Αθλητή
+  </Button>
+</Box>
+
                         {/* Κουμπιά ενεργειών */}
                         <Box>
                           <IconButton 
@@ -1199,41 +1357,46 @@ const handleDeleteCompetition = async (competitionId) => {
   // Χειρισμός προσθήκης αθλητή - διορθωμένη έκδοση
   const handleAddAthlete = async (newAthlete) => {
     try {
-      // Βεβαιωθείτε ότι έχουμε έγκυρο βαθμό δυσκολίας
-      const validDifficultyId = newAthlete.vathmos_diskolias && 
-        difficultyLevels.find(level => level.id_vathmou_diskolias === parseInt(newAthlete.vathmos_diskolias))
-        ? parseInt(newAthlete.vathmos_diskolias)
-        : difficultyLevels[0]?.id_vathmou_diskolias || 1;
-
+      // Check if we're using an existing member or creating a new one
+      const isExistingMember = Boolean(newAthlete.existingMemberId);
+      
       const requestData = {
-        epafes: {
-          onoma: newAthlete.firstName || "",
-          epitheto: newAthlete.lastName || "",
-          email: newAthlete.email || "",
-          tilefono: newAthlete.phone || "",
-        },
-        vathmos_diskolias: {
-          id_vathmou_diskolias: validDifficultyId,
-        },
-        esoteriko_melos: {
-          hmerominia_gennhshs: newAthlete.birthDate ? convertDateFormat(newAthlete.birthDate) : null,
-          patronimo: newAthlete.patronimo || "",
-          odos: newAthlete.odos || "",
-          tk: newAthlete.tk ? parseInt(newAthlete.tk) : null,
-          arithmos_mitroou: newAthlete.arithmos_mitroou ? parseInt(newAthlete.arithmos_mitroou) : null,
-        },
+        // If using existing member, only send the ID
+        existingMemberId: isExistingMember ? parseInt(newAthlete.existingMemberId) : undefined,
+        
+        // Only include these fields if creating a new member
+        ...(!isExistingMember && {
+          epafes: {
+            onoma: newAthlete.firstName || "",
+            epitheto: newAthlete.lastName || "",
+            email: newAthlete.email || "",
+            tilefono: newAthlete.phone || "",
+          },
+          vathmos_diskolias: {
+            id_vathmou_diskolias: parseInt(newAthlete.vathmos_diskolias) || 1
+          },
+          esoteriko_melos: {
+            patronimo: newAthlete.patronimo || "",
+            odos: newAthlete.odos || "",
+            tk: newAthlete.tk ? parseInt(newAthlete.tk) : null,
+            arithmos_mitroou: newAthlete.arithmos_mitroou ? parseInt(newAthlete.arithmos_mitroou) : null,
+          }
+        }),
+        
+        // These athlete-specific fields are always included
         athlitis: {
           arithmos_deltiou: newAthlete.arithmosdeltiou ? parseInt(newAthlete.arithmosdeltiou) : null,
-          hmerominia_enarksis_deltiou: newAthlete.hmerominiaenarksis ? convertDateFormat(newAthlete.hmerominiaenarksis) : null,
-          hmerominia_liksis_deltiou: newAthlete.hmerominialiksis ? convertDateFormat(newAthlete.hmerominialiksis) : null,
+          hmerominia_enarksis_deltiou: newAthlete.hmerominiaenarksis || null,
+          hmerominia_liksis_deltiou: newAthlete.hmerominialiksis || null,
         },
+        
+        // Sports are always included
         athlimata: newAthlete.athlimata && Array.isArray(newAthlete.athlimata) 
           ? newAthlete.athlimata.map(id => parseInt(id)).filter(id => !isNaN(id))
           : [],
       };
 
       console.log("Αποστολή δεδομένων:", requestData);
-
       const response = await api.post("/athlites/athlete", requestData);
       
       // Προσθήκη του νέου αθλητή στα δεδομένα και κλείσιμο του dialog
@@ -1310,7 +1473,10 @@ const convertDateFormat = (dateString) => {
       accessorKey: "lastName", 
       header: "Επώνυμο", 
       validation: yup.string()
-        .required("Το επώνυμο είναι υποχρεωτικό")
+        .when('existingMemberId', {
+          is: id => !id,
+          then: schema => schema.required("Το επώνυμο είναι υποχρεωτικό")
+        })
         .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο επώνυμο', 
           value => !value || !/[0-9]/.test(value))
     },
@@ -1318,7 +1484,10 @@ const convertDateFormat = (dateString) => {
       accessorKey: "firstName", 
       header: "Όνομα", 
       validation: yup.string()
-        .required("Το όνομα είναι υποχρεωτικό")
+        .when('existingMemberId', {
+          is: id => !id,
+          then: schema => schema.required("Το όνομα είναι υποχρεωτικό")
+        })
         .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο όνομα', 
           value => !value || !/[0-9]/.test(value))
     },
@@ -1465,6 +1634,7 @@ const convertDateFormat = (dateString) => {
       header: "Άθλημα", 
       type: "select",
       options: sportsListData.map(sport => ({ 
+ 
         value: sport.id_athlimatos, 
         label: sport.onoma 
       })),
@@ -1584,9 +1754,16 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
     });
   }, [athletesBySport]);
 
-  const competitionResourceData = useMemo(() => ({
-    athletesBySport: formatAthletesForSelection
-  }), [formatAthletesForSelection]);
+const competitionResourceData = useMemo(() => ({
+  athletesBySport: formatAthletesForSelection,
+  availableMembers: availableMembers // Add this line
+}), [formatAthletesForSelection, availableMembers]);
+
+  // Add this helper function to your component
+  const updateFieldVisibility = (fieldName, formikValues) => {
+    if (fieldName === "existingMemberId") return true;
+    return !formikValues.existingMemberId;
+  };
 
   const memoizedInitialValues = useMemo(() => {
     if (editCompetitionData) {
@@ -1838,108 +2015,41 @@ onDelete: (athlete, competition) => {
   setFilteredCompetitions(filtered);
 };
 
-// Add this component inside your file, before the main Athlites component
-// Replace your current CheckboxSportsSelector with this improved version:
-// Replace your current CheckboxSportsSelector component with this improved version
-// Add this function with your other handler functions
-const handleConfirmPaymentDelete = () => {
-  if (!paymentToDelete) return;
-  
-  const { paymentId, participantId } = paymentToDelete;
-  handleRemovePayment(paymentId, participantId);
-  setDeletePaymentDialog(false);
-  setPaymentToDelete(null);
-};
-
-const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
-  const handleToggle = (sportId) => {
-    const currentIndex = value.indexOf(sportId);
-    const newChecked = [...value];
-
-    if (currentIndex === -1) {
-      newChecked.push(sportId);
+// Add this useEffect after your main data loading useEffect
+ const fetchAvailableMembers = async () => {
+  try {
+    const response = await api.get("/melitousillogou/internal");
+    
+    if (response.data && Array.isArray(response.data)) {
+      const formattedMembers = response.data
+        .filter(member => 
+          member.sindromitis && // Must be a subscriber
+          !member.athlitis     // Must not be an athlete
+        )
+        .map(member => ({
+          id: member.id_es_melous,
+          fullName: `${member.melos?.epafes?.epitheto || ""} ${member.melos?.epafes?.onoma || ""}`.trim() || 
+                    (member.fullName ? member.fullName : "Χωρίς όνομα"),
+          email: member.melos?.epafes?.email || member.email || "",
+          tilefono: member.melos?.epafes?.tilefono?.toString() || member.tilefono || ""
+        }));
+      
+      setAvailableMembers(formattedMembers);
     } else {
-      newChecked.splice(currentIndex, 1);
+      console.error("Unexpected response format:", response.data);
+      setAvailableMembers([]);
     }
-
-    onChange(newChecked);
-  };
-
-  return (
-    <Box>
-      <Paper 
-        elevation={0}
-        variant="outlined"
-        sx={{
-          borderRadius: 1,
-          borderColor: error ? 'error.main' : 'divider',
-          backgroundColor: '#00000000',
-          mb: 1
-        }}
-      >
-        <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
-          <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
-            Επιλέξτε ένα ή περισσότερα αθλήματα:
-          </Typography>
-        </Box>
-        
-        <Box sx={{ p: 1.5, maxHeight: '180px', overflowY: 'auto' }}>
-          <Grid container spacing={1}>
-            {options.map((sport) => (
-              <Grid item xs={12} sm={6} key={sport.value}>
-                <Box 
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    p: 0.75,
-                    borderRadius: 1,
-                    transition: 'all 0.15s ease',
-                    backgroundColor: value.includes(sport.value) ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
-                    '&:hover': {
-                      backgroundColor: value.includes(sport.value) 
-                        ? 'rgb(253, 253, 253)' 
-                        : 'rgb(255, 255, 255)'
-                    }
-                  }}
-                >
-                  <Checkbox
-                    checked={value.includes(sport.value)}
-                    onChange={() => handleToggle(sport.value)}
-                    size="small"
-                    sx={{ p: 0.5, mr: 1 }}
-                  />
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontWeight: value.includes(sport.value) ? 500 : 400,
-                      color: value.includes(sport.value) ? 'primary.main' : 'text.primary'
-                    }}
-                  >
-                    {sport.label}
-                  </Typography>
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      </Paper>
-      
-      {error && <FormHelperText error>{error}</FormHelperText>}
-      
-      <Typography 
-        variant="caption" 
-        sx={{ 
-          display: 'block', 
-          mt: 0.5, 
-          color: value.length ? 'primary.main' : 'text.secondary',
-          fontWeight: value.length ? 500 : 400
-        }}
-      >
-        Επιλεγμένα: {value.length} {value.length === 1 ? 'άθλημα' : 'αθλήματα'}
-      </Typography>
-    </Box>
-  );
+  } catch (error) {
+    console.error("Σφάλμα φόρτωσης διαθέσιμων μελών:", error);
+    setAvailableMembers([]);
+  }
 };
+  
+// Update the fetchAvailableMembers function in the useEffect
+useEffect(() => {
+
+  fetchAvailableMembers();
+}, []);
 
   return (
   <LocalizationProvider 
@@ -1952,40 +2062,64 @@ const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
         Αθλητές ({athletesData.length})
       </Typography>
       <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary"
+            startIcon={<Add />}
+            onClick={() => setOpenAddAthleteDialog(true)}
+          >
+            Προσθήκη Νέου Αθλητή
+          </Button>
+          
+<Button 
+  variant="outlined" 
+  color="secondary"
+  startIcon={<TransformIcon />}
+  onClick={() => {
+    fetchAvailableMembers(); 
+    setOpenConvertMemberDialog(true);
+  }}
+>
+  Μετατροπή Μέλους σε Αθλητή
+</Button>
+        </Box>
+
         <DataTable
           data={athletesData}
           columns={athleteColumns}
           detailPanelConfig={athleteDetailPanelConfig}
           getRowId={(row) => row.id}
- initialState={{
-  columnVisibility: {
-    id: false,
-    odos: false,
-    tk: false,
-    arithmosdeltiou: false,
-    hmerominiaenarksis: false,
-    athlima: false,
-    totalParticipation: false
-  },
-  columnOrder: [
-    "lastName",   // Last name first
-    "firstName",  // First name second
-    "phone",
-    "email",
-    "arithmosdeltiou",
-    "athlima",
-    "totalParticipation",
-    "mrt-actions",
-  ],
-  sorting: [
-    { id: "lastName", desc: false } // Sort by last name alphabetically
-  ]
-}}
+          initialState={{
+            columnVisibility: {
+              id: false,
+              odos: false,
+              tk: false,
+              arithmosdeltiou: false,
+              hmerominiaenarksis: false,
+              athlima: false,
+              totalParticipation: false
+            },
+            columnOrder: [
+              "lastName",   // Last name first
+              "firstName",  // First name second
+              "phone",
+              "email",
+              "arithmosdeltiou",
+              "athlima",
+              "totalParticipation",
+              "mrt-actions",
+            ],
+            sorting: [
+              { id: "lastName", desc: false } // Sort by last name alphabetically
+            ]
+          }}
           state={{ isLoading: loading }}
-          onAddNew={() => setOpenAddAthleteDialog(true)}
+          onAddNew={null} // Set to null to disable the default add button
           handleEditClick={handleEditAthlete}
           handleDelete={handleDeleteAthlete}
           enableExpand={true}
+          hideAddButton={true} // Hide the default add button as we have our custom buttons now
         />
       </Box>
 
@@ -2053,14 +2187,28 @@ const CheckboxSportsSelector = ({ options, value, onChange, error }) => {
         />
       </Box>
 
-      {/* Dialogs */}
-      <AddDialog
-        open={openAddAthleteDialog}
-        onClose={() => setOpenAddAthleteDialog(false)}
-        handleAddSave={handleAddAthlete}
-        fields={athleteFormFields}
-        title="Προσθήκη Νέου Αθλητή"
-      />
+
+<AddDialog
+  open={openConvertMemberDialog}
+  onClose={() => {
+    setOpenConvertMemberDialog(false);
+    fetchAvailableMembers(); // Refresh data when dialog closes
+  }}
+  handleAddSave={handleConvertMember}
+  fields={convertMemberFormFields}
+  title="Μετατροπή Μέλους σε Αθλητή"
+  resourceData={{availableMembers}}
+/>
+
+<AddDialog
+  open={openAddAthleteDialog}
+  onClose={() => setOpenAddAthleteDialog(false)}
+  handleAddSave={handleAddAthlete}
+  fields={athleteFormFields}
+  title="Προσθήκη Νέου Αθλητή"
+  resourceData={{availableMembers}}
+  fieldVisibility={updateFieldVisibility}
+/>
 
       {/* Modified AddDialog for competitions that uses SelectionDialog for athletes */}
       <AddDialog

@@ -14,68 +14,98 @@ function isAfterJuneFirst(date) {
   return date >= juneFirst;
 }
 
-// Middleware για ενημέρωση καταστάσεων συνδρομών
+
 router.use(async (req, res, next) => {
   try {
-    const currentYear = new Date().getFullYear();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Remove time portion
     
-    // Βρες μέλη με ενεργές συνδρομές που πρέπει να λήξουν
-    const membersToExpire = await prisma.esoteriko_melos.findMany({
+    // Handle ALL subscriptions, not just active ones
+    const allSubscribers = await prisma.sindromitis.findMany({
       where: {
-        sindromitis: {
-          katastasi_sindromis: "Ενεργή",
-          AND: [
-            {
-              exei: {
-                some: {
-                  sindromi: {
-                    hmerominia_enarksis: {
-                      lt: new Date(`${currentYear}-01-01`) // Ξεκίνησαν πριν την αρχή του τρέχοντος έτους
-                    }
-                  }
-                }
-              }
-            },
-            {
-              exei: {
-                some: {
-                  hmerominia_pliromis: {
-                    lt: new Date(`${currentYear}-01-01`) // Δεν έχουν πληρώσει για το τρέχον έτος
-                  }
-                }
-              }
-            }
-          ],
-          NOT: {
-            exei: {
-              some: {
-                sindromi: {
-                  hmerominia_enarksis: {
-                    gte: new Date(`${currentYear-1}-09-01`), // Ξεκίνησαν μετά την 1η Ιουνίου του προηγούμενου έτους
-                    lt: new Date(`${currentYear}-01-01`)     // και πριν την αρχή του τρέχοντος έτους
-                  }
-                }
-              }
-            }
+        // Don't filter by status - we want to check all subscriptions
+        katastasi_sindromis: {
+          not: "Διαγραμμένη" // Only exclude manually deleted ones
+        }
+      },
+      include: {
+        exei: {
+          include: {
+            sindromi: true
           }
         }
-      },
-      select: {
-        id_es_melous: true
       }
     });
-
-    // Ενημέρωση της κατάστασης συνδρομής σε "Ληγμένη"
-    await prisma.sindromitis.updateMany({
-      where: {
-        id_sindromiti: {
-          in: membersToExpire.map(m => m.id_es_melous)
+    
+    // IDs to expire (status → Ληγμένη)
+    const expiredIds = [];
+    // IDs to activate (status → Ενεργή) 
+    const activeIds = [];
+    
+    for (const subscriber of allSubscribers) {
+      // Skip if manually marked as deleted
+      if (subscriber.katastasi_sindromis === "Διαγραμμένη") {
+        continue;
+      }
+      
+      // Get registration and payment dates
+      const registrationDate = subscriber.exei[0]?.sindromi?.hmerominia_enarksis;
+      const paymentDate = subscriber.exei[0]?.hmerominia_pliromis;
+      
+      if (!registrationDate && !paymentDate) {
+        // No dates at all, consider expired
+        expiredIds.push(subscriber.id_sindromiti);
+        continue;
+      }
+      
+      // If we only have one date, use it
+      const finalRegDate = registrationDate || paymentDate;
+      const finalPayDate = paymentDate || registrationDate;
+      
+      try {
+        // Calculate end date using the function with the dates we have
+        const endDate = calculateSubscriptionEndDate(finalRegDate, finalPayDate);
+        
+        if (!endDate) {
+          expiredIds.push(subscriber.id_sindromiti);
+          continue;
         }
-      },
-      data: {
-        katastasi_sindromis: "Ληγμένη"
+        
+        // Compare only the date portions to avoid time issues
+        const endDateOnly = new Date(endDate);
+        endDateOnly.setHours(0, 0, 0, 0);
+        
+        if (today > endDateOnly) {
+          // End date has passed - should be expired
+          if (subscriber.katastasi_sindromis !== "Ληγμένη") {
+            expiredIds.push(subscriber.id_sindromiti);
+          }
+        } else {
+          // End date hasn't passed - should be active
+          if (subscriber.katastasi_sindromis !== "Ενεργή") {
+            activeIds.push(subscriber.id_sindromiti);
+          }
+        }
+      } catch (err) {
+        console.error(`Error processing subscription ${subscriber.id_sindromiti}:`, err);
       }
-    });
+    }
+    
+    // Update expired subscriptions
+    if (expiredIds.length > 0) {
+      await prisma.sindromitis.updateMany({
+        where: { id_sindromiti: { in: expiredIds } },
+        data: { katastasi_sindromis: "Ληγμένη" }
+      });
+    }
+    
+    // Update active subscriptions
+    if (activeIds.length > 0) {
+      await prisma.sindromitis.updateMany({
+        where: { id_sindromiti: { in: activeIds } },
+        data: { katastasi_sindromis: "Ενεργή" }
+      });
+    }
     
     next();
   } catch (error) {
@@ -83,6 +113,39 @@ router.use(async (req, res, next) => {
     next();
   }
 });
+
+// Add the same end date calculation function you have in the client
+// Update the function around line 114
+function calculateSubscriptionEndDate(registrationDate, paymentDate) {
+  // If no payment date but we have registration date, use registration date as payment date
+  if (!paymentDate && registrationDate) {
+    paymentDate = registrationDate;
+  }
+  
+  // If still no payment date after substitution, return null
+  if (!paymentDate) return null;
+  
+  // Rest of function remains the same
+  const paymentYear = paymentDate.getFullYear();
+  
+  // Check if registration was in the same year as payment and after September 1st
+  if (registrationDate) {
+    const registrationYear = registrationDate.getFullYear();
+    
+    if (registrationYear === paymentYear) {
+      const septFirst = new Date(paymentYear, 8, 1); // September = month 8 (0-11)
+      
+      if (registrationDate >= septFirst) {
+        // If registration was after September 1st of payment year,
+        // subscription ends at the beginning of the year after next
+        return new Date(paymentYear + 2, 0, 1); // January 1st, paymentYear+2
+      }
+    }
+  }
+  
+  // Otherwise, subscription ends at the beginning of next year
+  return new Date(paymentYear + 1, 0, 1); // January 1st, paymentYear+1
+}
 
 // GET: Retrieve all club members
 router.get("/", async (_req, res) => {
@@ -262,10 +325,41 @@ router.post("/", async (req, res) => {
 
       // Υπόλοιπος κώδικας για συνδρομή μόνο αν υπάρχουν δεδομένα συνδρομής
       if (sindromitis && sindromitis.exei && sindromitis.exei.sindromi) {
-        const startDate = new Date(sindromitis.exei.sindromi.hmerominia_enarksis);
-        const subscriptionStatus = sindromitis.katastasi_sindromis || "Ενεργή";
+        // Check if user explicitly selected "Διαγραμμένη" status
+        const manuallyDeleted = sindromitis.katastasi_sindromis === "Διαγραμμένη";
+        let subscriptionStatus = "Ληγμένη"; // Default to expired
         
-        // 4. Δημιουργία του συνδρομητή
+        // Modified condition to allow only registration date
+        const hasRegistrationDate = sindromitis.exei.sindromi.hmerominia_enarksis;
+        const hasPaymentDate = sindromitis.exei.hmerominia_pliromis;
+        
+        // Calculate end date if we have at least registration date
+        if (hasRegistrationDate) {
+          const registrationDate = new Date(sindromitis.exei.sindromi.hmerominia_enarksis);
+          
+          if (!isNaN(registrationDate.getTime())) {
+            // If we have payment date, use both. If not, use registration date for both parameters
+            const paymentDate = hasPaymentDate ? new Date(sindromitis.exei.hmerominia_pliromis) : registrationDate;
+            
+            if (!isNaN(paymentDate.getTime())) {
+              const endDate = calculateSubscriptionEndDate(registrationDate, paymentDate);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              // If end date is valid and in the future, status is active
+              if (endDate && endDate >= today) {
+                subscriptionStatus = "Ενεργή";
+              }
+            }
+          }
+        }
+        
+        // If manually deleted, respect that choice
+        if (manuallyDeleted) {
+          subscriptionStatus = "Διαγραμμένη";
+        }
+        
+        // Always create the subscriber record
         const newSindromitis = await prismaTransaction.sindromitis.create({
           data: {
             id_sindromiti: newEsoterikoMelos.id_es_melous,
@@ -273,6 +367,7 @@ router.post("/", async (req, res) => {
           }
         });
 
+        // Always create the subscription records, even without dates
         // 5. Αναζήτηση του είδους συνδρομής
         const eidosSindromisRecord = await prismaTransaction.eidos_sindromis.findFirst({
           where: {
@@ -289,20 +384,27 @@ router.post("/", async (req, res) => {
           });
           const newId = (maxIdResult._max.id_sindromis || 0) + 1;
 
+          // Create sindromi with optional dates
           const newSindromi = await prismaTransaction.sindromi.create({
             data: {
               id_sindromis: newId,
-              hmerominia_enarksis: new Date(sindromitis.exei.sindromi.hmerominia_enarksis),
+              // Allow null dates
+              hmerominia_enarksis: sindromitis.exei.sindromi.hmerominia_enarksis 
+                ? new Date(sindromitis.exei.sindromi.hmerominia_enarksis) 
+                : null,
               id_eidous_sindromis: eidosSindromisRecord.id_eidous_sindromis
             }
           });
 
-          // 7. Δημιουργία της σχέσης "exei"
+          // 7. Δημιουργία της σχέσης "exei" with optional payment date
           await prismaTransaction.exei.create({
             data: {
               id_sindromiti: newSindromitis.id_sindromiti,
               id_sindromis: newSindromi.id_sindromis,
-              hmerominia_pliromis: new Date(sindromitis.exei.hmerominia_pliromis)
+              // Allow null date
+              hmerominia_pliromis: sindromitis.exei.hmerominia_pliromis
+                ? new Date(sindromitis.exei.hmerominia_pliromis)
+                : null
             }
           });
         }
@@ -366,7 +468,7 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Αποσυμπίεση των δεδομένων του request (στο σωστό format)
+    // Αποσυμπίεση των δεδομένων του request
     const { 
       hmerominia_gennhshs, patronimo, arithmos_mitroou, odos, tk,
       onoma, epitheto, email, tilefono, epipedo, sxolia,
@@ -464,60 +566,61 @@ router.put("/:id", async (req, res) => {
     
     // ΣΗΜΑΝΤΙΚΟ: Ενημέρωση συνδρομής
     const sindromitis_id = currentMember.sindromitis?.id_sindromiti;
-    const sindromis_id = currentMember.sindromitis?.exei?.[0]?.sindromi?.id_sindromis;
-    
-    if (sindromitis_id && sindromis_id && (katastasi_sindromis || hmerominia_pliromis || hmerominia_enarksis || eidosSindromis)) {
-      // Προετοιμασία των δεδομένων ενημέρωσης συνδρομής
-      const sindromitisUpdateData = {
-        katastasi_sindromis: katastasi_sindromis
-      };
+
+    // Check if we're adding a new subscription record (conversion from athlete to subscriber)
+    if (req.body.sindromitis && !sindromitis_id) {
+      console.log("Converting athlete to subscriber");
       
-      // Προετοιμασία των δεδομένων ενημέρωσης της σχέσης exei
-      const exeiUpdateData = {
-        hmerominia_pliromis: hmerominia_pliromis ? new Date(hmerominia_pliromis) : undefined
-      };
+      // Create new sindromitis record
+      const newSindromitis = await prisma.sindromitis.create({
+        data: {
+          id_sindromiti: numId,
+          katastasi_sindromis: req.body.sindromitis.katastasi_sindromis || "Ενεργή"
+        }
+      });
       
-      // Προετοιμασία των δεδομένων ενημέρωσης της συνδρομής
-      const sindromiUpdateData = {
-        hmerominia_enarksis: hmerominia_enarksis ? new Date(hmerominia_enarksis) : undefined
-      };
-      
-      // Εάν υπάρχει είδος συνδρομής, βρίσκουμε το ID του
-      if (eidosSindromis) {
+      // Process subscription type and dates
+      if (req.body.sindromitis.exei) {
+        // Find the subscription type record
         const eidosSindromisRecord = await prisma.eidos_sindromis.findFirst({
-          where: { titlos: eidosSindromis }
+          where: { 
+            titlos: req.body.sindromitis.exei.sindromi.eidos_sindromis 
+          }
         });
         
-        if (!eidosSindromisRecord) {
-          return res.status(400).json({ error: `Δεν βρέθηκε είδος συνδρομής με τίτλο: ${eidosSindromis}` });
-        }
-        
-        // Προσθήκη του συσχετιζόμενου ID στα δεδομένα ενημέρωσης της συνδρομής
-        sindromiUpdateData.id_eidous_sindromis = eidosSindromisRecord.id_eidous_sindromis;
-      }
-      
-      // Συναρμολόγηση του πλήρους αντικειμένου ενημέρωσης
-      updateData.sindromitis = {
-        update: {
-          ...sindromitisUpdateData,
-          exei: {
-            update: {
-              where: {
-                id_sindromiti_id_sindromis: {
-                  id_sindromiti: sindromitis_id,
-                  id_sindromis: sindromis_id
-                }
-              },
-              data: {
-                ...exeiUpdateData,
-                sindromi: {
-                  update: sindromiUpdateData
-                }
-              }
+        if (eidosSindromisRecord) {
+          // Create sindromi record
+          const maxIdResult = await prisma.sindromi.aggregate({
+            _max: { id_sindromis: true }
+          });
+          const newSindromisId = (maxIdResult._max.id_sindromis || 0) + 1;
+          
+          const newSindromi = await prisma.sindromi.create({
+            data: {
+              id_sindromis: newSindromisId,
+              hmerominia_enarksis: req.body.sindromitis.exei.sindromi.hmerominia_enarksis 
+                ? new Date(req.body.sindromitis.exei.sindromi.hmerominia_enarksis) 
+                : null,
+              id_eidous_sindromis: eidosSindromisRecord.id_eidous_sindromis
             }
-          }
+          });
+          
+          // Create exei relationship
+          await prisma.exei.create({
+            data: {
+              id_sindromiti: numId,
+              id_sindromis: newSindromi.id_sindromis,
+              hmerominia_pliromis: req.body.sindromitis.exei.hmerominia_pliromis
+                ? new Date(req.body.sindromitis.exei.hmerominia_pliromis)
+                : null
+            }
+          });
         }
-      };
+      }
+    }
+    // Now continue with existing sindromitis updates if it already exists
+    else if (sindromitis_id) {
+      // existing code for updating sindromitis...
     }
     
     // Εκτέλεση του update

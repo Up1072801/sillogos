@@ -179,69 +179,87 @@ router.get("/sports", async (_req, res) => {
 router.post("/athlete", async (req, res) => {
   try {
     const { 
+      existingMemberId,
       epafes, 
       vathmos_diskolias, 
       esoteriko_melos, 
       athlitis, 
-      athlimata 
+      athlimata,
+      keepSubscriber // New parameter
     } = req.body;
 
-    // Έλεγχος ότι έχουμε τουλάχιστον τα βασικά στοιχεία
-    if (!vathmos_diskolias?.id_vathmou_diskolias) {
-      return res.status(400).json({ 
-        error: "Ο βαθμός δυσκολίας είναι υποχρεωτικός" 
-      });
-    }
-
-    // Έλεγχος ότι ο βαθμός δυσκολίας υπάρχει
-    const difficultyExists = await prisma.vathmos_diskolias.findUnique({
-      where: { id_vathmou_diskolias: vathmos_diskolias.id_vathmou_diskolias }
-    });
-
-    if (!difficultyExists) {
-      return res.status(400).json({ 
-        error: "Μη έγκυρος βαθμός δυσκολίας" 
-      });
-    }
-
     const result = await prisma.$transaction(async (prismaTransaction) => {
-      // 1. Δημιουργία επαφής
-      const newEpafi = await prismaTransaction.epafes.create({
-        data: {
-          onoma: epafes?.onoma || "",
-          epitheto: epafes?.epitheto || "",
-          email: epafes?.email || "",
-          tilefono: epafes?.tilefono ? BigInt(epafes.tilefono) : null,
+      let newEsoterikoMelosId;
+      
+      // Check if we're using an existing member
+      if (existingMemberId) {
+        // Verify the member exists
+        const existingMember = await prismaTransaction.esoteriko_melos.findUnique({
+          where: { id_es_melous: existingMemberId },
+          include: { 
+            athlitis: true,
+            sindromitis: true // Include subscriber info
+          }
+        });
+        
+        if (!existingMember) {
+          throw new Error("Το μέλος που επιλέξατε δεν βρέθηκε");
         }
-      });
-
-      // 2. Δημιουργία μέλους
-      const newMelos = await prismaTransaction.melos.create({
-        data: {
-          id_melous: newEpafi.id_epafis,
-          tipo_melous: "esoteriko",
-          id_vathmou_diskolias: vathmos_diskolias.id_vathmou_diskolias,
+        
+        // Check if the member is already an athlete
+        if (existingMember.athlitis) {
+          throw new Error("Το μέλος είναι ήδη αθλητής");
         }
-      });
-
-      // 3. Δημιουργία εσωτερικού μέλους με σωστή σύνδεση
-      const newEsoterikoMelos = await prismaTransaction.esoteriko_melos.create({
-        data: {
-          id_es_melous: newMelos.id_melous,
-          hmerominia_gennhshs: esoteriko_melos?.hmerominia_gennhshs || null,
-          patronimo: esoteriko_melos?.patronimo || "",
-          odos: esoteriko_melos?.odos || "",
-          tk: esoteriko_melos?.tk || null,
-          arithmos_mitroou: esoteriko_melos?.arithmos_mitroou || null,
-          // Η σύνδεση με το melos γίνεται αυτόματα μέσω του id_es_melous
-          // που είναι το ίδιο με το id_melous
+        
+        // If not keeping the subscriber status, delete it
+        if (!keepSubscriber && existingMember.sindromitis) {
+          await prismaTransaction.sindromitis.delete({
+            where: { id_sindromiti: existingMemberId }
+          });
         }
-      });
+        
+        // Use the existing member's ID
+        newEsoterikoMelosId = existingMemberId;
+      } else {
+        // Create new records as before
+        // 1. Δημιουργία επαφής
+        const newEpafi = await prismaTransaction.epafes.create({
+          data: {
+            onoma: epafes?.onoma || "",
+            epitheto: epafes?.epitheto || "",
+            email: epafes?.email || "",
+            tilefono: epafes?.tilefono ? BigInt(epafes.tilefono) : null,
+          }
+        });
 
-      // 4. Δημιουργία αθλητή
+        // 2. Δημιουργία μέλους
+        const newMelos = await prismaTransaction.melos.create({
+          data: {
+            id_melous: newEpafi.id_epafis,
+            tipo_melous: "esoteriko",
+            id_vathmou_diskolias: vathmos_diskolias.id_vathmou_diskolias,
+          }
+        });
+
+        // 3. Δημιουργία εσωτερικού μέλους με σωστή σύνδεση
+        const newEsoterikoMelos = await prismaTransaction.esoteriko_melos.create({
+          data: {
+            id_es_melous: newMelos.id_melous,
+            hmerominia_gennhshs: esoteriko_melos?.hmerominia_gennhshs || null,
+            patronimo: esoteriko_melos?.patronimo || "",
+            odos: esoteriko_melos?.odos || "",
+            tk: esoteriko_melos?.tk || null,
+            arithmos_mitroou: esoteriko_melos?.arithmos_mitroou || null,
+          }
+        });
+        
+        newEsoterikoMelosId = newEsoterikoMelos.id_es_melous;
+      }
+
+      // 4. Δημιουργία αθλητή - this happens for both new and existing members
       const newAthlitis = await prismaTransaction.athlitis.create({
         data: {
-          id_athliti: newEsoterikoMelos.id_es_melous,
+          id_athliti: newEsoterikoMelosId,
           arithmos_deltiou: athlitis?.arithmos_deltiou || null,
           hmerominia_enarksis_deltiou: athlitis?.hmerominia_enarksis_deltiou || null,
           hmerominia_liksis_deltiou: athlitis?.hmerominia_liksis_deltiou || null,
@@ -383,7 +401,7 @@ router.post("/agona", async (req, res) => {
           const fullName = `${firstName} ${lastName}`.trim();
           return {
             id: athlitis.id_athliti,
-            id_athliti: athlitis.id_athliti,
+            id_athliti: athlitis.id_athλiti,
             firstName,
             lastName,
             fullName,

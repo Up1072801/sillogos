@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import DataTable from "../components/DataTable/DataTable";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -9,6 +9,33 @@ import AddDialog from "../components/DataTable/AddDialog";
 import EditDialog from "../components/DataTable/EditDialog";
 import * as yup from "yup";
 import * as XLSX from 'xlsx';
+import SportsMartialArtsIcon from '@mui/icons-material/SportsMartialArts';
+import TransformIcon from '@mui/icons-material/Transform';
+import AddIcon from '@mui/icons-material/Add';
+import SelectionDialog from '../components/SelectionDialog';
+import SearchIcon from '@mui/icons-material/Search';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  Paper, 
+  Radio, 
+  InputAdornment ,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText
+} from '@mui/material';
+import { Formik } from 'formik';
+import { DatePicker } from '@mui/x-date-pickers';
 
 const fields = [
   { 
@@ -61,14 +88,25 @@ const fields = [
   },
   { 
     accessorKey: "status", 
-    header: "Κατάσταση", 
+    header: "Κατάσταση",
     Cell: ({ row }) => {
-      const status = row.original.athlitis ? "Αθλητής" : row.original.status;
-      return (
-        <span style={getStatusStyle(status)}>
-          {status}
-        </span>
-      );
+      // Now show subscription status even if they are an athlete
+      let status;
+      
+      // If they're a subscriber, show their subscription status
+      if (row.original.sindromitis) {
+        status = row.original.sindromitis.katastasi_sindromis || 'Ενεργή';
+      }
+      // If they don't have a subscription status but are an athlete, show "Αθλητής"
+      else if (row.original.athlitis) {
+        status = "Αθλητής";
+      }
+      // Otherwise default
+      else {
+        status = '-';
+      }
+      
+      return <div style={getStatusStyle(status)}>{status}</div>;
     } 
   },
   { 
@@ -119,18 +157,27 @@ const detailPanelConfig = {
     { accessor: "melos.epafes.email", header: "Email" },
     { accessor: "melos.epafes.tilefono", header: "Τηλέφωνο" },
     { 
-      accessor: "status", 
-      header: "Κατάσταση",
-      Cell: ({ row }) => {
-        const status = row.original.athlitis ? "Αθλητής" : row.original.sindromitis?.katastasi_sindromis || '-';
-        return <div style={getStatusStyle(status)}>{status}</div>;
-      }
-    },
-    // Εμφάνιση είδους συνδρομής μόνο για μη αθλητές
+  accessor: "status", 
+  header: "Κατάσταση",
+  Cell: ({ row }) => {
+    // If they're a subscriber, show subscription status regardless if they're also an athlete
+    if (row.original.sindromitis?.katastasi_sindromis) {
+      const status = row.original.sindromitis.katastasi_sindromis;
+      return <div style={getStatusStyle(status)}>{status}</div>;
+    } 
+    // Only if they're just an athlete (not a subscriber), show "Αθλητής"
+    else if (row.original.athlitis) {
+      return <div style={getStatusStyle("Αθλητής")}>Αθλητής</div>;
+    }
+    else {
+      return <div style={getStatusStyle('-')}>-</div>;
+    }
+  }
+},
     {
       accessor: "eidosSindromis",
       header: "Είδος Συνδρομής",
-      shouldRender: (row) => !row.athlitis
+      shouldRender: (row) => Boolean(row.sindromitis) 
     },
     { 
       accessor: "melos.vathmos_diskolias.epipedo", 
@@ -141,20 +188,20 @@ const detailPanelConfig = {
       accessor: "hmerominia_egrafis",
       header: "Ημ. Εγγραφής",
       format: (value) => formatDate(value),
-      shouldRender: (row) => !row.athlitis
+      shouldRender: (row) => Boolean(row.sindromitis) 
     },
     // Εμφάνιση ημερομηνίας πληρωμής μόνο για μη αθλητές
     {
       accessor: "hmerominia_pliromis",
       header: "Ημ. Πληρωμής",
       format: (value) => formatDate(value),
-      shouldRender: (row) => !row.athlitis
+     shouldRender: (row) => Boolean(row.sindromitis) 
     },
     // Εμφάνιση ημερομηνίας λήξης μόνο για μη αθλητές
     {
       accessor: "subscriptionEndDate",
       header: "Ημερομηνία Λήξης",
-      shouldRender: (row) => !row.athlitis
+     shouldRender: (row) => Boolean(row.sindromitis)
     },
   ],
   tables: [
@@ -370,9 +417,10 @@ const detailPanelConfig = {
 };
 
 // Add this component to melitousillogou.js
-import { Box, Typography, TextField, IconButton } from '@mui/material';
+import { Button, Box, Typography, TextField, IconButton } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
+
 
 const InlineCommentsEditor = ({ comments, onSave }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -461,34 +509,52 @@ const handleSaveComments = async (memberId, newComments) => {
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
 const calculateSubscriptionEndDate = (registrationDateStr, paymentDateStr) => {
-  if (!paymentDateStr) return "Άγνωστη";
-  
   try {
-    const registrationDate = registrationDateStr ? new Date(registrationDateStr) : null;
-    const paymentDate = new Date(paymentDateStr);
-    
-    if (isNaN(paymentDate.getTime())) return "Άγνωστη";
-    
-    // Χρησιμοποιούμε το έτος της ημερομηνίας πληρωμής ως βάση
-    const paymentYear = paymentDate.getFullYear();
-    
-    // Εξετάζουμε αν η εγγραφή έγινε το ίδιο έτος με την πληρωμή και μετά την 1η Σεπτεμβρίου
-    if (registrationDate && !isNaN(registrationDate.getTime())) {
-      const registrationYear = registrationDate.getFullYear();
+    // If we have payment date, use it as the primary date
+    if (paymentDateStr) {
+      const paymentDate = new Date(paymentDateStr);
+      if (isNaN(paymentDate.getTime())) return "Άγνωστη";
       
-      if (registrationYear === paymentYear) {
-        const septFirst = new Date(paymentYear, 8, 1); // Σεπτέμβριος = μήνας 8 (0-11)
-        
-        if (registrationDate >= septFirst) {
-          // Αν η εγγραφή έγινε μετά την 1η Σεπτεμβρίου του έτους πληρωμής, 
-          // λήγει στην αρχή του μεθεπόμενου έτους
-          return `1/1/${paymentYear + 2}`;
+      const paymentYear = paymentDate.getFullYear();
+      
+      // If we also have a registration date and it's in the same year as payment
+      if (registrationDateStr) {
+        const registrationDate = new Date(registrationDateStr);
+        if (!isNaN(registrationDate.getTime())) {
+          const registrationYear = registrationDate.getFullYear();
+          
+          if (registrationYear === paymentYear) {
+            const septFirst = new Date(paymentYear, 8, 1); // Σεπτέμβριος = μήνας 8 (0-11)
+            
+            if (registrationDate >= septFirst) {
+              // If registration was after September 1st, expires at beginning of year after next
+              return `1/1/${paymentYear + 2}`;
+            }
+          }
         }
+      }
+      
+      // Otherwise expires at beginning of next year
+      return `1/1/${paymentYear + 1}`;
+    } 
+    // If we only have registration date, use it to determine expiration
+    else if (registrationDateStr) {
+      const registrationDate = new Date(registrationDateStr);
+      if (isNaN(registrationDate.getTime())) return "Άγνωστη";
+      
+      const registrationYear = registrationDate.getFullYear();
+      const septFirst = new Date(registrationYear, 8, 1);
+      
+      // Apply the same rules but using registration date as payment date
+      if (registrationDate >= septFirst) {
+        return `1/1/${registrationYear + 2}`;
+      } else {
+        return `1/1/${registrationYear + 1}`;
       }
     }
     
-    // Σε όλες τις άλλες περιπτώσεις, λήγει στην αρχή του επόμενου έτους μετά την πληρωμή
-    return `1/1/${paymentYear + 1}`;
+    // If neither date is provided
+    return "Άγνωστη";
   } catch (e) {
     console.error("Σφάλμα υπολογισμού ημερομηνίας λήξης:", e);
     return "Άγνωστη";
@@ -585,26 +651,33 @@ const validateDates = (registrationDate, paymentDate) => {
 };
 
 // Συνάρτηση που καθορίζει την κατάσταση συνδρομής με βάση την ημερομηνία λήξης
+// Συνάρτηση που καθορίζει την κατάσταση συνδρομής με βάση την ημερομηνία λήξης
+// Συνάρτηση που καθορίζει την κατάσταση συνδρομής με βάση την ημερομηνία λήξης
 const determineSubscriptionStatus = (registrationDate, paymentDate, currentStatus) => {
   // Αν η τρέχουσα κατάσταση είναι "Διαγραμμένη", τη διατηρούμε
   if (currentStatus === "Διαγραμμένη") {
     return "Διαγραμμένη";
   }
   
-  // Αν δεν έχει οριστεί μια από τις δύο ημερομηνίες, διατηρούμε την τρέχουσα κατάσταση
-  if (!registrationDate || !paymentDate) return currentStatus;
-  
   try {
-    // Υπολογισμός της ημερομηνίας λήξης με βάση τις ημερομηνίες εγγραφής και πληρωμής
-    const endDateStr = calculateSubscriptionEndDate(registrationDate, paymentDate);
+    // Calculate end date even if we only have one date
+    let endDateStr = null;
     
-    // Αν η ημερομηνία λήξης είναι "Άγνωστη", διατηρούμε την τρέχουσα κατάσταση
-    if (endDateStr === "Άγνωστη") return currentStatus;
+    if (paymentDate) {
+      // If we have payment date, use it with registration date (if available)
+      endDateStr = calculateSubscriptionEndDate(registrationDate, paymentDate);
+    } else if (registrationDate) {
+      // If we only have registration date, use it alone
+      // Treat registration date as if it was also the payment date
+      endDateStr = calculateSubscriptionEndDate(registrationDate, registrationDate);
+    }
+    
+    // Αν η ημερομηνία λήξης είναι "Άγνωστη" ή null, επιστρέφουμε "Ληγμένη"
+    if (!endDateStr || endDateStr === "Άγνωστη") return "Ληγμένη";
     
     // Μετατροπή της ημερομηνίας λήξης σε αντικείμενο Date
-    // Η ημερομηνία λήξης έχει μορφή "DD/MM/YYYY"
     const parts = endDateStr.split('/');
-    if (parts.length !== 3) return currentStatus;
+    if (parts.length !== 3) return "Ληγμένη";
     
     const day = parseInt(parts[0]);
     const month = parseInt(parts[1]) - 1; // Οι μήνες στην JavaScript είναι 0-11
@@ -618,16 +691,18 @@ const determineSubscriptionStatus = (registrationDate, paymentDate, currentStatu
     const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
     
-    // Αν η τρέχουσα ημερομηνία είναι ίση ή μετά την ημερομηνία λήξης, η συνδρομή έχει λήξει
-    if (todayDateOnly >= endDateOnly) {
-      return "Ληγμένη";
-    }
+    // Debug logging
+    console.log("Status calculation:", {
+      today: todayDateOnly.toISOString(),
+      endDate: endDateOnly.toISOString(),
+      comparison: todayDateOnly > endDateOnly ? "Expired" : "Active"
+    });
     
-    // Αλλιώς η συνδρομή είναι ενεργή
-    return "Ενεργή";
+    // If end date is after today, it's active
+    return todayDateOnly > endDateOnly ? "Ληγμένη" : "Ενεργή";
   } catch (error) {
     console.error("Σφάλμα κατά τον υπολογισμό της κατάστασης συνδρομής:", error);
-    return currentStatus;
+    return "Ληγμένη"; // Default to expired on error
   }
 };
 
@@ -680,7 +755,9 @@ const getStatusStyle = (status) => {
 export default function Meloi() {
   // Add this feature flag at the beginning of your component
   const SHOW_EXCEL_IMPORT = false; // Set to true when you want to enable it again
-  
+  const [openConvertDialog, setOpenConvertDialog] = useState(false);
+const [athleteToConvert, setAthleteToConvert] = useState(null);
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openAddDialog, setOpenAddDialog] = useState(false);
@@ -689,9 +766,47 @@ export default function Meloi() {
   const [difficultyLevels, setDifficultyLevels] = useState([]);
   const [subscriptionTypes, setSubscriptionTypes] = useState([]);
   const [subscriptionStatuses, setSubscriptionStatuses] = useState([]);
-  
+  // Add these new state variables
+const [openAthleteSelectionDialog, setOpenAthleteSelectionDialog] = useState(false);
+const [eligibleAthletes, setEligibleAthletes] = useState([]);
+const [selectedAthleteId, setSelectedAthleteId] = useState(null);
+const [openSingleConvertDialog, setOpenSingleConvertDialog] = useState(false);
+
+// Add this effect to update eligible athletes when data changes
+useEffect(() => {
+  const athletes = data.filter(member => member.athlitis && !member.sindromitis)
+    .map(athlete => ({
+      id: athlete.id_es_melous || athlete.id,
+      // Check for all possible locations of name data
+      name: `${athlete.epitheto || athlete.melos?.epafes?.epitheto || ""} ${athlete.onoma || athlete.melos?.epafes?.onoma || ""}`.trim(),
+      athleteNumber: athlete.athlitis?.arithmos_deltiou || "-"
+    }));
+  setEligibleAthletes(athletes);
+}, [data]);
+
+// Function to update the eligible athletes list after any changes
+const refreshEligibleAthletes = useCallback(() => {
+  // Filter only athletes who are not subscribers
+  const athletes = data.filter(member => member.athlitis && !member.sindromitis)
+    .map(athlete => ({
+      id: athlete.id_es_melous || athlete.id,
+      // Check for all possible locations of name data
+      name: `${athlete.epitheto || athlete.melos?.epafes?.epitheto || ""} ${athlete.onoma || athlete.melos?.epafes?.onoma || ""}`.trim(),
+      athleteNumber: athlete.athlitis?.arithmos_deltiou || "-"
+    }));
+  setEligibleAthletes(athletes);
+}, [data]);
+
+// Call this in a useEffect
+useEffect(() => {
+  refreshEligibleAthletes();
+}, [data, refreshEligibleAthletes]);
+
+
+
+
   // Νέα state για τις προτιμήσεις του πίνακα
-  // Αφαιρούμε τη χειροκίνητη διαχείριση των προτιμήσεων καθώς τώρα γίνεται στο DataTable component
+  // Αφαιρούμε τη χειροκίνητη διαχείριση των προτιμήφεσεων καθώς τώρα γίνεται στο DataTable component
   // const [tablePreferences, setTablePreferences] = useState(() => {...});
   // useEffect(() => {...}, [tablePreferences]);
   // const handleTablePreferenceChange = (type, value) => {...};
@@ -808,242 +923,387 @@ export default function Meloi() {
     fetchData();
   }, []);
 
-  const handleAddSave = async (newRow) => {
-    try {
-      const today = new Date().toISOString();
+// Update the handleMakeSubscriberClick function
+const handleMakeSubscriberClick = (athlete) => {
+  setAthleteToConvert(athlete);
+  setOpenConvertDialog(true);
+};
 
-      // Διασφάλιση έγκυρου ID βαθμού δυσκολίας (σημαντικό!)
-      let difficultyId = 1; // Προεπιλογή
-      
-      if (newRow.epipedo) {
-        // Απευθείας μετατροπή σε αριθμό (χωρίς τη χρήση του find)
-        difficultyId = parseInt(newRow.epipedo);
-      }
+// Update handleAthleteSelectionConfirm function
+const handleAthleteSelectionConfirm = (selectedIds) => {
+  if (!selectedIds || selectedIds.length === 0) {
+    return;
+  }
+  
+  // Get the first selected athlete (we only convert one at a time)
+  const athleteId = selectedIds[0];
+  const athlete = data.find(m => m.id_es_melous === athleteId || m.id === athleteId);
+  
+  if (athlete) {
+    handleMakeSubscriberClick(athlete);
+  }
+};
 
-      // Χρήση της συνάρτησης toISODate για ασφαλή μετατροπή ημερομηνιών
-      const formattedBirthDate = toISODate(newRow.hmerominia_gennhshs);
-      const formattedStartDate = toISODate(newRow.hmerominia_enarksis);
-      const formattedPaymentDate = toISODate(newRow.hmerominia_pliromis);
-
-      // Υπολογισμός της κατάστασης με βάση τις ημερομηνίες
-      const initialStatus = newRow.katastasi_sindromis || "Ενεργή";
-      const calculatedStatus = determineSubscriptionStatus(
-        formattedStartDate, 
-        formattedPaymentDate, 
-        initialStatus
-      );
-
-      // Προσαρμοσμένα δεδομένα για το backend
-      const requestData = {
-        epafes: {
-          onoma: newRow.onoma || "",
-          epitheto: newRow.epitheto || "",
-          email: newRow.email || "",
-          tilefono: newRow.tilefono || "",
-        },
-        melos: {
-          tipo_melous: "esoteriko",
-          sxolia: newRow.sxolia || "", // Fixed variable name
-          vathmos_diskolias: {
-            id_vathmou_diskolias: difficultyId
-          }
-        },
-        esoteriko_melos: {
-          hmerominia_gennhshs: formattedBirthDate || today,
-          patronimo: newRow.patronimo || "",
-          odos: newRow.odos || "",
-          tk: newRow.tk ? parseInt(newRow.tk) : 0,
-          arithmos_mitroou: newRow.arithmos_mitroou ? parseInt(newRow.arithmos_mitroou) : 0,
-        },
-        sindromitis: {
-          katastasi_sindromis: calculatedStatus, // Χρησιμοποιούμε την υπολογισμένη κατάσταση
-          exei: {
-            hmerominia_pliromis: formattedPaymentDate || today,
-            sindromi: {
-              hmerominia_enarksis: formattedStartDate || today,
-              eidos_sindromis: newRow.eidosSindromis,
-            },
-          },
-        },
-      };
-
-      
-      
-      
-      const response = await api.post("/melitousillogou", requestData);
-      
-      // Κλείσιμο του dialog
-      setOpenAddDialog(false);
-      
-      // Αντί για επαναφόρτωση της σελίδας, προσθέτουμε το νέο μέλος στον πίνακα
-      if (response.data) {
-        const newMember = {
-          ...response.data,
-          id: response.data.id_es_melous,
-          epitheto: response.data.melos?.epafes?.epitheto || "",
-          onoma: response.data.melos?.epafes?.onoma || "",
-          email: response.data.melos?.epafes?.email || "",
-          tilefono: response.data.melos?.epafes?.tilefono || "",
-          odos: response.data.odos || "",
-          tk: response.data.tk || "",
-          arithmos_mitroou: response.data.arithmos_mitroou || "",
-          eidosSindromis: response.data.eidosSindromis || "",
-          status: calculatedStatus,
-          // Add date fields at both top level and nested structure
-          hmerominia_egrafis: formattedStartDate,
-          hmerominia_pliromis: formattedPaymentDate,
-          // Nested structure for components that expect it
-          sindromitis: {
-            katastasi_sindromis: calculatedStatus,
-            exei: [{
-              hmerominia_pliromis: formattedPaymentDate,
-              sindromi: {
-                hmerominia_enarksis: formattedStartDate,
-                eidos_sindromis: {
-                  titlos: newRow.eidosSindromis
-                }
-              }
-            }]
-          },
-          // Calculate subscription end date
-          subscriptionEndDate: formattedPaymentDate ? 
-            calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate) : 
-            null,
-        };
-        
-        setData(prevData => [...prevData, newMember]);
-      }
-      
-      // ΑΦΑΙΡΕΣΗ αυτής της γραμμής:
-      // window.location.reload();
-    } catch (error) {
-      console.error("Σφάλμα προσθήκης:", error);
-      if (error.response && error.response.data) {
-        console.error("Λεπτομέρειες σφάλματος:", error.response.data);
-        alert(`Σφάλμα: ${error.response.data.details || error.response.data.error || "Άγνωστο σφάλμα"}`);
-      }
+// Update the handleMakeSubscriber function for better error handling
+const handleMakeSubscriber = async (formData) => {
+  try {
+    if (!athleteToConvert) {
+      alert("Δεν επιλέχθηκε αθλητής");
+      return;
     }
-  };
-
-  // Add this new component to your file
-  const handleEditClick = (row) => {
-    // Έλεγχος αν το μέλος είναι αθλητής
-    const isAthlete = Boolean(row.athlitis);
     
-    // Εξαγωγή των τιμών που χρειαζόμαστε για την επεξεργασία
-    const editData = {
-      id_es_melous: row.id_es_melous || row.id,
-      onoma: row.melos?.epafes?.onoma || "",
-      epitheto: row.melos?.epafes?.epitheto || "",
-      email: row.melos?.epafes?.email || "",
-      tilefono: row.melos?.epafes?.tilefono || "",
-      epipedo: row.melos?.vathmos_diskolias?.id_vathmou_diskolias || "",
-      patronimo: row.patronimo || "",
-      odos: row.odos || "",
-      tk: row.tk || "",
-      arithmos_mitroou: row.arithmos_mitroou || "",
-      sxolia: row.melos?.sxolia || "",  // Extract sxolia directly for the form
-      // Αποθηκεύουμε την πληροφορία αν είναι αθλητής
-      isAthlete: isAthlete,
-      
-      // Μόνο αν δεν είναι αθλητής, προσθέτουμε τα πεδία συνδρομής
-      ...(isAthlete ? {} : {
-        eidosSindromis: row.eidosSindromis || "",
-        katastasi_sindromis: row.sindromitis?.katastasi_sindromis || "",
-        hmerominia_enarksis: safeFormatDate(row.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis),
-        hmerominia_pliromis: safeFormatDate(row.sindromitis?.exei?.[0]?.hmerominia_pliromis),
-      }),
-      
-      hmerominia_gennhshs: safeFormatDate(row.hmerominia_gennhshs || row.esoteriko_melos?.hmerominia_gennhshs),
-      
-      // Επιπλέον πεδία για συμβατότητα με τη φόρμα επεξεργασίας
-      "melos.epafes.onoma": row.melos?.epafes?.onoma || "",
-      "melos.epafes.epitheto": row.melos?.epafes?.epitheto || "",
-      "melos.epafes.email": row.melos?.epafes?.email || "",
-      "melos.epafes.tilefono": row.melos?.epafes?.tilefono || "",
-      "melos.vathmos_diskolias.epipedo": row.melos?.vathmos_diskolias?.epipedo || ""
+    console.log("Converting athlete to subscriber:", athleteToConvert);
+    const athleteId = athleteToConvert.id_es_melous || athleteToConvert.id;
+    
+    // Format dates for the API
+    const formattedStartDate = formData.hmerominia_enarksis ? toISODate(formData.hmerominia_enarksis) : null;
+    const formattedPaymentDate = formData.hmerominia_pliromis ? toISODate(formData.hmerominia_pliromis) : null;
+    
+    // Prepare request data
+    const requestData = {
+      sindromitis: {
+        exei: {
+          hmerominia_pliromis: formattedPaymentDate,
+          sindromi: {
+            hmerominia_enarksis: formattedStartDate,
+            eidos_sindromis: formData.eidosSindromis,
+          },
+        },
+      },
     };
     
-    setEditValues(editData);
-    setOpenEditDialog(true);
-  };
-
-  const handleEditSave = async (updatedRow) => {
-    try {
-      const id = editValues.id_es_melous || editValues.id;
+    console.log("Sending request data:", JSON.stringify(requestData, null, 2));
+    
+    // Make API call
+   const response = await api.put(`/melitousillogou/${athleteId}`, requestData);
+    console.log("Conversion response:", response.data);
+    
+    // Close dialog and update state
+    setOpenConvertDialog(false);
+    setAthleteToConvert(null);
+    
+    // Update the local data to reflect the change
+    const membersRes = await api.get("/melitousillogou");
+    
+    // Process the response data to ensure consistent structure
+    const processedData = membersRes.data.map((member) => {
+      // Look for dates in all possible locations
+      const birthDate = member.hmerominia_gennhshs || 
+                    member.esoteriko_melos?.hmerominia_gennhshs || null;
       
-      if (!id) {
-        console.error("No ID provided for update");
-        alert("Σφάλμα: Δεν βρέθηκε το ID μέλους");
+      // Try both top-level and nested paths for registration and payment dates
+      const registrationDate = member.hmerominia_egrafis || 
+                           member.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis || null;
+      const paymentDate = member.hmerominia_pliromis || 
+                      member.sindromitis?.exei?.[0]?.hmerominia_pliromis || null;
+      
+      return {
+        ...member,
+        id: member.id_es_melous,
+        epitheto: member.melos?.epafes?.epitheto || "",
+        onoma: member.melos?.epafes?.onoma || "",
+        email: member.melos?.epafes?.email || "",
+        tilefono: member.melos?.epafes?.tilefono || "",
+        odos: member.odos || "",
+        tk: member.tk || "",
+        arithmos_mitroou: member.arithmos_mitroou || "",
+        eidosSindromis: member.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "",
+        status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || "",
+        
+        // Always use the consolidated dates from above
+        hmerominia_gennhshs: birthDate,
+        hmerominia_egrafis: registrationDate,
+        hmerominia_pliromis: paymentDate,
+        
+        subscriptionEndDate: calculateSubscriptionEndDate(registrationDate, paymentDate),
+      };
+    });
+    
+    setData(processedData);
+    
+    // Since data was updated, eligibleAthletes will be updated via useEffect
+    
+    alert("Ο αθλητής έγινε συνδρομητής με επιτυχία");
+  } catch (error) {
+    console.error("Σφάλμα κατά τη μετατροπή του αθλητή σε συνδρομητή:", error);
+    console.error("Error details:", error.response?.data);
+    alert(`Σφάλμα: ${error.response?.data?.details || error.message}`);
+  }
+};
+
+
+
+
+const handleAddSave = async (newRow) => {
+  try {
+    // Διασφάλιση έγκυρου ID βαθμού δυσκολίας
+    let difficultyId = 1; // Προεπιλογή
+    
+    if (newRow.epipedo) {
+      difficultyId = parseInt(newRow.epipedo);
+    }
+
+    // Χρήση της συνάρτησης toISODate για ασφαλή μετατροπή ημερομηνιών
+    // Let the formattedStartDate and formattedPaymentDate be null if not provided
+    const formattedBirthDate = toISODate(newRow.hmerominia_gennhshs);
+    const formattedStartDate = newRow.hmerominia_enarksis ? toISODate(newRow.hmerominia_enarksis) : null;
+    const formattedPaymentDate = newRow.hmerominia_pliromis ? toISODate(newRow.hmerominia_pliromis) : null;
+
+    // Calculate end date only if both dates exist
+    const endDateStr = formattedStartDate && formattedPaymentDate ? 
+      calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate) : 
+      null;
+      
+    // Determine status - we'll use "Ληγμένη" if no dates are provided
+    let calculatedStatus;
+    if (newRow.katastasi_sindromis === "Διαγραμμένη") {
+      calculatedStatus = "Διαγραμμένη";
+    } else if (!formattedStartDate || !formattedPaymentDate) {
+      calculatedStatus = "Ληγμένη";
+    } else if (endDateStr && endDateStr !== "Άγνωστη") {
+      const endDate = parseDateFromString(endDateStr);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      calculatedStatus = today > endDate ? "Ληγμένη" : "Ενεργή";
+    } else {
+      calculatedStatus = "Ληγμένη"; // Changed from "Ενεργή" to "Ληγμένη"
+    }
+
+    // Προσαρμοσμένα δεδομένα για το backend
+    const requestData = {
+      epafes: {
+        onoma: newRow.onoma || "",
+        epitheto: newRow.epitheto || "",
+        email: newRow.email || "",
+        tilefono: newRow.tilefono || "",
+      },
+      melos: {
+        tipo_melous: "esoteriko",
+        sxolia: newRow.sxolia || "",
+        vathmos_diskolias: {
+          id_vathmou_diskolias: difficultyId
+        }
+      },
+      esoteriko_melos: {
+        hmerominia_gennhshs: formattedBirthDate,
+        patronimo: newRow.patronimo || "",
+        odos: newRow.odos || "",
+        tk: newRow.tk ? parseInt(newRow.tk) : null,
+        arithmos_mitroou: newRow.arithmos_mitroou ? parseInt(newRow.arithmos_mitroou) : null,
+      },
+      sindromitis: {
+        katastasi_sindromis: calculatedStatus,
+        exei: {
+          // These can be null - the backend will handle it
+          hmerominia_pliromis: formattedPaymentDate,
+          sindromi: {
+            hmerominia_enarksis: formattedStartDate,
+            // This is the key part - always include eidos_sindromis
+            eidos_sindromis: newRow.eidosSindromis,
+          },
+        },
+      },
+    };
+
+    const response = await api.post("/melitousillogou", requestData);
+    
+    // Κλείσιμο του dialog
+    setOpenAddDialog(false);
+    
+    // Αντί για επαναφόρτωση της σελίδας, προσθέτουμε το νέο μέλος στον πίνακα
+    if (response.data) {
+      // Calculate the end date using the dates from response data for consistency
+      const responseRegDate = response.data.hmerominia_egrafis || 
+                             response.data.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis;
+      const responsePayDate = response.data.hmerominia_pliromis || 
+                            response.data.sindromitis?.exei?.[0]?.hmerominia_pliromis;
+      
+      // Calculate end date with server-returned dates
+      const calculatedEndDate = responseRegDate && responsePayDate ?
+        calculateSubscriptionEndDate(responseRegDate, responsePayDate) : null;
+        
+      // Determine status using utility function for consistency
+      const finalStatus = formattedStartDate || formattedPaymentDate ?
+        determineSubscriptionStatus(responseRegDate, responsePayDate, calculatedStatus) : calculatedStatus;
+      
+      const newMember = {
+        ...response.data,
+        id: response.data.id_es_melous,
+        epitheto: response.data.melos?.epafes?.epitheto || "",
+        onoma: response.data.melos?.epafes?.onoma || "",
+        email: response.data.melos?.epafes?.email || "",
+        tilefono: response.data.melos?.epafes?.tilefono || "",
+        odos: response.data.odos || "",
+        tk: response.data.tk || "",
+        arithmos_mitroou: response.data.arithmos_mitroou || "",
+        eidosSindromis: response.data.eidosSindromis || "",
+        status: finalStatus,
+        // Add date fields at both top level and nested structure
+        hmerominia_egrafis: responseRegDate,
+        hmerominia_pliromis: responsePayDate,
+        // Nested structure for components that expect it
+        sindromitis: {
+          katastasi_sindromis: finalStatus,
+          exei: [{
+            hmerominia_pliromis: responsePayDate,
+            sindromi: {
+              hmerominia_enarksis: responseRegDate,
+              eidos_sindromis: {
+                titlos: newRow.eidosSindromis
+              }
+            }
+          }]
+        },
+        // Use the calculated end date
+        subscriptionEndDate: calculatedEndDate,
+      };
+      
+  
+      
+      setData(prevData => [...prevData, newMember]);
+    }
+  } catch (error) {
+    console.error("Σφάλμα προσθήκης:", error);
+    if (error.response && error.response.data) {
+      console.error("Λεπτομέρειες σφάλματος:", error.response.data);
+      alert(`Σφάλμα: ${error.response.data.details || error.response.data.error || "Άγνωστο σφάλμα"}`);
+    }
+  }
+};
+  // Add this new component to your file
+const handleEditClick = (row) => {
+  // Check if the member is an athlete and/or subscriber
+  const isAthlete = Boolean(row.athlitis);
+  const isSubscriber = Boolean(row.sindromitis);
+  
+  // Extract the values needed for editing
+  const editData = {
+    id_es_melous: row.id_es_melous || row.id,
+    onoma: row.melos?.epafes?.onoma || "",
+    epitheto: row.melos?.epafes?.epitheto || "",
+    email: row.melos?.epafes?.email || "",
+    tilefono: row.melos?.epafes?.tilefono || "",
+    epipedo: row.melos?.vathmos_diskolias?.id_vathmou_diskolias || "",
+    patronimo: row.patronimo || "",
+    odos: row.odos || "",
+    tk: row.tk || "",
+    arithmos_mitroou: row.arithmos_mitroou || "",
+    sxolia: row.melos?.sxolia || "", 
+    
+    // Store both athlete and subscriber status
+    ...(isSubscriber ? {
+      eidosSindromis: row.eidosSindromis || "",
+      katastasi_sindromis: row.sindromitis?.katastasi_sindromis || "",
+      hmerominia_enarksis: safeFormatDate(row.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis),
+      hmerominia_pliromis: safeFormatDate(row.sindromitis?.exei?.[0]?.hmerominia_pliromis),
+    } : {}),
+    
+    hmerominia_gennhshs: safeFormatDate(row.hmerominia_gennhshs || row.esoteriko_melos?.hmerominia_gennhshs),
+    
+    // Additional fields for form compatibility
+    "melos.epafes.onoma": row.melos?.epafes?.onoma || "",
+    "melos.epafes.epitheto": row.melos?.epafes?.epitheto || "",
+    "melos.epafes.email": row.melos?.epafes?.email || "",
+    "melos.epafes.tilefono": row.melos?.epafes?.tilefono || "",
+    "melos.vathmos_diskolias.epipedo": row.melos?.vathmos_diskolias?.epipedo || ""
+  };
+  
+  setEditValues(editData);
+  setOpenEditDialog(true);
+};
+
+const handleEditSave = async (updatedRow) => {
+  try {
+    const id = editValues.id_es_melous || editValues.id;
+    
+    if (!id) {
+      console.error("No ID provided for update");
+      alert("Σφάλμα: Δεν βρέθηκε το ID μέλους");
+      return;
+    }
+
+    const isAthlete = editValues.isAthlete;
+    const isSubscriber = editValues.isSubscriber;
+    
+    // Έλεγχος ημερομηνιών - only if they're a subscriber
+    if (isSubscriber && updatedRow.hmerominia_enarksis && updatedRow.hmerominia_pliromis) {
+      if (!validateDates(updatedRow.hmerominia_enarksis, updatedRow.hmerominia_pliromis)) {
+        alert("Η ημερομηνία έναρξης δεν μπορεί να είναι μεταγενέστερη της ημερομηνίας πληρωμής");
         return;
       }
+    }
 
-      // Αν είναι αθλητής, αφαιρούμε τα πεδία συνδρομής
-      const isAthlete = editValues.isAthlete;
-      
-      // Έλεγχος ημερομηνιών
-      if (!isAthlete && updatedRow.hmerominia_enarksis && updatedRow.hmerominia_pliromis) {
-        if (!validateDates(updatedRow.hmerominia_enarksis, updatedRow.hmerominia_pliromis)) {
-          alert("Η ημερομηνία έναρξης δεν μπορεί να είναι μεταγενέστερη της ημερομηνίας πληρωμής");
-          return;
+    // Μετατροπή ημερομηνιών
+    let formData = { ...updatedRow };
+    if (isSubscriber) {
+      if (formData.hmerominia_enarksis) {
+        const startDate = new Date(formData.hmerominia_enarksis);
+        if (!isNaN(startDate.getTime())) {
+          formData.hmerominia_egrafis = startDate.toISOString().split('T')[0];
         }
       }
+    }
 
-      // Μετατροπή ημερομηνιών
-      let formData = { ...updatedRow };
-      if (!isAthlete) {
-        // Map hmerominia_enarksis to hmerominia_egrafis for consistency
-        // We need both fields for different parts of the code
-        if (formData.hmerominia_enarksis) {
-          // Convert to Date and back to ensure consistent format
-          const startDate = new Date(formData.hmerominia_enarksis);
-          if (!isNaN(startDate.getTime())) {
-            // Store in ISO format for backend
-            formData.hmerominia_egrafis = startDate.toISOString().split('T')[0];
-          }
-        }
-      }
-
-      const formattedBirthDate = toISODate(formData.hmerominia_gennhshs);
-      // Use hmerominia_enarksis for backend API
-      const formattedStartDate = !isAthlete ? toISODate(formData.hmerominia_enarksis) : undefined;
-      const formattedPaymentDate = !isAthlete ? toISODate(formData.hmerominia_pliromis) : undefined;
-      
-      // Υπολογισμός κατάστασης
-      const newStatus = !isAthlete ? 
-        (updatedRow.katastasi_sindromis === "Διαγραμμένη" ? "Διαγραμμένη" : 
-        determineSubscriptionStatus(
-          formattedStartDate, 
-          formattedPaymentDate, 
-          updatedRow.katastasi_sindromis || "Ενεργή"
-        )) : undefined;
+    const formattedBirthDate = toISODate(formData.hmerominia_gennhshs);
+    const formattedStartDate = isSubscriber ? toISODate(formData.hmerominia_enarksis) : undefined;
+    const formattedPaymentDate = isSubscriber ? toISODate(formData.hmerominia_pliromis) : undefined;
     
-      // API Request
-      const requestData = {
-        // Personal info
-        hmerominia_gennhshs: formattedBirthDate,
-        patronimo: updatedRow.patronimo || "",
-        arithmos_mitroou: updatedRow.arithmos_mitroou || "",
-        odos: updatedRow.odos || "",
-        tk: updatedRow.tk || "",
-        
-        // Contact info
-        onoma: updatedRow.onoma,
-        epitheto: updatedRow.epitheto,
-        email: updatedRow.email || "",
-        tilefono: updatedRow.tilefono || "",
-        
-        // Other fields
-        epipedo: updatedRow.epipedo,
-        sxolia: updatedRow.sxolia || "",
-        
-        // Subscription fields - note the correct field names for backend
-        katastasi_sindromis: !isAthlete ? updatedRow.katastasi_sindromis : undefined,
- hmerominia_enarksis: formattedStartDate, // Field name expected by backend
-  hmerominia_egrafis: formattedStartDate,   // Field name used in frontend
-  hmerominia_pliromis: formattedPaymentDate,
-        eidosSindromis: !isAthlete ? updatedRow.eidosSindromis : undefined
-      };
+    // Calculate subscription end date
+    const endDateStr = isSubscriber && formattedStartDate && formattedPaymentDate ? 
+      calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate) : 
+      null;
+    
+    // Automatically determine the status based on end date
+    // Only respect "Διαγραμμένη" status from user input
+    const userSelectedStatus = updatedRow.katastasi_sindromis;
+    let calculatedStatus;
+    
+    if (userSelectedStatus === "Διαγραμμένη") {
+      // If user specifically marked as deleted, respect that choice
+      calculatedStatus = "Διαγραμμένη";
+    } else if (endDateStr && endDateStr !== "Άγνωστη") {
+      // Otherwise, calculate based on end date
+      const endDate = parseDateFromString(endDateStr);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Compare only dates
+      calculatedStatus = today > endDate ? "Ληγμένη" : "Ενεργή";
+    } else {
+      // Default to active if we can't calculate
+      calculatedStatus = "Ενεργή";
+    }
+    
+    // Υπολογισμός κατάστασης - only for subscribers
+    const newStatus = isSubscriber ? calculatedStatus : undefined;
+    
+    // API Request
+    const requestData = {
+      // Personal info
+      hmerominia_gennhshs: formattedBirthDate,
+      patronimo: updatedRow.patronimo || "",
+      arithmos_mitroou: updatedRow.arithmos_mitroou || "",
+      odos: updatedRow.odos || "",
+      tk: updatedRow.tk || "",
+      
+      // Contact info
+      onoma: updatedRow.onoma,
+      epitheto: updatedRow.epitheto,
+      email: updatedRow.email || "",
+      tilefono: updatedRow.tilefono || "",
+      
+      // Other fields
+      epipedo: updatedRow.epipedo,
+      sxolia: updatedRow.sxolia || "",
+      
+      // Subscription fields - include when they're a subscriber, regardless of athlete status
+      katastasi_sindromis: isSubscriber ? updatedRow.katastasi_sindromis : undefined, // Change from !isAthlete to isSubscriber
+      hmerominia_enarksis: formattedStartDate, 
+      hmerominia_egrafis: formattedStartDate,   
+      hmerominia_pliromis: formattedPaymentDate,
+      eidosSindromis: isSubscriber ? updatedRow.eidoSindromis : undefined // Change from !isAthlete to isSubscriber
+    };
       
       const response = await api.put(`/melitousillogou/${id}`, requestData);
       
@@ -1109,6 +1369,25 @@ export default function Meloi() {
       }
     }
   };
+
+// Add this helper function to parse Greek-formatted dates "DD/MM/YYYY"
+const parseDateFromString = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  
+  // Handle DD/MM/YYYY format
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1; // JS months are 0-indexed
+      const year = parseInt(parts[2]);
+      return new Date(year, month, day);
+    }
+  }
+  
+  // Fallback to standard date parsing
+  return new Date(dateStr);
+};
 
   const handleDelete = async (id) => {
     try {
@@ -1218,7 +1497,6 @@ export default function Meloi() {
   accessorKey: "hmerominia_enarksis", 
   header: "Ημερομηνία Έναρξης Συνδρομής", 
   type: "date",
-  // Προσθήκη μέγιστης ημερομηνίας (δεν επιτρέπει επιλογή μετά την ημερομηνία πληρωμής)
   maxDateField: "hmerominia_pliromis",
   validation: yup.date().nullable()
 },
@@ -1539,198 +1817,430 @@ const parseDate = (dateValue) => {
   return results;
 };
 
-  return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          Μέλη Συλλόγου ({data.length})
-        </Typography>
+// Add this function in Meloi component
+const handleMakeAthlete = async (memberId) => {
+  try {
+    // First check if they're already an athlete
+    const memberDetails = await api.get(`/melitousillogou/${memberId}`);
+    
+    if (memberDetails.data.athlitis) {
+      alert("Το μέλος είναι ήδη αθλητής");
+      return;
+    }
+    
+    // Confirm that the user wants to make this member an athlete
+    if (!window.confirm("Είστε σίγουροι ότι θέλετε να κάνετε αυτό το μέλος αθλητη;")) {
+      return;
+    }
+    
+    // Create the athlete record
+    await api.post("/athlites/athlete", {
+      existingMemberId: memberId,
+      athlitis: {},
+      athlimata: []
+    });
+    
+    alert("Το μέλος έγινε αθλητής με επιτυχία");
+    
+    // Update the local data to reflect the change
+    const updatedData = await api.get("/melitousillogou");
+    setData(updatedData.data);
+    
+  } catch (error) {
+    console.error("Σφάλμα κατά τη μετατροπή του μέλους σε αθλητή:", error);
+    alert(`Σφάλμα: ${error.response?.data?.details || error.message}`);
+  }
+};
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          {/* Only render the button if SHOW_EXCEL_IMPORT is true */}
-          {SHOW_EXCEL_IMPORT && (
-            <Button 
-              variant="contained" 
-              component="label" 
-              startIcon={<CloudUploadIcon />}
+  // Add new state for the combined dialog
+const [openCombinedConvertDialog, setOpenCombinedConvertDialog] = useState(false);
+
+// Add component for combined dialog
+// Add component for combined dialog
+const AthleteToSubscriberDialog = () => {
+  // Local state for the form
+  const [selectedAthleteId, setSelectedAthleteId] = useState('');
+  const [subscriptionType, setSubscriptionType] = useState(
+    subscriptionTypes.length > 0 ? subscriptionTypes[0].titlos : ''
+  );
+  const [subscriptionStatus, setSubscriptionStatus] = useState('Ενεργή');
+  const [startDate, setStartDate] = useState(null);
+  const [paymentDate, setPaymentDate] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  
+  // Filter athletes based on search text
+  const filteredAthletes = eligibleAthletes.filter(athlete => 
+    athlete.name.toLowerCase().includes(filterText.toLowerCase()) || 
+    athlete.athleteNumber.toLowerCase().includes(filterText.toLowerCase())
+  );
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError(null);
+    
+    try {
+      // Validate form
+      if (!selectedAthleteId) {
+        setFormError("Παρακαλώ επιλέξτε αθλητή");
+        return;
+      }
+      
+      if (!subscriptionType) {
+        setFormError("Το είδος συνδρομής είναι υποχρεωτικό");
+        return;
+      }
+      
+      // Format dates for API
+      const formattedStartDate = startDate ? toISODate(startDate) : null;
+      const formattedPaymentDate = paymentDate ? toISODate(paymentDate) : null;
+      
+      // Validate dates if both provided
+      if (startDate && paymentDate) {
+        if (new Date(startDate) > new Date(paymentDate)) {
+          setFormError("Η ημερομηνία έναρξης δεν μπορεί να είναι μετά την ημερομηνία πληρωμής");
+          return;
+        }
+      }
+      
+      // Prepare request data
+      const requestData = {
+        sindromitis: {
+          exei: {
+            hmerominia_pliromis: formattedPaymentDate,
+            sindromi: {
+              hmerominia_enarksis: formattedStartDate,
+              eidos_sindromis: subscriptionType,
+            },
+          },
+        },
+      };
+      
+      setLoading(true);
+      console.log("Converting athlete to subscriber:", selectedAthleteId);
+      console.log("Request data:", requestData);
+      
+      // Make API call
+      const response = await api.put(`/melitousillogou/${selectedAthleteId}`, requestData);
+      console.log("Conversion response:", response.data);
+      
+      // Update the local data
+      const membersRes = await api.get("/melitousillogou");
+    
+    // Process the response data to ensure consistent structure
+    const processedData = membersRes.data.map((member) => {
+      // Look for dates in all possible locations
+      const birthDate = member.hmerominia_gennhshs || 
+                member.esoteriko_melos?.hmerominia_gennhshs || null;
+  
+      // Try both top-level and nested paths for registration and payment dates
+      const registrationDate = member.hmerominia_egrafis || 
+                       member.sindromitis?.exei?.[0]?.sindromi?.hmerominia_enarksis || null;
+      const paymentDate = member.hmerominia_pliromis || 
+                  member.sindromitis?.exei?.[0]?.hmerominia_pliromis || null;
+      
+      return {
+        ...member,
+        id: member.id_es_melous,
+        epitheto: member.melos?.epafes?.epitheto || "",
+        onoma: member.melos?.epafes?.onoma || "",
+        email: member.melos?.epafes?.email || "",
+        tilefono: member.melos?.epafes?.tilefono || "",
+        odos: member.odos || "",
+        tk: member.tk || "",
+        arithmos_mitroou: member.arithmos_mitroou || "",
+        eidosSindromis: member.sindromitis?.exei?.[0]?.sindromi?.eidos_sindromis?.titlos || "",
+        status: member.athlitis ? "Αθλητής" : member.sindromitis?.katastasi_sindromis || "",
+        
+        // Always use the consolidated dates from above
+        hmerominia_gennhshs: birthDate,
+        hmerominia_egrafis: registrationDate,
+        hmerominia_pliromis: paymentDate,
+        
+        subscriptionEndDate: calculateSubscriptionEndDate(registrationDate, paymentDate),
+      };
+    });
+    
+    setData(processedData);
+      
+      // Close dialog
+      setOpenCombinedConvertDialog(false);
+      
+      // Show success message
+    } catch (error) {
+      console.error("Σφάλμα κατά τη μετατροπή:", error);
+      setFormError(error.response?.data?.details || error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog 
+      open={openCombinedConvertDialog}
+      onClose={() => setOpenCombinedConvertDialog(false)}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogTitle>
+        Μετατροπή Αθλητή σε Συνδρομητή
+      </DialogTitle>
+      <DialogContent>
+        <Box 
+          component="form" 
+          onSubmit={handleSubmit} 
+          noValidate 
+          sx={{ mt: 1 }}
+        >
+          {/* Embedded athlete selection table */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+              Επιλογή Αθλητή
+            </Typography>
+            
+            {/* Search field */}
+            <TextField
+              fullWidth
+              variant="outlined"
+              size="small"
+              placeholder="Αναζήτηση αθλητή..."
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              sx={{ mb: 2 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            
+            {/* Athletes table */}
+            <TableContainer 
+              component={Paper} 
+              variant="outlined"
+              sx={{ 
+                maxHeight: '200px', 
+                mb: 2
+              }}
             >
-              Εισαγωγή από Excel
-              <input type="file" hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
-            </Button>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell padding="checkbox" />
+                    <TableCell sx={{ fontWeight: 'bold', width: '70%' }}>Ονοματεπώνυμο</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Αρ. Δελτίου</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredAthletes.length > 0 ? (
+                    filteredAthletes.map((athlete) => (
+                      <TableRow 
+                        key={athlete.id}
+                        hover
+                        selected={selectedAthleteId === athlete.id}
+                        onClick={() => setSelectedAthleteId(athlete.id)}
+                      >
+                        <TableCell padding="checkbox">
+                          <Radio
+                            checked={selectedAthleteId === athlete.id}
+                            onChange={() => setSelectedAthleteId(athlete.id)}
+                          />
+                        </TableCell>
+                        <TableCell>{athlete.name}</TableCell>
+                        <TableCell>{athlete.athleteNumber}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} align="center">
+                        Δεν υπάρχουν διαθέσιμοι αθλητές προς μετατροπή
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+
+          {/* Form fields for subscription details */}
+          <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+            Στοιχεία Συνδρομής
+          </Typography>
+
+          {/* Subscription type */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="subscription-type-label">Είδος Συνδρομής</InputLabel>
+            <Select
+              labelId="subscription-type-label"
+              id="subscription-type"
+              value={subscriptionType}
+              onChange={(e) => setSubscriptionType(e.target.value)}
+              label="Είδος Συνδρομής"
+              required
+            >
+              {subscriptionTypes.map((type) => (
+                <MenuItem key={type.id_eidous_sindromis} value={type.titlos}>
+                  {type.titlos}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Subscription status */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="subscription-status-label">Κατάσταση Συνδρομής</InputLabel>
+            <Select
+              labelId="subscription-status-label"
+              id="subscription-status"
+              value={subscriptionStatus}
+              onChange={(e) => setSubscriptionStatus(e.target.value)}
+              label="Κατάσταση Συνδρομής"
+              required
+            >
+              {subscriptionStatuses.map((status) => (
+                <MenuItem key={status.value} value={status.value}>
+                  {status.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Registration date */}
+          <FormControl fullWidth margin="normal">
+            <DatePicker
+              label="Ημερομηνία Έναρξης Συνδρομής"
+              value={startDate}
+              onChange={(date) => setStartDate(date)}
+              renderInput={(params) => <TextField {...params} />}
+              maxDate={paymentDate}
+            />
+          </FormControl>
+
+          {/* Payment date */}
+          <FormControl fullWidth margin="normal">
+            <DatePicker
+              label="Ημερομηνία Πληρωμής"
+              value={paymentDate}
+              onChange={(date) => setPaymentDate(date)}
+              renderInput={(params) => <TextField {...params} />}
+              minDate={startDate}
+            />
+          </FormControl>
+
+          {formError && (
+            <Box sx={{ mt: 2, color: 'error.main' }}>
+              <Typography color="error">{formError}</Typography>
+            </Box>
           )}
         </Box>
-        
-        <DataTable
-          data={data}
-          columns={fields}
-          detailPanelConfig={detailPanelConfig}
-          getRowId={(row) => row.id_es_melous}
-          tableName="melitousillogou"
-          initialState={tableInitialState}
-          state={{ isLoading: loading }}
-          enableAddNew={true}
-          enableTopAddButton={true}  // Add this line
-          onAddNew={() => {
-            console.log('Κουμπί πατήθηκε!');
-            setOpenAddDialog(true);
-            console.log('openAddDialog τέθηκε σε:', true);
-          }}
-          handleEditClick={handleEditClick}
-          handleDelete={handleDelete}
-        />
-        
-        <AddDialog
-          open={openAddDialog}
-          onClose={() => setOpenAddDialog(false)}
-          handleAddSave={handleAddSave}
-          fields={addFields}
-        />
-        
-        {/* Υπόλοιπος κώδικας παραμένει ως έχει */}
-        <EditDialog
-          open={openEditDialog}
-          onClose={() => setOpenEditDialog(false)}
-          editValues={editValues}
-          handleEditSave={handleEditSave}
-          fields={[
-    { 
-      accessorKey: "onoma", 
-      header: "Όνομα", 
-      validation: yup.string()
-        .required("Το όνομα είναι υποχρεωτικό")
-        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο όνομα', 
-          value => !value || !/[0-9]/.test(value))
-    },
-    { 
-      accessorKey: "epitheto", 
-      header: "Επώνυμο", 
-      validation: yup.string()
-        .required("Το επώνυμο είναι υποχρεωτικό")
-        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο επώνυμο', 
-          value => !value || !/[0-9]/.test(value))
-    },
-    { 
-      accessorKey: "patronimo", 
-      header: "Πατρώνυμο", 
-      validation: yup.string()
-        .test('no-numbers', 'Δεν επιτρέπονται αριθμοί στο πατρώνυμο', 
-          value => !value || !/[0-9]/.test(value))
-    },
-    { 
-      accessorKey: "email", 
-      header: "Email", 
-      validation: yup.string().nullable().test('email-format', 'Μη έγκυρο email', function(value) {
-        if (!value || value === '') return true;
-        const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
-        return emailRegex.test(value);
-      })
-    },
-    { 
-      accessorKey: "tilefono", 
-      header: "Τηλέφωνο", 
-      validation: yup.string().nullable().test('valid-phone', 'Το τηλέφωνο πρέπει να έχει τουλάχιστον 10 ψηφία και να περιέχει μόνο αριθμούς και το σύμβολο +', function(value) {
-        if (!value || value === '') return true;
-        const digitsOnly = value.replace(/[^0-9]/g, '');
-        return /^[0-9+]+$/.test(value) && digitsOnly.length >= 10;
-      })
-    },
-    { 
-      accessorKey: "hmerominia_gennhshs", 
-      header: "Ημερομηνία Γέννησης", 
-      type: "date",
-      validation: yup.date().nullable() // Αφαίρεση .required()
-    },
-    { 
-      accessorKey: "odos", 
-      header: "Οδός", 
-      validation: yup.string() // Αφαίρεση .required()
-    },
-    { 
-      accessorKey: "tk", 
-      header: "ΤΚ", 
-      validation: yup.number().nullable().transform((value, originalValue) => {
-        if (originalValue === '' || originalValue === null) return null;
-        return value;
-      }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
-    },
-    { 
-      accessorKey: "arithmos_mitroou", 
-      header: "Αριθμός Μητρώου", 
-      validation: yup.number().nullable().transform((value, originalValue) => {
-        if (originalValue === '' || originalValue === null) return null;
-        return value;
-      }).typeError("Πρέπει να είναι αριθμός") // Αφαίρεση .required()
-    },
-    // Πεδία συνδρομής - εμφανίζονται μόνο αν δεν είναι αθλητής
-    ...(!editValues.isAthlete ? [
-      { 
-        accessorKey: "eidosSindromis", 
-        header: "Είδος Συνδρομής",
-        type: "select",
-        options: subscriptionTypes.map(type => ({ value: type.titlos, label: type.titlos })),
-        validation: yup.string() // Αφαίρεση .required()
-      },
-      { 
-        accessorKey: "katastasi_sindromis", 
-        header: "Κατάσταση Συνδρομής",
-        type: "select",
-        options: subscriptionStatuses,
-        validation: yup.string() // Αφαίρεση .required()
-      },
- // Στη φόρμα επεξεργασίας - EditDialog
-{ 
-  accessorKey: "hmerominia_enarksis", 
-  header: "Ημερομηνία Έναρξης Συνδρομής", 
-  
-  type: "date",
-  // Προσθήκη μέγιστης ημερομηνίας
-  maxDateField: "hmerominia_pliromis",
-  validation: yup.date().nullable()
-},
-{ 
-  accessorKey: "hmerominia_pliromis", 
-  header: "Ημερομηνία Πληρωμής", 
-  type: "date",
-  // Προσθήκη ελάχιστης ημερομηνίας
-  minDateField: "hmerominia_enarksis",
-  validation: yup.date().nullable()
-    .test('payment-after-start', 'Η ημερομηνία πληρωμής πρέπει να είναι μετά ή ίδια με την ημερομηνία έναρξης', function(value) {
-      const startDate = this.parent.hmerominia_enarksis;
-      // If either date is missing, validation passes
-      if (!value || !startDate) return true;
-      
-      // Parse dates to ensure proper comparison
-      const paymentDate = new Date(value);
-      const registrationDate = new Date(startDate);
-      
-      // Check if dates are valid
-      if (isNaN(paymentDate.getTime()) || isNaN(registrationDate.getTime())) return true;
-      
-      // Payment date should be same day or after registration date
-      return paymentDate >= registrationDate;
-    })
-}
-    ] : []),
-     { 
-  accessorKey: "epipedo", 
-  header: "Βαθμός Δυσκολίας", 
-  type: "select",
-  options: difficultyLevels.map(level => ({ 
-    value: level.id_vathmou_diskolias, 
-    label: `Βαθμός ${level.epipedo}` 
-  })),
-  validation: yup.number().min(1, "Ο βαθμός πρέπει να είναι τουλάχιστον 1") 
-},
-{ 
-  accessorKey: "sxolia", 
-  header: "Σχόλια", 
-  type: "textarea",
-  validation: yup.string()
-}
-          ]}
-        />
-      </Box>
-    </LocalizationProvider>
+      </DialogContent>
+      <DialogActions>
+        <Button 
+          onClick={() => setOpenCombinedConvertDialog(false)}
+          color="secondary"
+          disabled={loading}
+        >
+          Άκυρο
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          color="primary"
+          disabled={loading || !selectedAthleteId}
+        >
+          {loading ? 'Αποθήκευση...' : 'Αποθήκευση'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
+};
+
+// Move the AthleteToSubscriberDialog component usage here
+return (
+  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={el}>
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Μέλη Συλλόγου ({data.length})
+      </Typography>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+        <Button 
+          variant="contained" 
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => setOpenAddDialog(true)}
+        >
+          Προσθήκη Νέου Μέλους
+        </Button>
+        
+        <Button 
+          variant="outlined" 
+          color="secondary"
+          startIcon={<TransformIcon />}
+          onClick={() => {
+            refreshEligibleAthletes();
+            if (eligibleAthletes.length === 0) {
+              alert("Δεν υπάρχουν αθλητές που δεν είναι ήδη συνδρομητές.");
+              return;
+            }
+            setOpenCombinedConvertDialog(true);
+          }}
+        >
+          Μετατροπή Αθλητή σε Συνδρομητή
+        </Button>
+        
+        {SHOW_EXCEL_IMPORT && (
+          <Button 
+            variant="outlined"
+            component="label" 
+            startIcon={<CloudUploadIcon />}
+          >
+            Εισαγωγή από Excel
+            <input type="file" hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
+          </Button>
+        )}
+      </Box>
+        
+      <DataTable
+        data={data}
+        columns={fields}
+        detailPanelConfig={detailPanelConfig}
+        getRowId={(row) => row.id_es_melous}
+        tableName="melitousillogou"
+        initialState={tableInitialState}
+        state={{ isLoading: loading }}
+        enableAddNew={false}
+        enableTopAddButton={false}
+        handleEditClick={handleEditClick}
+        handleDelete={handleDelete}
+      />
+      
+      {/* Add dialog */}
+      <AddDialog
+        open={openAddDialog}
+        onClose={() => setOpenAddDialog(false)}
+        handleAddSave={handleAddSave}
+        fields={addFields}
+        title="Προσθήκη Νέου Μέλους"
+      />
+      
+      {/* Edit dialog */}
+<EditDialog
+  open={openEditDialog}
+  onClose={() => setOpenEditDialog(false)}
+  handleEditSave={handleEditSave}
+  editValues={editValues}  // Changed from initialValues to editValues
+  fields={addFields}
+  title="Επεξεργασία Μέλους"
+/>
+      
+      {/* Render the athlete to subscriber dialog */}
+      {openCombinedConvertDialog && <AthleteToSubscriberDialog />}
+    </Box>
+  </LocalizationProvider>
+);
 }
 

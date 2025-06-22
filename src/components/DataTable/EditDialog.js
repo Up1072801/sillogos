@@ -33,7 +33,7 @@ const EditDialog = ({
   handleEditSave, 
   fields,
   title = "Επεξεργασία",
-  resourceData = {} // Added parameter for additional data needed by custom field types
+  resourceData = {}
 }) => {
   const [searchText, setSearchText] = useState('');
   const [isFormValid, setIsFormValid] = useState(true);
@@ -49,30 +49,12 @@ const EditDialog = ({
 
   const formik = useFormik({
     initialValues: {
-      // Χρήση ασφαλούς πρόσβασης με fallback σε κενό αντικείμενο
+      // Initial empty values will be replaced in useEffect
       ...fields.reduce((values, field) => {
-        // Διασφαλίζουμε ότι το editValues δεν είναι null/undefined
-        const safeEditValues = editValues || {};
-        
-        if (field.accessorKey.includes('.')) {
-          // Χειρισμός εμφωλευμένων πεδίων
-          const accessorParts = field.accessorKey.split('.');
-          let value = safeEditValues;
-          
-          for (const part of accessorParts) {
-            value = value && typeof value === 'object' ? value[part] : undefined;
-          }
-          
-          values[field.accessorKey] = value !== undefined ? value : "";
-        } else {
-          // Χειρισμός απλών πεδίων
-          values[field.accessorKey] = safeEditValues[field.accessorKey] !== undefined ? 
-            safeEditValues[field.accessorKey] : "";
-        }
-        
+        values[field.accessorKey] = "";
         return values;
       }, {}),
-      id: editValues?.id || editValues?.id_sxolis || editValues?.id_epafis || editValues?.id_ekpaideuti || ""
+      id: ""
     },
     validationSchema: validationSchema,
     onSubmit: (values) => {
@@ -80,13 +62,18 @@ const EditDialog = ({
     },
   });
 
+  // Modified useEffect to reset form when dialog opens with new data
   useEffect(() => {
-    if (editValues && Object.keys(editValues).length > 0) {
+    if (open && editValues) {
+      // Complete form reset to clear previous values
+      formik.resetForm();
+      
+      // Create new values from scratch
       const updatedValues = {};
       
       fields.forEach(field => {
         if (field.accessorKey.includes('.')) {
-          // Χειρισμός εμφωλευμένων πεδίων
+          // Handle nested fields
           const accessorParts = field.accessorKey.split('.');
           let value = editValues;
           
@@ -97,19 +84,27 @@ const EditDialog = ({
           
           updatedValues[field.accessorKey] = value !== undefined ? value : "";
         } else {
-          // Χειρισμός απλών πεδίων
+          // Handle simple fields
           updatedValues[field.accessorKey] = editValues[field.accessorKey] !== undefined ? 
             editValues[field.accessorKey] : "";
         }
       });
       
+      // Set new values in formik without merging with existing values
       formik.setValues({
-        ...formik.values,
         ...updatedValues,
         id: editValues.id || editValues.id_sxolis || editValues.id_epafis || editValues.id_ekpaideuti || ""
       });
     }
-  }, [editValues, fields]);
+  }, [open, editValues, fields]);
+
+  // Add this new effect to reset when dialog closes
+  useEffect(() => {
+    if (!open) {
+      formik.resetForm();
+      setSearchText('');
+    }
+  }, [open]);
 
   useEffect(() => {
     formik.validateForm().then(errors => {

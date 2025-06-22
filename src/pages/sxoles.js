@@ -372,18 +372,7 @@ const extractId = (obj) => {
       header: "Σειρά", 
       type: "number" 
     },
-    { 
-      accessorKey: "topothesies", 
-      header: "Τοποθεσίες",
-      type: "locationEditor",
-      validation: yup.array().of(
-        yup.object().shape({
-          topothesia: yup.string().required("Η τοποθεσία είναι υποχρεωτική"),
-          start: yup.date().required("Η ημερομηνία έναρξης είναι υποχρεωτική"),
-          end: yup.date().required("Η ημερομηνία λήξης είναι υποχρεωτική")
-        })
-      )
-    }
+
   ];
 
   // Πεδία φόρμας για εκπαιδευτή
