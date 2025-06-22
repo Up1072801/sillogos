@@ -156,14 +156,29 @@ export default function Navbar({ user, onLogout, tokenStatus, refreshing, refres
   const isSmallScreen = useMediaQuery('(max-width:1200px)');
   const shouldCollapseDrawer = isSmallScreen || zoomLevel > 125;
   
-  // Χρησιμοποιούμε το zoom level + το media query μαζί για καλύτερη απόφαση
-  useEffect(() => {
-    setDrawerOpen(!shouldCollapseDrawer);
-  }, [shouldCollapseDrawer]);
-
-  const handleDrawerToggle = () => {
-    setDrawerOpen(!drawerOpen);
-  };
+useEffect(() => {
+  // Force drawer to close properly when shouldCollapseDrawer changes
+  if (shouldCollapseDrawer) {
+    setDrawerOpen(false);
+  } else {
+    setDrawerOpen(true);
+  }
+  
+  // Add a small delay and force re-render of drawer when mode changes
+  const timer = setTimeout(() => {
+    // This forces React to completely unmount and remount the drawer
+    setDrawerOpen(drawerOpen => shouldCollapseDrawer ? false : true);
+  }, 50);
+  
+  return () => clearTimeout(timer);
+}, [shouldCollapseDrawer]);
+  
+const handleDrawerToggle = () => {
+  // Increase timeout to ensure DOM is ready when state changes
+  setTimeout(() => {
+    setDrawerOpen(prevState => !prevState);
+  }, 50);
+};
 
   const handleMembersClick = useCallback(() => {
     setMembersOpen((prev) => !prev);
@@ -190,10 +205,14 @@ export default function Navbar({ user, onLogout, tokenStatus, refreshing, refres
   };
 
   const drawerContent = (
-    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar />
       <Divider sx={{ margin: 1, width: "100%", height: "2px" }} />
-      <List>
+      <List sx={{ 
+        flexGrow: 1, 
+        overflow: 'auto',
+        '& ul': { padding: 0 }
+      }}>
         <ListItem disablePadding>
           <ListItemButton component={RouterLink} to="/" role="menuitem" onClick={handleDrawerClose}>
             <ListItemIcon>
@@ -274,7 +293,7 @@ export default function Navbar({ user, onLogout, tokenStatus, refreshing, refres
           </ListItem>
         )}
       </List>
-    </>
+    </Box>
   );
 
   // Create a wrapper for the refreshToken function
@@ -422,16 +441,23 @@ export default function Navbar({ user, onLogout, tokenStatus, refreshing, refres
       {shouldCollapseDrawer ? (
         // Για μικρές οθόνες ή μεγάλο zoom: χρησιμοποιούμε temporary drawer
         <Drawer
+          key={`temporary-drawer-${drawerOpen}`} 
           variant="temporary"
           open={drawerOpen}
           onClose={handleDrawerToggle}
           ModalProps={{
-            keepMounted: true, // Καλύτερη απόδοση σε mobile
+            keepMounted: false, 
           }}
           sx={{
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              height: '100%',
+              maxHeight: '100vh',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
             },
           }}
           role="navigation"
@@ -441,12 +467,19 @@ export default function Navbar({ user, onLogout, tokenStatus, refreshing, refres
       ) : (
         // Για μεγάλες οθόνες με κανονικό zoom: persistent drawer
         <Drawer
+          key={`persistent-drawer-${drawerOpen}`}
           sx={{
             width: drawerWidth,
             flexShrink: 0,
             '& .MuiDrawer-paper': {
-              width: drawerWidth,
               boxSizing: 'border-box',
+              width: drawerWidth,
+              height: '100%',
+              maxHeight: '100vh',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
             },
           }}
           variant="persistent"
