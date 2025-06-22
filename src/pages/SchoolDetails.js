@@ -1025,14 +1025,18 @@ const handleRemovePayment = async (paymentId, participantId) => {
       accessorKey: "katastasi", 
       header: "Κατάσταση",
       size: 120, // Add explicit width
-      Cell: ({ value }) => (
-        <Chip 
-          label={value || "Ενεργή"} 
-          color={value === "Ακυρωμένη" ? "error" : "success"}
-          size="small"
-          variant="outlined"
-        />
-      )
+ Cell: ({ row }) => {
+  const status = row.original.katastasi;
+  console.log("Status for participant:", row.original.id_parakolouthisis, "=", status); // Debug
+  return (
+    <Chip 
+      label={status === "Ακυρωμένη" ? "Ακυρωμένη" : "Ενεργή"}
+      color={status === "Ακυρωμένη" ? "error" : "success"}
+      size="small"
+      variant="outlined"
+    />
+  );
+}
     },
     {
       id: 'payment',
