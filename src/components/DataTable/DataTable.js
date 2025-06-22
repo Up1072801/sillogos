@@ -381,24 +381,28 @@ const DataTable = React.memo(({
   // Updated Excel export function with date formatting
   const exportToExcel = (selectedColumnKeys) => {
     try {
+      // Determine which columns are selected for export
+      const mainColumnKeys = selectedColumnKeys.filter(key => !key.startsWith('payment_'));
+      const paymentColumnKeys = selectedColumnKeys.filter(key => key.startsWith('payment_'));
+      
       // Filter columns based on selected keys
       const visibleColumns = columns.filter(col => 
-        selectedColumnKeys.includes(col.accessorKey)
+        mainColumnKeys.includes(col.accessorKey)
       );
       
-      if (visibleColumns.length === 0) {
+      if (visibleColumns.length === 0 && paymentColumnKeys.length === 0) {
         alert("Δεν υπάρχουν στήλες για εξαγωγή");
         return;
       }
       
-      // Προετοιμασία δεδομένων για εξαγωγή - μόνο επιλεγμένες στήλες
-      const filteredData = tableData.map(row => {
+      // Process main table data
+      const mainData = tableData.map(row => {
         const newRow = {};
         
         visibleColumns.forEach(col => {
           let cellValue = null;
           
-          // Χειρισμός ένθετων ιδιοτήτων (π.χ., "melos.epafes.email")
+          // Handle nested properties
           if (col.accessorKey && col.accessorKey.includes(".")) {
             const keys = col.accessorKey.split(".");
             cellValue = keys.reduce((obj, key) => (obj && obj[key] !== undefined) ? obj[key] : null, row);
@@ -406,33 +410,85 @@ const DataTable = React.memo(({
             cellValue = row[col.accessorKey];
           }
           
-          // Handle null values and 1970 dates
-          if (cellValue === null || cellValue === undefined) {
-            newRow[col.header] = '';
-          } else if (cellValue instanceof Date || (typeof cellValue === 'string' && !isNaN(new Date(cellValue).getTime()))) {
-            const dateObj = cellValue instanceof Date ? cellValue : new Date(cellValue);
-            // Check for Unix epoch dates (1970)
-            if (dateObj.getFullYear() === 1970) {
-              newRow[col.header] = '';
-            } else {
-              newRow[col.header] = formatDateIfNeeded(cellValue);
-            }
-          } else {
-            newRow[col.header] = formatDateIfNeeded(cellValue);
-          }
+          // Format value for export
+          newRow[col.header] = formatDateIfNeeded(cellValue);
         });
+        
+        // Add row identifier
+        const rowId = getRowId(row);
+        newRow['__rowId'] = rowId;
         
         return newRow;
       });
       
-      // Δημιουργία Excel workbook και worksheet
-      const worksheet = XLSX.utils.json_to_sheet(filteredData);
+      // If payment columns are selected, gather payment data
+      let allData = [...mainData];
       
-      // Ορισμός πλάτους στηλών βάσει περιεχομένου
-      const colWidths = visibleColumns.map(col => ({
+      if (paymentColumnKeys.length > 0 && detailPanelConfig && detailPanelConfig.tables) {
+        const paymentRows = [];
+        
+        // Process each row to extract payment data
+        tableData.forEach(row => {
+          const rowId = getRowId(row);
+          
+          // Find payment tables in the detail panel config
+          const paymentTables = detailPanelConfig.tables.filter(table => 
+            table.title && table.title.toLowerCase().includes('πληρωμ')
+          );
+          
+          // For each payment table, get payment data
+          paymentTables.forEach(table => {
+            if (typeof table.getData === 'function') {
+              const payments = table.getData(row) || [];
+              
+              // Extract selected payment columns
+              payments.forEach(payment => {
+                const paymentRow = { '__rowId': rowId };
+                
+                // Copy the main row data that's been selected
+                mainData.find(mr => mr.__rowId === rowId && 
+                  Object.entries(mr).forEach(([key, value]) => {
+                    if (key !== '__rowId') {
+                      paymentRow[key] = value;
+                    }
+                  })
+                );
+                
+                // Add payment data
+                paymentColumnKeys.forEach(key => {
+                  const origKey = key.replace('payment_', '');
+                  let value = payment[origKey];
+                  paymentRow[table.title + ': ' + (table.columns.find(col => 
+                    (col.accessorKey || col.accessor) === origKey
+                  )?.header || origKey)] = formatDateIfNeeded(value);
+                });
+                
+                paymentRows.push(paymentRow);
+              });
+            }
+          });
+        });
+        
+        // If we have payment rows, use those instead (they include the main row data)
+        if (paymentRows.length > 0) {
+          allData = paymentRows;
+        }
+      }
+      
+      // Remove temporary row ID
+      allData = allData.map(row => {
+        const {__rowId, ...rest} = row;
+        return rest;
+      });
+      
+      // Create Excel worksheet
+      const worksheet = XLSX.utils.json_to_sheet(allData);
+      
+      // Set column widths
+      const colWidths = Object.keys(allData[0] || {}).map(header => ({
         width: Math.max(
-          (col.header || '').length,
-          ...filteredData.map(row => String(row[col.header] || '').length)
+          header.length,
+          ...allData.map(row => String(row[header] || '').length)
         ) + 2
       }));
       
@@ -660,6 +716,24 @@ const DataTable = React.memo(({
         }
       });
       
+      // Add payment column options if detail panel config exists with payment tables
+      if (detailPanelConfig && detailPanelConfig.tables) {
+        // Find payment tables in the detail panel config
+        const paymentTables = detailPanelConfig.tables.filter(table => 
+          table.title && table.title.toLowerCase().includes('πληρωμ')
+        );
+        
+        // Add payment columns to selection
+        paymentTables.forEach(table => {
+          if (table.columns) {
+            table.columns.forEach(col => {
+              const paymentColKey = `payment_${col.accessorKey || col.accessor}`;
+              initialSelection[paymentColKey] = false;
+            });
+          }
+        });
+      }
+      
       setSelectedExportColumns(initialSelection);
       setExportType(type);
       setExportDialogOpen(true);
@@ -725,6 +799,29 @@ const DataTable = React.memo(({
       col.enableHiding !== true
     );
     
+    // Get payment columns if available
+    const paymentColumns = [];
+    if (detailPanelConfig && detailPanelConfig.tables) {
+      // Find payment tables in the detail panel config
+      const paymentTables = detailPanelConfig.tables.filter(table => 
+        table.title && table.title.toLowerCase().includes('πληρωμ')
+      );
+      
+      // Extract payment columns
+      paymentTables.forEach(table => {
+        if (table.columns) {
+          table.columns.forEach(col => {
+            if (col.accessorKey || col.accessor) {
+              paymentColumns.push({
+                accessorKey: `payment_${col.accessorKey || col.accessor}`,
+                header: `${table.title}: ${col.header}`
+              });
+            }
+          });
+        }
+      });
+    }
+
     const allColumnsCount = exportableColumns.length;
     const selectedCount = Object.values(localSelectedColumns).filter(Boolean).length;
     const allSelected = selectedCount === allColumnsCount && allColumnsCount > 0;
@@ -791,7 +888,10 @@ const DataTable = React.memo(({
             />
             <Divider sx={{ my: 1 }} />
             
-            {/* Only show exportable columns in the dialog */}
+            {/* Main table columns */}
+            <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
+              Κύριες στήλες
+            </Typography>
             {exportableColumns.map((column) => (
               <FormControlLabel
                 key={column.accessorKey}
@@ -804,6 +904,28 @@ const DataTable = React.memo(({
                 label={column.header}
               />
             ))}
+            
+            {/* Payment columns if available */}
+            {paymentColumns.length > 0 && (
+              <>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
+                  Στοιχεία πληρωμών
+                </Typography>
+                {paymentColumns.map((column) => (
+                  <FormControlLabel
+                    key={column.accessorKey}
+                    control={
+                      <Checkbox
+                        checked={!!localSelectedColumns[column.accessorKey]}
+                        onChange={(e) => handleCheckboxChange(column.accessorKey, e.target.checked)}
+                      />
+                    }
+                    label={column.header}
+                  />
+                ))}
+              </>
+            )}
           </FormGroup>
         </DialogContent>
         <DialogActions>
