@@ -1044,41 +1044,36 @@ const DataTable = React.memo(({
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis'
-          },
-          // Add custom cell formatting for all cells
-          muiTableBodyCellProps: ({ cell }) => ({
-            sx: {
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            },
-            // This ensures consistent handling of empty/null values across the table
-            children: () => {
-              const value = cell.getValue();
-              
-              // Handle null, undefined, or empty values
-              if (value === null || value === undefined || value === '') 
+          }
+        }}
+        renderCellContent={({ cell, row, column }) => {
+          const value = cell.getValue();
+          
+          // Handle null, undefined, or empty values
+          if (value === null || value === undefined || value === '') 
+            return '';
+          
+          // Check if it's a date and format it
+          if (isLikelyADate(value)) {
+            try {
+              const dateObj = value instanceof Date ? value : new Date(value);
+              // Check for Unix epoch dates (1970)
+              if (dateObj.getFullYear() === 1970) {
                 return '';
-              
-              // Use the improved date detection function
-              if (isLikelyADate(value)) {
-                const dateObj = value instanceof Date ? value : new Date(value);
-                // Check for Unix epoch dates (1970)
-                if (dateObj.getFullYear() === 1970) {
-                  return '';
-                }
-                // Format dates properly
-                return dateObj.toLocaleDateString("el-GR", {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric'
-                });
               }
-              
-              // For non-dates, just return the value as is
-              return value;
+              // Format dates properly
+              return dateObj.toLocaleDateString("el-GR", {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              });
+            } catch (e) {
+              return String(value);
             }
-          })
+          }
+          
+          // For non-dates, just return the value as string
+          return String(value);
         }}
         muiTableContainerProps={{
           sx: { 

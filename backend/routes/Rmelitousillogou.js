@@ -619,9 +619,64 @@ router.put("/:id", async (req, res) => {
       }
     }
     // Now continue with existing sindromitis updates if it already exists
-    else if (sindromitis_id) {
-      // existing code for updating sindromitis...
+// Now continue with existing sindromitis updates if it already exists
+else if (sindromitis_id) {
+  // Update subscription status if provided
+  if (katastasi_sindromis) {
+    await prisma.sindromitis.update({
+      where: { id_sindromiti: sindromitis_id },
+      data: { katastasi_sindromis }
+    });
+  }
+  
+  // Update subscription data (dates and type) if we have any of that information
+  if (hmerominia_enarksis || hmerominia_pliromis || eidosSindromis) {
+    // Get the current subscription relation
+    const currentExei = await prisma.exei.findFirst({
+      where: { id_sindromiti: sindromitis_id },
+      include: { sindromi: true }
+    });
+    
+    if (currentExei) {
+      // Update payment date directly in the exei record
+      if (hmerominia_pliromis) {
+        await prisma.exei.update({
+          where: { 
+            id_sindromiti_id_sindromis: {
+              id_sindromiti: sindromitis_id,
+              id_sindromis: currentExei.id_sindromis
+            }
+          },
+          data: { 
+            hmerominia_pliromis: new Date(hmerominia_pliromis) 
+          }
+        });
+      }
+      
+      // Update start date in the sindromi record
+      if (hmerominia_enarksis) {
+        await prisma.sindromi.update({
+          where: { id_sindromis: currentExei.id_sindromis },
+          data: { hmerominia_enarksis: new Date(hmerominia_enarksis) }
+        });
+      }
+      
+      // Update subscription type if needed
+      if (eidosSindromis) {
+        const eidosSindromisRecord = await prisma.eidos_sindromis.findFirst({
+          where: { titlos: eidosSindromis }
+        });
+        
+        if (eidosSindromisRecord) {
+          await prisma.sindromi.update({
+            where: { id_sindromis: currentExei.id_sindromis },
+            data: { id_eidous_sindromis: eidosSindromisRecord.id_eidous_sindromis }
+          });
+        }
+      }
     }
+  }
+}
     
     // Εκτέλεση του update
     const updatedMember = await prisma.esoteriko_melos.update({

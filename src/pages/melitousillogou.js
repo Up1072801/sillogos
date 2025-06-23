@@ -1180,6 +1180,8 @@ const handleEditClick = (row) => {
   // Extract the values needed for editing
   const editData = {
     id_es_melous: row.id_es_melous || row.id,
+        isAthlete: isAthlete,     // Add this line
+    isSubscriber: isSubscriber, // Add this line
     onoma: row.melos?.epafes?.onoma || "",
     epitheto: row.melos?.epafes?.epitheto || "",
     email: row.melos?.epafes?.email || "",
@@ -1326,9 +1328,9 @@ const handleEditSave = async (updatedRow) => {
             return {
               ...baseObj,
               // Explicitly set these dates at top level to ensure they're never overwritten
-              hmerominia_egrafis: formattedStartDate || baseObj.hmerominia_egrafis || item.hmerominia_egrafis, 
-              hmerominia_enarksis: formattedStartDate || baseObj.hmerominia_enarksis || item.hmerominia_enarksis,
-              hmerominia_pliromis: formattedPaymentDate || baseObj.hmerominia_pliromis || item.hmerominia_pliromis,
+        hmerominia_egrafis: formattedStartDate, 
+        hmerominia_enarksis: formattedStartDate,
+        hmerominia_pliromis: formattedPaymentDate,
               // Make sure we preserve the comments field
               melos: {
                 ...(baseObj.melos || {}),
@@ -1338,9 +1340,9 @@ const handleEditSave = async (updatedRow) => {
                 vathmos_diskolias: baseObj.melos?.vathmos_diskolias || item.melos?.vathmos_diskolias
               },
               // Update nested structure
-              sindromitis: {
-                ...(baseObj.sindromitis || {}),
-                katastasi_sindromis: newStatus,
+   sindromitis: {
+          ...(baseObj.sindromitis || {}),
+          katastasi_sindromis: newStatus,
                 exei: [{
                   hmerominia_pliromis: formattedPaymentDate,
                   sindromi: {
