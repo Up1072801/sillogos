@@ -1875,15 +1875,89 @@ getData: (row) => {
           alert("Σφάλμα κατά την επεξεργασία πληρωμής");
         }
       },
-      onAddNew: (rowOrId, meta) => {
-        // Keep existing onAddNew handler
-      },
+onAddNew: (rowOrId, meta) => {
+  // Add better debugging to see what we're getting
+  console.log("onAddNew called with:", { rowOrId, meta });
+  
+  try {
+    // First, try to get the participant from meta.parentRow (standard approach)
+    if (meta && meta.parentRow) {
+      handleOpenPaymentDialog(meta.parentRow.original);
+    } 
+    // Then try to get from meta.parentRowData which might contain the raw participant data
+    else if (meta && meta.parentRowData) {
+      handleOpenPaymentDialog(meta.parentRowData);
+    }
+    // If meta contains the participant ID directly
+    else if (meta && meta.parentId) {
+      // Find the participant by ID from your participants state
+      const participant = participants.find(p => 
+        p.id_simmetoxis == meta.parentId || p.id == meta.parentId
+      );
+      if (participant) {
+        handleOpenPaymentDialog(participant);
+      }
+    }
+    // NEW: If rowOrId is a number, it's likely the participant ID
+    else if (typeof rowOrId === 'number' || 
+             (typeof rowOrId === 'string' && !isNaN(parseInt(rowOrId)))) {
+      const participantId = typeof rowOrId === 'number' ? rowOrId : parseInt(rowOrId);
+      const participant = participants.find(p => 
+        p.id_simmetoxis == participantId || p.id == participantId
+      );
+      
+      if (participant) {
+        handleOpenPaymentDialog(participant);
+        return;
+      }
+    }
+    // Last resort - try using rowOrId directly
+    else if (typeof rowOrId === 'object') {
+      handleOpenPaymentDialog(rowOrId);
+    }
+    // If we reach here and still no match, look in the DOM for the participant ID
+    else {
+      // Get the current participant ID from table context
+      const currentDetailPanelParticipant = participants.find(p => 
+        document.querySelector(`[aria-expanded="true"][data-id="${p.id_simmetoxis || p.id}"]`)
+      );
+      
+      if (currentDetailPanelParticipant) {
+        handleOpenPaymentDialog(currentDetailPanelParticipant);
+      } else {
+        console.error("Could not determine which participant to add payment for");
+        alert("Δεν ήταν δυνατός ο προσδιορισμός του συμμετέχοντα για την προσθήκη πληρωμής");
+      }
+    }
+  } catch (error) {
+    console.error("Error in onAddNew handler:", error);
+    alert("Σφάλμα κατά την προσπάθεια προσθήκης πληρωμής");
+  }
+},
       getRowId: (row) => {
         // Keep existing getRowId function
       },
       emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές",
       // Add this property to explicitly enable edit functionality
-      enableEdit: true
+      enableEdit: true,
+      enableAddNew: true,
+       enableToolbar: true,
+toolbarProps: {
+  enableAddButton: true,
+  addButtonLabel: "Προσθήκη Πληρωμής",
+  customAddButtonHandler: (tableContext) => {
+    // Find the participant ID from the current detail panel context
+    const participantId = tableContext.parentId;
+    if (participantId) {
+      const participant = participants.find(p => 
+        p.id_simmetoxis == participantId || p.id == participantId
+      );
+      if (participant) {
+        handleOpenPaymentDialog(participant);
+      }
+    }
+  }
+}
     }
   ]
 };
