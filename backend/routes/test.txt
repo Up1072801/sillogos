@@ -38,34 +38,24 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Διαδρομές τόσο με όσο και χωρίς το /api/ prefix
+// Διαδρομές για το authentication με /api prefix
 app.use('/api/auth', authRoutes); 
-app.use("/api",authRoutes);
-app.use("/auth", authRoutes); // Add this line to register /auth/* routes
-app.use("/Repafes", epafesRoutes);
+app.use("/auth", authRoutes); // Keep this for backward compatibility
+
+// API Endpoints - ONLY register routes with /api/ prefix
 app.use("/api/Repafes", epafesRoutes);
-app.use("/melitousillogou", melitousillogouRoutes);
 app.use("/api/melitousillogou", melitousillogouRoutes);
-app.use("/athlites", athlitesRoutes);
 app.use("/api/athlites", athlitesRoutes);
-app.use("/meliallwnsillogwn", meliallwnsillogwnRoutes);
 app.use("/api/meliallwnsillogwn", meliallwnsillogwnRoutes);
-app.use("/eksoplismos", eksoplismosRoutes);
 app.use("/api/eksoplismos", eksoplismosRoutes);
-app.use("/katafigio", katafigioRoutes);
 app.use("/api/katafigio", katafigioRoutes);
-app.use("/sxoles", sxolesRoutes);
 app.use("/api/sxoles", sxolesRoutes);
-app.use("/eksormiseis", eksormiseisRoutes);
 app.use("/api/eksormiseis", eksormiseisRoutes);
-app.use('/vathmoi-diskolias', vathmoiDiskoliasRouter);
 app.use('/api/vathmoi-diskolias', vathmoiDiskoliasRouter);
-app.use('/eidi-sindromis', eidiSindromisRouter);
 app.use('/api/eidi-sindromis', eidiSindromisRouter);
-// Add this line to register admin routes with /api prefix
 app.use('/api', adminRouter);
-// Keep the original registration for backward compatibility
-app.use(adminRouter);
+
+// REMOVED: All non-prefixed API routes that were causing conflicts with frontend routes
 
 // Ρίζα διαδρομής - πλέον απαντά μόνο αν δεν ταιριάξει με στατικό αρχείο
 app.get("/", (_req, res) => {
@@ -77,25 +67,15 @@ app.get("/", (_req, res) => {
   }
 });
 
-// Σερβίρισμα του React app για όλα τα άλλα routes - πρέπει να είναι τελευταίο
+// Catch-all route - Σερβίρισμα του React app για όλα τα άλλα routes
 app.get('*', (req, res) => {
-  // Εξαίρεση για τα API endpoints που δεν υπάρχουν
-  if (req.path.startsWith('/api/') || 
-      req.path.startsWith('/Repafes') || 
-      req.path.startsWith('/melitousillogou') ||
-      req.path.startsWith('/athlites') ||
-      req.path.startsWith('/meliallwnsillogwn') ||
-      req.path.startsWith('/eksoplismos') ||
-      req.path.startsWith('/katafigio') ||
-      req.path.startsWith('/sxoles') ||
-      req.path.startsWith('/eksormiseis') ||
-      req.path.startsWith('/vathmoi-diskolias') ||
-      req.path.startsWith('/eidi-sindromis') ||
-      req.path.startsWith('/health')) {
+  // Only check for API endpoints that don't exist
+  if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
   
-  // Σερβίρισμα του React app
+  // For ALL other routes (including frontend routes like '/melitousillogou', '/athlites'),
+  // serve the React app to let client-side routing handle it
   res.sendFile(path.join('/usr/share/nginx/html', 'index.html'));
 });
 

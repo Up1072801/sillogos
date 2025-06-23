@@ -909,13 +909,13 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
     startIcon={<Add />}
     onClick={() => setOpenAddAthleteDialog(true)}
   >
-    Προσθήκη Νέου Αθλητή
+    Προσθηκη Νεου Αθλητη
   </Button>
   
   <Button 
-    variant="outlined" 
-    color="secondary"
-    startIcon={<TransformIcon />}
+      variant="contained" 
+      color="primary"
+      startIcon={<TransformIcon />}
     onClick={() => setOpenConvertMemberDialog(true)}
   >
     Μετατροπή Μέλους σε Αθλητή
@@ -960,7 +960,7 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
                               <Table size="small">
                                 <TableHead>
                                   <TableRow sx={{ backgroundColor: '#f0f4fa' }}>
-                                    <TableCell>Οματεπώνυμο</TableCell> {/* Διόρθωση του ορθογραφικού */}
+                                    <TableCell>Ονοματεπώνυμο</TableCell> {/* Διόρθωση του ορθογραφικού */}
                                     <TableCell>Αρ. Δελτίου</TableCell>
                                     <TableCell align="right">Ενέργειες</TableCell>
                                   </TableRow>
@@ -2073,16 +2073,17 @@ useEffect(() => {
           </Button>
           
 <Button 
-  variant="outlined" 
-  color="secondary"
+  variant="contained" 
+  color="primary"
   startIcon={<TransformIcon />}
   onClick={() => {
     fetchAvailableMembers(); 
     setOpenConvertMemberDialog(true);
   }}
 >
-  Μετατροπή Μέλους σε Αθλητή
+  Μετατροπη συνδρομητη σε αθλητη
 </Button>
+
         </Box>
 
         <DataTable

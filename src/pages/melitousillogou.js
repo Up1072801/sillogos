@@ -2175,24 +2175,24 @@ return (
           startIcon={<AddIcon />}
           onClick={() => setOpenAddDialog(true)}
         >
-          Προσθήκη Νέου Μέλους
+          Προσθηκη Νεου Μελους
         </Button>
         
-        <Button 
-          variant="outlined" 
-          color="secondary"
-          startIcon={<TransformIcon />}
-          onClick={() => {
-            refreshEligibleAthletes();
-            if (eligibleAthletes.length === 0) {
-              alert("Δεν υπάρχουν αθλητές που δεν είναι ήδη συνδρομητές.");
-              return;
-            }
-            setOpenCombinedConvertDialog(true);
-          }}
-        >
-          Μετατροπή Αθλητή σε Συνδρομητή
-        </Button>
+    <Button 
+      variant="contained" 
+      color="primary"
+      startIcon={<TransformIcon />}
+      onClick={() => {
+        refreshEligibleAthletes();
+        if (eligibleAthletes.length === 0) {
+          alert("Δεν υπάρχουν αθλητές που δεν είναι ήδη συνδρομητές.");
+          return;
+        }
+        setOpenCombinedConvertDialog(true);
+      }}
+    >
+      Μετατροπη Αθλητη σε Συνδρομητη
+    </Button>
         
         {SHOW_EXCEL_IMPORT && (
           <Button 
