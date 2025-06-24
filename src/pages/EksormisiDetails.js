@@ -304,42 +304,39 @@ const fetchResponsiblePersons = async () => {
         // Get all members (both internal and external)
         const membersResponse = await api.get("/melitousillogou/all");
         
-        // Create a Set of member IDs that already participate - use a more comprehensive approach
+        // Create a Set of member IDs that already participate - more focused approach
         const existingMemberIds = new Set();
-        participants.forEach(p => {
-          // Add all possible ID fields for a participant's member ID
-          const ids = [
-            p.id_melous,
-            p.id, 
-            p.melos?.id_melous,
-            p.melos?.id
-          ].filter(Boolean).map(String);
+        
+        if (participants && Array.isArray(participants)) {
+          participants.forEach(p => {
+            // Focus on member ID fields specifically
+            if (p.id_melous) {
+              existingMemberIds.add(String(p.id_melous));
+            } else if (p.melos?.id_melous) {
+              existingMemberIds.add(String(p.melos.id_melous));
+            } else if (p.melos?.id_es_melous) {
+              existingMemberIds.add(String(p.melos.id_es_melous));
+            } else if (p.melos?.id_ekso_melous) {
+              existingMemberIds.add(String(p.melos.id_ekso_melous));
+            }
+            // Don't add participation IDs (like p.id or p.id_simmetoxis)
+          });
+        }
+
+        // Filter members - simplified approach that focuses on member IDs
+        const filteredMembers = membersResponse.data.filter(member => {
+          // Get the member ID from all possible locations
+          const memberId = member.id_melous || 
+                           member.id_es_melous || 
+                           member.id_ekso_melous || 
+                           member.melos?.id_melous;
           
-          ids.forEach(id => existingMemberIds.add(id));
-        });
-
-
-        const filteredMembers = membersResponse.data
-          .filter(member => {
-            // Extract all possible ID fields for a member
-            const ids = [
-              member.id_es_melous,
-              member.id_ekso_melous,
-              member.id,
-              member.melos?.id_melous,
-              member.melos?.id
-            ].filter(Boolean).map(String);
-            
-            // Check if any of these IDs is in the existingMemberIds set
-            const isParticipating = ids.some(id => existingMemberIds.has(id));
-            
-            // Only include members that aren't already participants
-            return !isParticipating;
-          })
-          .map(member => ({
-            ...member,
-            id: member.id_es_melous || member.id_ekso_melous || member.id,
-          }));
+          // Keep this member only if they don't have an ID in the existing participants
+          return memberId && !existingMemberIds.has(String(memberId));
+        }).map(member => ({
+          ...member,
+          id: member.id_es_melous || member.id_ekso_melous || member.id,
+        }));
         
         setAvailableMembers(filteredMembers);
       } catch (err) {
@@ -1111,16 +1108,19 @@ const handleAddParticipant = async (formData) => {
       timi: fixedPrice,
       katastasi: formData.katastasi || "Ενεργή",
       ypoloipo: fixedPrice,
-      plironei: Array.isArray(item.katavalei) ? item.katavalei.map(p => ({
-        id: p.id,
-        poso_pliromis: p.poso,
-        hmerominia_pliromis: p.hmerominia_katavolhs
-      })) : (Array.isArray(item.plironei) ? item.plironei : []) // Ensure plironei is always an array
+      plironei: [], // Initialize as empty array since new participants don't have payments yet
+      // Add these fields to properly structure the participant data
+      melos: {
+        epafes: {
+          email: memberEmail,
+          tilefono: memberPhone
+        }
+      }
     };
+
     
     // Update the participants state
-    setParticipants(prev => [...prev, newParticipant]);
-    
+    setParticipants([...participants, newParticipant]);    
     // Now update the drastiriotites state to show the participant in each selected activity
     setDrastiriotites(prevDrastiriotites => 
       prevDrastiriotites.map(drastiriotita => {
@@ -1723,6 +1723,7 @@ const participantDetailPanel = {
   tables: [
     {
       title: "Δραστηριότητες",
+
       getData: (row) => {
         try {
           // Always ensure we return a valid array
@@ -2201,34 +2202,20 @@ const handleAddActivityParticipant = async (formData) => {
     
     const participantId = response.data.id_simmetoxis;
     
-    // Create new participant object
+    // Create a new participant object
     const newParticipant = {
       id: participantId,
       id_simmetoxis: participantId,
-      id_drastiriotitas: parseInt(activityId),
       id_melous: memberId,
       memberName: `${selectedMember?.melos?.epafes?.epitheto || ''} ${selectedMember?.melos?.epafes?.onoma || ''}`.trim(),
       email: selectedMember?.melos?.epafes?.email || '-',
       tilefono: selectedMember?.melos?.epafes?.tilefono || '-',
-      timi: parseFloat(formattedData.timi),
+      timi: parseFloat(formData.timi),
       katastasi: formData.katastasi || "Ενεργή",
-      ypoloipo: parseFloat(formattedData.timi), // Initially, the full amount is pending
-      plironei: [], // No payments yet
-      activities: [{ 
-        id_drastiriotitas: activityId,
-        titlos: selectedActivityForParticipant.titlos || `Δραστηριότητα #${activityId}`,
-        hmerominia: selectedActivityForParticipant.hmerominia
-      }],
-      simmetoxes: [{
-        drastiriotita: {
-          titlos: selectedActivityForParticipant.titlos || `Δραστηριότητα #${activityId}`,
-          id_drastiriotitas: activityId
-        }
-      }],
-      melos: selectedMember.melos || {
+      ypoloipo: parseFloat(formData.timi),
+      plironei: [], // Initialize as empty array
+      melos: {
         epafes: {
-          onoma: selectedMember?.melos?.epafes?.onoma || '',
-          epitheto: selectedMember?.melos?.epafes?.epitheto || '',
           email: selectedMember?.melos?.epafes?.email || '-',
           tilefono: selectedMember?.melos?.epafes?.tilefono || '-'
         }
@@ -2238,7 +2225,7 @@ const handleAddActivityParticipant = async (formData) => {
     // Update participants array
     setParticipants(prev => [...prev, newParticipant]);
     
-    // Update the drastiriotites array to include this participant
+    // Update the drastiriotites array
     setDrastiriotites(prev => 
       prev.map(drastiriotita => {
         if (drastiriotita.id_drastiriotitas == activityId || drastiriotita.id == activityId) {
@@ -2250,7 +2237,7 @@ const handleAddActivityParticipant = async (formData) => {
               memberName: `${selectedMember?.melos?.epafes?.epitheto || ''} ${selectedMember?.melos?.epafes?.onoma || ''}`.trim(),
               email: selectedMember?.melos?.epafes?.email || '-',
               tilefono: selectedMember?.melos?.epafes?.tilefono || '-',
-              timi: parseFloat(formattedData.timi),
+              timi: parseFloat(formData.timi),
               katastasi: formData.katastasi || "Ενεργή"
             }]
           };
@@ -2259,28 +2246,22 @@ const handleAddActivityParticipant = async (formData) => {
       })
     );
     
-    // Remove the member from available members
-    setAvailableMembers(prev => 
-      prev.filter(m => {
-        const availableMemberId = String(m.id_es_melous || m.id_ekso_melous || m.id);
-        const selectedMemberId = String(selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id);
-        return availableMemberId !== selectedMemberId;
-      })
-    );
+ // Remove the member from available members
+setAvailableMembers(prev => 
+  prev.filter(m => {
+    const availableMemberId = String(m.id_es_melous || m.id_ekso_melous || m.id);
+    const selectedMemberId = String(selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id);
+    return availableMemberId !== selectedMemberId;
+  })
+);
     
     setAddActivityParticipantDialog(false);
     setSelectedActivityForParticipant(null);
   } catch (error) {
-    console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα στη δραστηριότητα:", error);
-    // Show more detailed error message if available
-    if (error.response?.data?.error) {
-      alert("Σφάλμα: " + error.response.data.error);
-    } else {
-      alert("Σφάλμα: " + error.message);
-    }
+    console.error("Σφάλμα κατά την προσθήκη συμμετέχοντα:", error);
+    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
   }
 };
-
   // ΠΡΟΣΘΗΚΗ: Μετακίνηση του drastiriotitaDetailPanel μέσα στο component
   // πριν το return statement
   const drastiriotitaDetailPanel = {

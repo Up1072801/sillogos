@@ -2168,16 +2168,33 @@ return (
         Μέλη Συλλόγου ({data.length})
       </Typography>
 
-      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-        <Button 
-          variant="contained" 
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => setOpenAddDialog(true)}
-        >
-          Προσθηκη Νεου Μελους
-        </Button>
-        
+    <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+  {SHOW_EXCEL_IMPORT && (
+    <Button 
+      variant="outlined"
+      component="label" 
+      startIcon={<CloudUploadIcon />}
+    >
+      Εισαγωγή από Excel
+      <input type="file" hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
+    </Button>
+  )}
+</Box>
+
+<DataTable
+  data={data}
+  columns={fields}
+  detailPanelConfig={detailPanelConfig}
+  getRowId={(row) => row.id_es_melous}
+  tableName="melitousillogou"
+  initialState={tableInitialState}
+  state={{ isLoading: loading }}
+  enableAddNew={true}  // Enable the add button
+  enableTopAddButton={true}  // Show the add button at the top
+  onAddNew={() => setOpenAddDialog(true)}  // Use the same dialog handler
+  handleEditClick={handleEditClick}
+  handleDelete={handleDelete}
+  additionalButtons={
     <Button 
       variant="contained" 
       color="primary"
@@ -2193,32 +2210,8 @@ return (
     >
       Μετατροπη Αθλητη σε Συνδρομητη
     </Button>
-        
-        {SHOW_EXCEL_IMPORT && (
-          <Button 
-            variant="outlined"
-            component="label" 
-            startIcon={<CloudUploadIcon />}
-          >
-            Εισαγωγή από Excel
-            <input type="file" hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
-          </Button>
-        )}
-      </Box>
-        
-      <DataTable
-        data={data}
-        columns={fields}
-        detailPanelConfig={detailPanelConfig}
-        getRowId={(row) => row.id_es_melous}
-        tableName="melitousillogou"
-        initialState={tableInitialState}
-        state={{ isLoading: loading }}
-        enableAddNew={false}
-        enableTopAddButton={false}
-        handleEditClick={handleEditClick}
-        handleDelete={handleDelete}
-      />
+  }
+/>
       
       {/* Add dialog */}
       <AddDialog

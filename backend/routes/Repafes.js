@@ -24,23 +24,31 @@ const calculateIdiotita = async (epafiId) => {
     },
   });
 
+  const roles = [];
+
   if (epafi.melos) {
     if (epafi.melos.esoteriko_melos) {
       if (epafi.melos.esoteriko_melos.sindromitis) {
-        return "Συνδρομητής";
-      } else if (epafi.melos.esoteriko_melos.athlitis) {
-        return "Αθλητής";
-      } else {
-        return "Εσωτερικό Μέλος";
+        roles.push("Συνδρομητής");
+      } 
+      
+      if (epafi.melos.esoteriko_melos.athlitis) {
+        roles.push("Αθλητής");
+      }
+      
+      if (roles.length === 0) {
+        roles.push("Εσωτερικό Μέλος");
       }
     } else if (epafi.melos.eksoteriko_melos) {
-      return "Εξωτερικό Μέλος";
+      roles.push("Εξωτερικό Μέλος");
     }
-  } else if (epafi.ekpaideutis) {
-    return "Εκπαιδευτής";
+  }
+  
+  if (epafi.ekpaideutis) {
+    roles.push("Εκπαιδευτής");
   }
 
-  return "Χωρίς Ιδιότητα";
+  return roles.length > 0 ? roles.join(", ") : "Χωρίς Ιδιότητα";
 };
 
 // GET: Ανάκτηση όλων των επαφών με αυτόματο ορισμό της ιδιότητας
@@ -64,25 +72,42 @@ router.get("/", async (_req, res) => {
     });
 
     const serializedEpafes = epafes.map((epafi) => {
-      let idiotita = epafi.idiotita; // Διατήρηση της υπάρχουσας τιμής αν δεν είναι null
+      // Διατήρηση της υπάρχουσας τιμής αν δεν είναι null
+      let idiotita = epafi.idiotita; 
 
       if (!idiotita) { // Υπολογισμός μόνο αν η idiotita είναι null
+        // Αρχικοποίηση πίνακα για συλλογή ρόλων
+        const roles = [];
+
         if (epafi.melos) {
           if (epafi.melos.esoteriko_melos) {
             if (epafi.melos.esoteriko_melos.sindromitis) {
-              idiotita = "Συνδρομητής";
-            } else if (epafi.melos.esoteriko_melos.athlitis) {
-              idiotita = "Αθλητής";
-            } else {
-              idiotita = "Εσωτερικό Μέλος";
+              roles.push("Συνδρομητής");
+            }
+            
+            if (epafi.melos.esoteriko_melos.athlitis) {
+              roles.push("Αθλητής");
+            }
+            
+            // Αν δεν έχει ούτε συνδρομητής ούτε αθλητής, τότε απλό εσωτερικό μέλος
+            if (roles.length === 0) {
+              roles.push("Εσωτερικό Μέλος");
             }
           } else if (epafi.melos.eksoteriko_melos) {
-            idiotita = "Εξωτερικό Μέλος";
+            roles.push("Εξωτερικό Μέλος");
           }
-        } else if (epafi.ekpaideutis) {
-          idiotita = "Εκπαιδευτής";
-        } else {
+        }
+        
+        if (epafi.ekpaideutis) {
+          roles.push("Εκπαιδευτής");
+        }
+        
+        // Αν δεν έχει κανένα ρόλο
+        if (roles.length === 0) {
           idiotita = "Χωρίς Ιδιότητα";
+        } else {
+          // Συνδυασμός όλων των ρόλων σε ένα string
+          idiotita = roles.join(", ");
         }
       }
 

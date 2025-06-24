@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import api from '../utils/api';
-import { Box, Typography, Paper, TextField, IconButton, Button, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText, Checkbox, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
+import { Box,   TablePagination,
+  InputAdornment,
+  Radio , Search, Typography, Paper, TextField, IconButton, Button, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText, Checkbox, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { Link } from "react-router-dom";
 import DataTable from "../components/DataTable/DataTable";
 import AddDialog from "../components/DataTable/AddDialog";
@@ -14,6 +16,9 @@ import el from 'date-fns/locale/el';
 import * as yup from "yup";
 import DeleteIcon from '@mui/icons-material/Delete';
 import "./App.css";
+import AddIcon from '@mui/icons-material/Add';
+import TransformIcon from '@mui/icons-material/Transform';
+import SelectionDialog from '../components/SelectionDialog';
 
 export default function Sxoles() {
   const [sxolesData, setSxolesData] = useState([]);
@@ -25,6 +30,16 @@ export default function Sxoles() {
   const [editSxoliData, setEditSxoliData] = useState(null);
   const [addEkpaideutiDialogOpen, setAddEkpaideutiDialogOpen] = useState(false);
   const [editEkpaideutiDialogOpen, setEditEkpaideutiDialogOpen] = useState(false);
+  // Add these new states with your other state variables
+const [openMemberConversionDialog, setOpenMemberConversionDialog] = useState(false);
+const [availableMembers, setAvailableMembers] = useState([]);
+const [selectedMemberId, setSelectedMemberId] = useState("");
+const [instructorFields, setInstructorFields] = useState({
+  epipedo: "",
+  klados: ""
+});
+const [page, setPage] = useState(0);
+const [rowsPerPage, setRowsPerPage] = useState(10);
   // Add these with your other state variables
 const [teacherDeleteDialog, setTeacherDeleteDialog] = useState(false);
 const [teacherToDelete, setTeacherToDelete] = useState(null);
@@ -39,6 +54,10 @@ const [teacherToDelete, setTeacherToDelete] = useState(null);
   const [selectedTeachers, setSelectedTeachers] = useState([]);
   const [availableTeachers, setAvailableTeachers] = useState([]);
   const [currentSchoolForTeachers, setCurrentSchoolForTeachers] = useState(null);
+  const [memberSelectionDialogOpen, setMemberSelectionDialogOpen] = useState(false);
+const [searchText, setSearchText] = useState("");
+const [instructorDetailsDialogOpen, setInstructorDetailsDialogOpen] = useState(false);
+
 // Προσθέστε αυτά στις υπόλοιπες καταστάσεις (states) στην αρχή του component
 const [locationDeleteDialog, setLocationDeleteDialog] = useState(false);
 
@@ -414,12 +433,10 @@ const extractId = (obj) => {
     { 
       accessorKey: "epipedo", 
       header: "Επίπεδο",
-      validation: yup.string() // Removed required
     },
     { 
       accessorKey: "klados", 
       header: "Κλάδος",
-      validation: yup.string() // Removed required
     }
   ];
 
@@ -1268,7 +1285,7 @@ const updatedSchool = {
         });
       });
       
-      // 3. Ενημέρωση διαθέσιμων ετών αν χρειάζεται (επανυπολογισμός με βάση τις υπόλοιπες σχολές)
+      // 3. Ενημέρωση διαθέσιμων ετών (επανυπολογισμός με βάση τις υπόλοιπες σχολές)
       const remainingYears = [...new Set(
         sxolesData
           .filter(sxoli => sxoli.id_sxolis !== id && sxoli.id !== id)
@@ -1727,7 +1744,146 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
   const handleClearFilter = () => {
     setYearFilter("");
   };
+const fetchAvailableMembers = async (callback) => {
+  try {
+    setLoading(true);
+    
+    // First, get all instructors to ensure we have their IDs for comparison
+    const instructorsResponse = await api.get("/Repafes/ekpaideutes-me-sxoles");
+    const instructorIds = instructorsResponse.data.map(instructor => 
+      instructor.id_epafis || instructor.id_ekpaideuti || instructor.id
+    );
+    
+    // Get all members
+    const response = await api.get("/melitousillogou/all");
+    
+    // Enhanced filtering that compares member IDs with instructor IDs
+    const members = response.data.filter(member => {
+      const memberId = member.id_melous || member.id_es_melous || member.id_ekso_melous || member.id;
+      
+      // Check if member ID is in the instructor IDs list
+      if (instructorIds.includes(memberId)) return false;
+      
+      // Check ekpaideutis property
+      if (member.ekpaideutis) return false;
+      
+      // Check idiotita property for "εκπαιδευτ"
+      if (typeof member.idiotita === "string" && 
+          member.idiotita.toLowerCase().includes("εκπαιδευτ")) {
+        return false;
+      }
+      
+      // Check roles array
+      if (member.roles && 
+          Array.isArray(member.roles) && 
+          member.roles.some(r => r.toLowerCase().includes("εκπαιδευτ"))) {
+        return false;
+      }
+      
+      // Also check epafes.idiotita if available
+      if (member.melos?.epafes?.idiotita && 
+          typeof member.melos.epafes.idiotita === "string" &&
+          member.melos.epafes.idiotita.toLowerCase().includes("εκπαιδευτ")) {
+        return false;
+      }
+      
+      // If we got here, the member is not an instructor
+      return true;
+    });
+
+    // Format members for display in selection dialog
+    const formattedMembers = members.map(member => ({
+      id: member.id_es_melous || member.id_ekso_melous || member.id,
+      fullName: `${member.melos?.epafes?.epitheto || ""} ${member.melos?.epafes?.onoma || ""} ${member.tipo_melous === "esoteriko" ? "(Εσωτερικό)" : "(Εξωτερικό)"}`,
+      email: member.melos?.epafes?.email || "",
+      tilefono: member.melos?.epafes?.tilefono || ""
+    }));
+
+    setAvailableMembers(formattedMembers);
+    setLoading(false);
+
+    if (typeof callback === 'function') callback();
+  } catch (error) {
+    console.error("Σφάλμα κατά τη φόρτωση μελών:", error);
+    alert("Σφάλμα κατά τη φόρτωση μελών: " + error.message);
+    setLoading(false);
+  }
+};
+
+// Update the handleConvertMemberToInstructor function to remove the validation for epipedo and klados
+const handleConvertMemberToInstructor = async () => {
+  if (!selectedMemberId) {
+    alert("Παρακαλώ επιλέξτε ένα μέλος");
+    return;
+  }
   
+  // Remove the validation check for epipedo and klados
+  // if (!instructorFields.epipedo || !instructorFields.klados) {
+  //   alert("Παρακαλώ συμπληρώστε όλα τα πεδία");
+  //   return;
+  // 
+  
+  try {
+    setLoading(true);
+    
+    // API call to convert member to instructor
+    const response = await api.post("/sxoles/convert-member", {
+      memberId: selectedMemberId,
+      epipedo: instructorFields.epipedo || "", // Add fallback empty string
+      klados: instructorFields.klados || ""   // Add fallback empty string
+    });
+    
+    // Add the new instructor to the local state
+    const newInstructor = response.data;
+    setEkpaideutesData(prev => [...prev, {
+      id_epafis: newInstructor.id_epafis,
+      id_ekpaideuti: newInstructor.id_ekpaideuti,
+      onoma: newInstructor.onoma,
+      epitheto: newInstructor.epitheto,
+      email: newInstructor.email,
+      tilefono: newInstructor.tilefono,
+      epipedo: newInstructor.epipedo,
+      klados: newInstructor.klados,
+      sxoles: []
+    }]);
+    
+    // Close dialogs and reset state
+setMemberSelectionDialogOpen(false);
+    setSelectedMemberId("");
+    setInstructorFields({
+      epipedo: "",
+      klados: ""
+    });
+    
+    // Important: Immediately refresh the available members list
+    fetchAvailableMembers();
+    
+    // Show success message
+    
+    setLoading(false);
+  } catch (error) {
+    console.error("Σφάλμα κατά τη μετατροπή μέλους σε εκπαιδευτή:", error);
+    alert("Σφάλμα: " + (error.response?.data?.error || error.message));
+    setLoading(false);
+  }
+};
+
+// Add this handler to open the member selection dialog
+const handleOpenMemberSelection = () => {
+  fetchAvailableMembers(() => {
+    setMemberSelectionDialogOpen(true);
+  });
+};
+
+// Add this handler for when a selection is made
+// Modify the member selection confirmation handler
+const handleMemberSelectionConfirm = (selectedIds) => {
+  if (selectedIds && selectedIds.length > 0) {
+    setSelectedMemberId(selectedIds[0]); // Get the first selected ID
+    setInstructorDetailsDialogOpen(true); // Open instructor details dialog
+  }
+  setMemberSelectionDialogOpen(false);
+};
   // Add this helper function for date formatting
 const formatDateToDDMMYYYY = (dateString) => {
   if (!dateString) return '';
@@ -1841,34 +1997,56 @@ const formatDateForInput = (dateString) => {
           />
         </Box>
 
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h5" sx={{ mb: 2 }}>
-            Εκπαιδευτές ({ekpaideutesData.length})
-          </Typography>
- <DataTable
-  data={ekpaideutesData}
-  columns={ekpaideutesColumns}
-  detailPanelConfig={ekpaideutisDetailPanelConfig}
-  getRowId={(row) => row.id_ekpaideuti || row.id_epafis || row.id}
-  initialState={{
-    columnVisibility: { id_ekpaideuti: false },
-    sorting: [{ id: 'fullName', desc: false }]
-  }}
-  state={{ isLoading: loading }}
-  enableExpand={true}
-  enableRowActions={true}
-  handleEditClick={handleEditEkpaideutiClick}
-  handleDelete={handleDeleteEkpaideutis}
-  deleteConfig={{
-    getPayload: (row) => {
-      const id = row?.id_ekpaideuti || row?.id_epafis || row?.id;
-      return id;
-    }
-  }}
-  enableAddNew={true}
-  onAddNew={() => setAddEkpaideutiDialogOpen(true)}
-/>
-        </Box>
+<Box sx={{ mb: 3 }}>
+  <Typography variant="h5" sx={{ mb: 2 }}>
+    Εκπαιδευτές ({ekpaideutesData.length})
+  </Typography>
+  
+  <DataTable
+    data={ekpaideutesData}
+    columns={ekpaideutesColumns}
+    detailPanelConfig={ekpaideutisDetailPanelConfig}
+    getRowId={(row) => row.id_ekpaideuti || row.id_epafis || row.id}
+    initialState={{
+      columnVisibility: { id_ekpaideuti: false },
+      sorting: [{ id: 'fullName', desc: false }]
+    }}
+    state={{ isLoading: loading }}
+    enableExpand={true}
+    enableRowActions={true}
+    handleEditClick={handleEditEkpaideutiClick}
+    handleDelete={handleDeleteEkpaideutis}
+    deleteConfig={{
+      getPayload: (row) => {
+        const id = row?.id_ekpaideuti || row?.id_epafis || row?.id;
+        return id;
+      }
+    }}
+    enableAddNew={true}
+    onAddNew={() => setAddEkpaideutiDialogOpen(true)}
+ // First, let's modify the additionalButtons part in the DataTable to open the selection dialog directly
+additionalButtons={
+  <Button
+    variant="contained"
+    startIcon={<TransformIcon />}
+    onClick={() => {
+      // Reset selected member ID
+      setSelectedMemberId("");
+      setInstructorFields({
+        epipedo: "",
+        klados: ""
+      });
+      // Fetch members and open selection dialog directly
+      fetchAvailableMembers(() => {
+        setMemberSelectionDialogOpen(true);
+      });
+    }}
+  >
+    ΜΕΤΑΤΡΟΠΗ ΜΕΛΟΥΣ ΣΕ ΕΚΠΑΙΔΕΥΤΗ
+  </Button>
+}
+  />
+</Box>
         
         {/* Dialog για προσθήκη σχολής */}
 <AddDialog 
@@ -1973,8 +2151,216 @@ const formatDateForInput = (dateString) => {
             </Button>
           </DialogActions>
         </Dialog>
-      </Box>
-    
+
+        {/* Διάλογος για μετατροπή μέλους σε εκπαιδευτή */}
+    <Dialog 
+      open={openMemberConversionDialog}
+      onClose={() => setOpenMemberConversionDialog(false)}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogTitle>
+        Μετατροπή Μέλους σε Εκπαιδευτή
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ pt: 1 }}>
+          {/* Member selection button */}
+          <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Typography variant="body1" fontWeight="500">Επιλογή Μέλους</Typography>
+            {selectedMemberId ? (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                        p: 2, border: '1px solid #e0e0e0', borderRadius: 1, bgcolor: '#f5f5f5' }}>
+                <Typography>
+                  {availableMembers.find(m => m.id == selectedMemberId)?.fullName || "Επιλεγμένο μέλος"}
+                </Typography>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={handleOpenMemberSelection}
+                >
+                  Αλλαγή
+                </Button>
+              </Box>
+            ) : (
+              <Button 
+                variant="contained" 
+                onClick={handleOpenMemberSelection}
+                fullWidth
+              >
+                Επιλογή Μέλους
+              </Button>
+            )}
+          </Box>
+
+          {/* Instructor fields */}
+          <TextField
+            margin="normal"
+            label="Επίπεδο"
+            fullWidth
+            value={instructorFields.epipedo}
+            onChange={(e) => setInstructorFields({...instructorFields, epipedo: e.target.value})}
+
+          />
+          
+          <TextField
+            margin="normal"
+            label="Κλάδος"
+            fullWidth
+            value={instructorFields.klados}
+            onChange={(e) => setInstructorFields({...instructorFields, klados: e.target.value})}
+
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setInstructorDetailsDialogOpen(false)}>
+          Άκυρο
+        </Button>
+        <Button 
+          onClick={handleConvertMemberToInstructor} 
+          variant="contained" 
+          color="primary"
+    disabled={!selectedMemberId} // Remove the check for epipedo and klados
+        >
+          Μετατροπή
+        </Button>
+      </DialogActions>
+    </Dialog>
+
+    {/* Use the SelectionDialog component for member selection */}
+<Dialog
+  open={memberSelectionDialogOpen}
+  onClose={() => setMemberSelectionDialogOpen(false)}
+  maxWidth="md"
+  fullWidth
+>
+  <DialogTitle>Μετατροπή Μέλους σε Εκπαιδευτή</DialogTitle>
+  <DialogContent>
+    {/* Search field */}
+    <Box sx={{ mb: 2, mt: 1 }}>
+      <TextField
+        fullWidth
+        placeholder="Αναζήτηση μέλους..."
+        variant="outlined"
+        size="small"
+        value={searchText || ""}
+        onChange={(e) => setSearchText(e.target.value)}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+            </InputAdornment>
+          ),
+        }}
+      />
+    </Box>
+
+    {/* Members selection table with pagination */}
+    <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 3 }}>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell padding="checkbox">Επιλογή</TableCell>
+            <TableCell>Ονοματεπώνυμο</TableCell>
+            <TableCell>Email</TableCell>
+            <TableCell>Τηλέφωνο</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {availableMembers
+            .filter(member => 
+              !searchText || 
+              member.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
+              (member.email && member.email.toLowerCase().includes(searchText.toLowerCase())) ||
+              (member.tilefono && member.tilefono.includes(searchText))
+            )
+            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+            .map((member) => (
+              <TableRow 
+                key={member.id}
+                hover
+                onClick={() => setSelectedMemberId(selectedMemberId === member.id ? "" : member.id)}
+                selected={selectedMemberId === member.id}
+              >
+                <TableCell padding="checkbox">
+                  <Radio checked={selectedMemberId === member.id} />
+                </TableCell>
+                <TableCell>{member.fullName}</TableCell>
+                <TableCell>{member.email}</TableCell>
+                <TableCell>{member.tilefono}</TableCell>
+              </TableRow>
+            ))}
+          {availableMembers.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={4} align="center">
+                Δεν βρέθηκαν διαθέσιμα μέλη
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+    <TablePagination
+      component="div"
+      count={availableMembers.filter(member => 
+        !searchText || 
+        member.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
+        (member.email && member.email.toLowerCase().includes(searchText.toLowerCase())) ||
+        (member.tilefono && member.tilefono.includes(searchText))
+      ).length}
+      page={page}
+      onPageChange={(event, newPage) => setPage(newPage)}
+      rowsPerPage={rowsPerPage}
+      onRowsPerPageChange={(event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+      }}
+      labelRowsPerPage="Εγγραφές ανά σελίδα:"
+      labelDisplayedRows={({ from, to, count }) => 
+        `${from}-${to} από ${count !== -1 ? count : `πάνω από ${to}`}`
+      }
+    />
+
+    {/* Instructor details fields */}
+    <Box sx={{ mt: 3 }}>
+      <Typography variant="subtitle1" sx={{ mb: 2 }}>Στοιχεία Εκπαιδευτή</Typography>
+      
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Επίπεδο"
+            fullWidth
+            value={instructorFields.epipedo}
+            onChange={(e) => setInstructorFields({...instructorFields, epipedo: e.target.value})}
+
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Κλάδος"
+            fullWidth
+            value={instructorFields.klados}
+            onChange={(e) => setInstructorFields({...instructorFields, klados: e.target.value})}
+  
+          />
+        </Grid>
+      </Grid>
+    </Box>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setMemberSelectionDialogOpen(false)} color="primary">
+      Άκυρωση
+    </Button>
+    <Button 
+      onClick={handleConvertMemberToInstructor} 
+      variant="contained" 
+      color="primary"
+    disabled={!selectedMemberId} // Remove the check for epipedo and klados
+    >
+      Μετατροπή
+    </Button>
+  </DialogActions>
+</Dialog>
+
     {/* Διάλογος για διαχείριση τοποθεσιών */}
     <LocationEditorDialog 
       open={locationDialogOpen}
@@ -1986,7 +2372,7 @@ const formatDateForInput = (dateString) => {
       onSave={handleSaveLocations}
       title="Διαχείριση Τοποθεσιών"
     />
-
+      </Box>  
   </LocalizationProvider>
   );
 }

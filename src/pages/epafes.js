@@ -177,8 +177,7 @@ export default function Epafes() {
     }
   };
 
-  // Προσαρμογή των στηλών για την εμφάνιση του ονόματος και επωνύμου σε μία στήλη με sorting/φίλτρο όπως melitousillogou.js
-  // Προσαρμογή των στηλών για εμφάνιση ξεχωριστών στηλών επωνύμου και ονόματος
+  // Τροποποίηση των στηλών για αλλαγή της σειράς εμφάνισης
   const columns = [
     {
       accessorKey: "epitheto",
@@ -201,7 +200,31 @@ export default function Epafes() {
         return firstName.includes(filterValue.toLowerCase());
       }
     },
-    ...fields.filter((field) => field.accessorKey !== "onoma" && field.accessorKey !== "epitheto"),
+    {
+      accessorKey: "email",
+      header: "Email"
+    },
+    {
+      accessorKey: "tilefono",
+      header: "Τηλέφωνο"
+    },
+    {
+      accessorKey: "idiotita",
+      header: "Ιδιότητα",
+      cell: ({ row }) => {
+        const roles = row.original.idiotita.split(", ");
+        // Return the roles as comma-separated text
+        return roles.join(", ");
+      }
+    },
+    // Φιλτράρουμε όλα τα πεδία που έχουμε ήδη συμπεριλάβει
+    ...fields.filter((field) => 
+      field.accessorKey !== "onoma" && 
+      field.accessorKey !== "epitheto" && 
+      field.accessorKey !== "idiotita" &&
+      field.accessorKey !== "email" &&
+      field.accessorKey !== "tilefono"
+    ),
   ];
 
   // Αρχικό state για sorting με βάση το επώνυμο

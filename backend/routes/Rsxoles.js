@@ -883,4 +883,74 @@ router.put("/:id/parakolouthisi/:paraId/payment/:paymentId", async (req, res) =>
   }
 });
 
+// POST: Convert member to instructor
+router.post("/convert-member", async (req, res) => {
+  try {
+    const { memberId, epipedo, klados } = req.body;
+    
+    if (!memberId) {
+      return res.status(400).json({ error: "Το ID του μέλους είναι απαραίτητο" });
+    }
+    
+    // Check if member exists
+    const member = await prisma.melos.findUnique({
+      where: { id_melous: parseInt(memberId) },
+      include: { epafes: true }
+    });
+    
+    if (!member) {
+      return res.status(404).json({ error: "Το μέλος δεν βρέθηκε" });
+    }
+    
+    // Check if member is already an instructor
+    const existingInstructor = await prisma.ekpaideutis.findUnique({
+      where: { id_ekpaideuti: parseInt(memberId) }
+    });
+    
+    if (existingInstructor) {
+      return res.status(409).json({ error: "Το μέλος είναι ήδη εκπαιδευτής" });
+    }
+    
+    // Create instructor record
+    const newInstructor = await prisma.ekpaideutis.create({
+      data: {
+        id_ekpaideuti: parseInt(memberId),
+        epipedo: epipedo || "",
+        klados: klados || ""
+      }
+    });
+    
+    // Update contact with instructor role
+    await prisma.epafes.update({
+      where: { id_epafis: member.id_melous },
+      data: {
+        idiotita: member.tipo_melous === "esoteriko" ? 
+          (member.esoteriko_melos?.sindromitis ? "Συνδρομητής, Εκπαιδευτής" : 
+            member.esoteriko_melos?.athlitis ? "Αθλητής, Εκπαιδευτής" : "Εσωτερικό Μέλος, Εκπαιδευτής") :
+          "Εξωτερικό Μέλος, Εκπαιδευτής"
+      }
+    });
+    
+    // Return the instructor with contact info
+    const instructorWithDetails = {
+      id_epafis: member.epafes.id_epafis,
+      id_ekpaideuti: newInstructor.id_ekpaideuti,
+      onoma: member.epafes.onoma,
+      epitheto: member.epafes.epitheto,
+      email: member.epafes.email,
+      tilefono: member.epafes.tilefono ? member.epafes.tilefono.toString() : null,
+      epipedo: newInstructor.epipedo,
+      klados: newInstructor.klados
+    };
+    
+    res.status(201).json(instructorWithDetails);
+  } catch (error) {
+    console.error("Σφάλμα κατά τη μετατροπή μέλους σε εκπαιδευτή:", error);
+    res.status(500).json({
+      error: "Σφάλμα κατά τη μετατροπή μέλους σε εκπαιδευτή",
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;

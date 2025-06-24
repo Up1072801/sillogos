@@ -902,25 +902,7 @@ const handleDeleteAthleteFromCompetition = async (competitionId, athleteId) => {
                           </Box>
                         </Box>
 
-<Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-  <Button 
-    variant="contained" 
-    color="primary"
-    startIcon={<Add />}
-    onClick={() => setOpenAddAthleteDialog(true)}
-  >
-    Προσθηκη Νεου Αθλητη
-  </Button>
-  
-  <Button 
-      variant="contained" 
-      color="primary"
-      startIcon={<TransformIcon />}
-    onClick={() => setOpenConvertMemberDialog(true)}
-  >
-    Μετατροπή Μέλους σε Αθλητή
-  </Button>
-</Box>
+
 
                         {/* Κουμπιά ενεργειών */}
                         <Box>
@@ -2063,44 +2045,25 @@ useEffect(() => {
       </Typography>
       <Box sx={{ mb: 4 }}>
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-          <Button 
-            variant="contained" 
-            color="primary"
-            startIcon={<Add />}
-            onClick={() => setOpenAddAthleteDialog(true)}
-          >
-            Προσθήκη Νέου Αθλητή
-          </Button>
-          
-<Button 
-  variant="contained" 
-  color="primary"
-  startIcon={<TransformIcon />}
-  onClick={() => {
-    fetchAvailableMembers(); 
-    setOpenConvertMemberDialog(true);
-  }}
->
-  Μετατροπη συνδρομητη σε αθλητη
-</Button>
+ 
 
         </Box>
 
-        <DataTable
-          data={athletesData}
-          columns={athleteColumns}
-          detailPanelConfig={athleteDetailPanelConfig}
-          getRowId={(row) => row.id}
-          initialState={{
-            columnVisibility: {
-              id: false,
-              odos: false,
-              tk: false,
-              arithmosdeltiou: false,
-              hmerominiaenarksis: false,
-              athlima: false,
-              totalParticipation: false
-            },
+<DataTable
+  data={athletesData}
+  columns={athleteColumns}
+  detailPanelConfig={athleteDetailPanelConfig}
+  getRowId={(row) => row.id}
+  initialState={{
+    columnVisibility: {
+      id: false,
+      odos: false,
+      tk: false,
+      arithmosdeltiou: false,
+      hmerominiaenarksis: false,
+      athlima: false,
+      totalParticipation: false
+    },
             columnOrder: [
               "lastName",   // Last name first
               "firstName",  // First name second
@@ -2116,12 +2079,27 @@ useEffect(() => {
             ]
           }}
           state={{ isLoading: loading }}
-          onAddNew={null} // Set to null to disable the default add button
+          onAddNew={() => setOpenAddAthleteDialog(true)}  // Enable the default add button
           handleEditClick={handleEditAthlete}
           handleDelete={handleDeleteAthlete}
           enableExpand={true}
-          hideAddButton={true} // Hide the default add button as we have our custom buttons now
-        />
+          hideAddButton={false}  // Show the default add button
+            additionalButtons={
+
+              
+    <Button 
+      variant="contained" 
+      color="primary"
+      startIcon={<TransformIcon />}
+      onClick={() => {
+        fetchAvailableMembers(); 
+        setOpenConvertMemberDialog(true);
+      }}
+    >
+      Μετατροπη συνδρομητη σε αθλητη
+    </Button>
+  }
+/>
       </Box>
 
       <Typography variant="h4" gutterBottom>

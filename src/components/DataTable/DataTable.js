@@ -27,6 +27,20 @@ pdfMake.fonts = {
   }
 };
 
+// Add the DataTableToolbar component BEFORE the DataTable component
+const DataTableToolbar = ({ leftButtons, rightButtons }) => {
+  return (
+    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+      <Box sx={{ display: "flex", gap: 1 }}>
+        {leftButtons}
+      </Box>
+      <Box sx={{ display: "flex", gap: 1 }}>
+        {rightButtons}
+      </Box>
+    </Box>
+  );
+};
+
 const DataTable = React.memo(({
   data = [],
   columns,
@@ -43,7 +57,9 @@ const DataTable = React.memo(({
   enableTopAddButton = true,
   enableRowActions = true,
   getRowId = (row) => row.id,
-  maxHeight = "600px" // Add default maxHeight
+  maxHeight = "600px", // Add default maxHeight
+  // Add new prop
+  additionalButtons = null
 }) => {
   // Όλα τα hook στην αρχή του component - μην τα μετακινείτε
   const [tableData, setTableData] = useState(data);
@@ -984,40 +1000,46 @@ const DataTable = React.memo(({
 
   return (
     <Box sx={{ p: 2 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-        {enableAddNew && enableTopAddButton && onAddNew && (
+      <DataTableToolbar 
+        leftButtons={
+          <>
+            {enableAddNew && enableTopAddButton && onAddNew && (
+              <Button 
+                variant="contained" 
+                startIcon={<Add />} 
+                onClick={onAddNew}
+              >
+                ΠΡΟΣΘΗΚΗ ΝΕΟΥ
+              </Button>
+            )}
+            {additionalButtons}
+          </>
+        }
+        rightButtons={
           <Button 
             variant="contained" 
-            startIcon={<Add />} 
-            onClick={onAddNew}
+            startIcon={<FileDownload />} 
+            onClick={handleExportClick}
           >
-            ΠΡΟΣΘΗΚΗ ΝΕΟΥ
+            ΕΞΑΓΩΓΗ
           </Button>
-        )}
-        <Button 
-          variant="contained" 
-          startIcon={<FileDownload />} 
-          onClick={handleExportClick}
-          sx={{ ml: !enableAddNew || !enableTopAddButton || !onAddNew ? 'auto' : 0 }}
-        >
-          ΕΞΑΓΩΓΗ
-        </Button>
-        <ExportMenu
-          anchorEl={anchorEl}
-          onClose={handleExportClose}
-          exportToExcel={handleStartExcelExport}
-          exportToPDF={handleStartPdfExport}
-        />
-        <ColumnSelectionDialog
-          open={exportDialogOpen}
-          onClose={() => setExportDialogOpen(false)}
-          columns={columns}
-          exportType={exportType}
-          selectedColumns={selectedExportColumns}
-          onSelectionChange={setSelectedExportColumns}
-          onExport={handleExportWithSelectedColumns}
-        />
-      </Box>
+        }
+      />
+      <ExportMenu
+        anchorEl={anchorEl}
+        onClose={handleExportClose}
+        exportToExcel={handleStartExcelExport}
+        exportToPDF={handleStartPdfExport}
+      />
+      <ColumnSelectionDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        columns={columns}
+        exportType={exportType}
+        selectedColumns={selectedExportColumns}
+        onSelectionChange={setSelectedExportColumns}
+        onExport={handleExportWithSelectedColumns}
+      />
       
       <MaterialReactTable
         columns={columnsWithActions}
