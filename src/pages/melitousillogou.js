@@ -787,13 +787,13 @@ useEffect(() => {
 // Function to update the eligible athletes list after any changes
 const refreshEligibleAthletes = useCallback(() => {
   // Filter only athletes who are not subscribers
-  const athletes = data.filter(member => member.athlitis && !member.sindromitis)
-    .map(athlete => ({
-      id: athlete.id_es_melous || athlete.id,
-      // Check for all possible locations of name data
-      name: `${athlete.epitheto || athlete.melos?.epafes?.epitheto || ""} ${athlete.onoma || athlete.melos?.epafes?.onoma || ""}`.trim(),
-      athleteNumber: athlete.athlitis?.arithmos_deltiou || "-"
-    }));
+const athletes = data.filter(member => member.athlitis && !member.sindromitis)
+  .map(athlete => ({
+    id: athlete.id_es_melous || athlete.id,
+    // Check for all possible locations of name data
+    name: `${athlete.epitheto || athlete.melos?.epafes?.epitheto || ""} ${athlete.onoma || athlete.melos?.epafes?.onoma || ""}`.trim(),
+    athleteNumber: String(athlete.athlitis?.arithmos_deltiou || "-")
+  }));
   setEligibleAthletes(athletes);
 }, [data]);
 
@@ -1873,10 +1873,10 @@ const AthleteToSubscriberDialog = () => {
   const [filterText, setFilterText] = useState('');
   
   // Filter athletes based on search text
-  const filteredAthletes = eligibleAthletes.filter(athlete => 
-    athlete.name.toLowerCase().includes(filterText.toLowerCase()) || 
-    athlete.athleteNumber.toLowerCase().includes(filterText.toLowerCase())
-  );
+const filteredAthletes = eligibleAthletes.filter(athlete => 
+  athlete.name.toLowerCase().includes(filterText.toLowerCase()) || 
+  String(athlete.athleteNumber).toLowerCase().includes(filterText.toLowerCase())
+);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
