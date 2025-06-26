@@ -607,7 +607,13 @@ export default function Eksormiseis() {
         const departureDate = expedition.hmerominia_anaxorisis 
           ? new Date(expedition.hmerominia_anaxorisis) 
           : null;
-        return departureDate && departureDate.getFullYear() === parseInt(selectedYear);
+        const arrivalDate = expedition.hmerominia_afiksis
+          ? new Date(expedition.hmerominia_afiksis)
+          : null;
+          
+        // Mostrar si cualquiera de las dos fechas está en el έτος seleccionado
+        return (departureDate && departureDate.getFullYear() === parseInt(selectedYear)) ||
+               (arrivalDate && arrivalDate.getFullYear() === parseInt(selectedYear));
       });
     }
     
@@ -617,7 +623,13 @@ export default function Eksormiseis() {
         const departureDate = expedition.hmerominia_anaxorisis 
           ? new Date(expedition.hmerominia_anaxorisis) 
           : null;
-        return departureDate && departureDate.getMonth() === parseInt(selectedMonth) - 1; // JS months are 0-indexed
+        const arrivalDate = expedition.hmerominia_afiksis
+          ? new Date(expedition.hmerominia_afiksis)
+          : null;
+        
+        // Mostrar si cualquiera de las dos fechas está en el μήνα seleccionado
+        return (departureDate && departureDate.getMonth() === parseInt(selectedMonth) - 1) ||
+               (arrivalDate && arrivalDate.getMonth() === parseInt(selectedMonth) - 1);
       });
     }
     

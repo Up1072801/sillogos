@@ -1675,7 +1675,6 @@ const competitionFormFieldsWithoutAthletes = useMemo(() => [
       label: sport.onoma 
     })),
     validation: yup.string(), // Αφαίρεση του .required() αν θέλετε
-    disabled: editCompetitionData !== null,
     onChangeCallback: (value) => {
       if (value) {
         fetchAthletesBySport(value);
