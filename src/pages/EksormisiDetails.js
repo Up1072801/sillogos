@@ -129,11 +129,12 @@ const [ypefthynoi, setYpefthynoi] = useState([]);
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
   // Fetch data on component mount and when refresh is triggered
-  useEffect(() => {
-    fetchData();
-    fetchInternalMembers();
-    fetchResponsiblePersons();
-}, [id, refreshTrigger]); // Removed participants.length
+useEffect(() => {
+  fetchData();
+  fetchInternalMembers();
+  fetchResponsiblePersons();
+  fetchAvailableMembers(); // Add this line to call our new function
+}, [id, refreshTrigger]); 
 
 const fetchResponsiblePersons = async () => {
   try {
@@ -299,51 +300,7 @@ const fetchResponsiblePersons = async () => {
         // Silently handle error
       }
       
-      // Fetch available members
-      try {
-        // Get all members (both internal and external)
-        const membersResponse = await api.get("/melitousillogou/all");
-        
-        // Create a Set of member IDs that already participate - more focused approach
-        const existingMemberIds = new Set();
-        
-        if (participants && Array.isArray(participants)) {
-          participants.forEach(p => {
-            // Focus on member ID fields specifically
-            if (p.id_melous) {
-              existingMemberIds.add(String(p.id_melous));
-            } else if (p.melos?.id_melous) {
-              existingMemberIds.add(String(p.melos.id_melous));
-            } else if (p.melos?.id_es_melous) {
-              existingMemberIds.add(String(p.melos.id_es_melous));
-            } else if (p.melos?.id_ekso_melous) {
-              existingMemberIds.add(String(p.melos.id_ekso_melous));
-            }
-            // Don't add participation IDs (like p.id or p.id_simmetoxis)
-          });
-        }
-
-        // Filter members - simplified approach that focuses on member IDs
-        const filteredMembers = membersResponse.data.filter(member => {
-          // Get the member ID from all possible locations
-          const memberId = member.id_melous || 
-                           member.id_es_melous || 
-                           member.id_ekso_melous || 
-                           member.melos?.id_melous;
-          
-          // Keep this member only if they don't have an ID in the existing participants
-          return memberId && !existingMemberIds.has(String(memberId));
-        }).map(member => ({
-          ...member,
-          id: member.id_es_melous || member.id_ekso_melous || member.id,
-        }));
-        
-        setAvailableMembers(filteredMembers);
-      } catch (err) {
-        console.error("Error loading members:", err);
-        setAvailableMembers([]);
-      }
-      
+   
       setLoading(false);
     } catch (error) {
       console.error("Σφάλμα κατά τη φόρτωση των δεδομένων:", error);
@@ -351,6 +308,72 @@ const fetchResponsiblePersons = async () => {
       setLoading(false);
     }
   };
+
+     // Add this function to call before opening the Add Participant dialog
+const handleOpenAddParticipantDialog = () => {
+  // Refresh the available members list first
+  fetchAvailableMembers().then(() => {
+    // Then open the dialog
+    setAddParticipantDialog(true);
+  });
+};
+   
+// Move this function outside of fetchData and define it at the same level as other component functions
+const fetchAvailableMembers = async () => {
+  try {
+    // Get all members (both internal and external)
+    const membersResponse = await api.get("/melitousillogou/all");
+    
+    // Create a Set containing all possible IDs of existing participants
+    const existingMemberIds = new Set();
+    
+    // Make sure we have the latest participants data
+    const participantsResponse = await api.get(`/eksormiseis/${id}/simmetexontes`);
+    const currentParticipants = participantsResponse.data || [];
+    
+    // Process all participants and collect their IDs in every possible format
+    currentParticipants.forEach(p => {
+      // Convert all IDs to string for consistent comparison
+      if (p.id_melous) existingMemberIds.add(String(p.id_melous));
+      if (p.melos?.id_melous) existingMemberIds.add(String(p.melos.id_melous));
+      if (p.melos?.id_es_melous) existingMemberIds.add(String(p.melos.id_es_melous));
+      if (p.melos?.id_ekso_melous) existingMemberIds.add(String(p.melos.id_ekso_melous));
+      if (p.id_es_melous) existingMemberIds.add(String(p.id_es_melous));
+      if (p.id_ekso_melous) existingMemberIds.add(String(p.id_ekso_melous));
+      if (p.id) existingMemberIds.add(String(p.id));
+    });
+    
+    console.log("Excluded participant IDs:", Array.from(existingMemberIds));
+    
+    // Filter members to only include those NOT already participating
+    const filteredMembers = membersResponse.data.filter(member => {
+      // Get all possible IDs from this member
+      const possibleIds = [
+        member.id_melous,
+        member.id_es_melous, 
+        member.id_ekso_melous,
+        member.id,
+        member.melos?.id_melous,
+        member.melos?.id_es_melous,
+        member.melos?.id_ekso_melous
+      ].filter(Boolean).map(String);
+      
+      // Check if ANY of the possible IDs exist in our excluded set
+      const isAlreadyParticipating = possibleIds.some(id => existingMemberIds.has(id));
+      
+      // Return true only for members NOT already participating
+      return !isAlreadyParticipating;
+    });
+    
+    console.log(`Filtered from ${membersResponse.data.length} to ${filteredMembers.length} available members`);
+    setAvailableMembers(filteredMembers);
+  } catch (err) {
+    console.error("Error loading available members:", err);
+    setAvailableMembers([]);
+  }
+};
+
+// In the fetchData function, remove the duplicate definition of fetchAvailableMembers
 
   // Add this function before the return statement
 const handleRemoveResponsiblePersonClick = (personId) => {
@@ -974,7 +997,7 @@ const participantFormFields = [
           // Αν είναι αντικείμενο, προσπαθούμε να εξάγουμε χρήσιμες πληροφορίες
           if (typeof value === "object") {
             if (value.epipedo) return `Βαθμός ${value.epipedo}`;
-if (value.id_vathmou_diskolias) return `Βαθμός ${value.id_vathmou_diskolias}`;
+if (value.id_vathmou_diskolias) return `Βαθμός ${value.id_vathmou_diskολias}`;
           }
           // Fallback
           return String(value);
@@ -1731,6 +1754,7 @@ const participantDetailPanel = {
           // First check the activities array provided by the backend
           if (row.activities && Array.isArray(row.activities)) {
             activities = [...row.activities];
+
           }
           // Then check simmetoxi_drastiriotites (the direct relation from database)
           else if (row.simmetoxi_drastiriotites && Array.isArray(row.simmetoxi_drastiriotites)) {
@@ -1982,7 +2006,7 @@ const ParticipantSelectionForm = ({ onSubmit, onCancel }) => {
       Cell: ({ row }) => {
         if (row.original.athlitis) return "Αθλητής";
         if (row.original.melos?.tipo_melous === "eksoteriko") return "Εξωτερικό Μέλος";
-        return row.original.sindromitis?.katastasi_sindromis || '-';
+        return row.original.sindromitis?.katastasi_sindromης || '-';
       }
     },
     {
@@ -2243,12 +2267,33 @@ const handleAddActivityParticipant = async (formData) => {
       })
     );
     
- // Remove the member from available members
+    // After successfully adding a participant:
+// In handleAddParticipant function, update the member removal code:
+// Remove the member from available members - more thorough approach
 setAvailableMembers(prev => 
   prev.filter(m => {
-    const availableMemberId = String(m.id_es_melous || m.id_ekso_melous || m.id);
-    const selectedMemberId = String(selectedMember.id_es_melous || selectedMember.id_ekso_melous || selectedMember.id);
-    return availableMemberId !== selectedMemberId;
+    // Get all possible IDs for the member
+    const mIds = [
+      m.id_es_melous, 
+      m.id_ekso_melous, 
+      m.id,
+      m.melos?.id_melous,
+      m.melos?.id_es_melous,
+      m.melos?.id_ekso_melous
+    ].filter(Boolean).map(id => String(id));
+    
+    // Get all possible IDs for the selected member
+    const sIds = [
+      selectedMember.id_es_melous, 
+      selectedMember.id_ekso_melous, 
+      selectedMember.id,
+      selectedMember.melos?.id_melous,
+      selectedMember.melos?.id_es_melous,
+      selectedMember.melos?.id_ekso_melous
+    ].filter(Boolean).map(id => String(id));
+    
+    // Check if any IDs match
+    return !mIds.some(id => sIds.includes(id));
   })
 );
     
@@ -2590,14 +2635,13 @@ const updateParticipantActivityLists = (deletedActivityId) => {
                   <Typography variant="h6">
                     Συμμετέχοντες & Πληρωμές ({participants.length})
                   </Typography>
-                  <Button 
-                    variant="contained" 
-                    color="primary"
-                    startIcon={<AddIcon />} 
-                    onClick={handleAddParticipantClick}
-                  >
-                    Προσθήκη συμμετέχοντα
-                  </Button>
+<Button 
+  variant="contained" 
+  startIcon={<AddIcon />}
+  onClick={handleOpenAddParticipantDialog}
+>
+  Προσθήκη Συμμετέχοντα
+</Button>
                 </Box>
                 <Divider sx={{ mb: 2 }} />
                 
@@ -2851,8 +2895,8 @@ const updateParticipantActivityLists = (deletedActivityId) => {
       drastiriotitesList: drastiriotites.map(dr => {
         // Determine display format for difficulty level
         let vathmosDisplay = "-";
-        if (dr.vathmos_diskolias?.epipedo) {
-          vathmosDisplay = `Βαθμός ${dr.vathmos_diskolias.epipedo}`;
+        if (dr.vathmou_diskolias?.epipedo) {
+          vathmosDisplay = `Βαθμός ${dr.vathmou_diskolias.epipedo}`;
         } else if (dr.vathmou_diskolias?.epipedo) {
           vathmosDisplay = `Βαθμός ${dr.vathmou_diskolias.epipedo}`;
         } else if (dr.id_vathmou_diskolias) {

@@ -159,66 +159,198 @@ await prisma.eksoplismos.createMany({
           { topothesia: "Καλάβρυτα", start: new Date("2025-10-01"), end: new Date("2025-10-05") },
           { topothesia: "Βόρεια Πίνδος", start: new Date("2025-11-10"), end: new Date("2025-11-15") }
         ]
-      }
-    ]
-  });
+      },
+       {
+      id_sxolis: 4,
+      timi: 250,
+      epipedo: "Αρχάριος",
+      klados: "Αναρρίχηση",
+      etos: 2022,
+      seira: 1,
+      topothesies: [
+        { topothesia: "Μετέωρα", start: new Date("2022-04-10"), end: new Date("2022-04-15") }
+      ]
+    },
+    {
+      id_sxolis: 5,
+      timi: 350,
+      epipedo: "Μέσος",
+      klados: "Ορειβασία",
+      etos: 2023,
+      seira: 1,
+      topothesies: [
+        { topothesia: "Ταΰγετος", start: new Date("2023-03-01"), end: new Date("2023-03-06") }
+      ]
+    },
+    {
+      id_sxolis: 6,
+      timi: 420,
+      epipedo: "Προχωρημένος",
+      klados: "Σκι",
+      etos: 2024,
+      seira: 1,
+      topothesies: [
+        { topothesia: "Βασιλίτσα", start: new Date("2024-12-10"), end: new Date("2024-12-15") }
+      ]
+    },
+    {
+      id_sxolis: 7,
+      timi: 270,
+      epipedo: "Αρχάριος",
+      klados: "Σκι",
+      etos: 2023,
+      seira: 2,
+      topothesies: [
+        { topothesia: "Παρνασσός", start: new Date("2023-01-10"), end: new Date("2023-01-15") }
+      ]
+    },
+    {
+      id_sxolis: 8,
+      timi: 390,
+      epipedo: "Μέσος",
+      klados: "Ορειβασία",
+      etos: 2023,
+      seira: 2,
+      topothesies: [
+        { topothesia: "Γκιώνα", start: new Date("2023-06-01"), end: new Date("2023-06-05") }
+      ]
+    },
+    {
+      id_sxolis: 9,
+      timi: 460,
+      epipedo: "Προχωρημένος",
+      klados: "Αναρρίχηση",
+      etos: 2024,
+      seira: 2,
+      topothesies: [
+        { topothesia: "Βαράσοβα", start: new Date("2024-09-05"), end: new Date("2024-09-10") }
+      ]
+    },
+    {
+      id_sxolis: 10,
+      timi: 310,
+      epipedo: "Αρχάριος",
+      klados: "Ορειβασία",
+      etos: 2022,
+      seira: 2,
+      topothesies: [
+        { topothesia: "Ερύμανθος", start: new Date("2022-07-15"), end: new Date("2022-07-20") }
+      ]
+    },
+    {
+      id_sxolis: 11,
+      timi: 330,
+      epipedo: "Μέσος",
+      klados: "Αναρρίχηση",
+      etos: 2024,
+      seira: 1,
+      topothesies: [
+        { topothesia: "Λεωνίδιο", start: new Date("2024-05-20"), end: new Date("2024-05-25") }
+      ]
+    },
+
+    {
+      id_sxolis: 12,
+      timi: 370,
+      epipedo: "Αρχάριος",
+      klados: "Σκι",
+      etos: 2025,
+      seira: 2,
+      topothesies: [
+        { topothesia: "Φαλακρό", start: new Date("2025-07-01"), end: new Date("2025-07-06") }
+      ]
+    },
+    {
+      id_sxolis: 13,
+      timi: 480,
+      epipedo: "Μέσος",
+      klados: "Αναρρίχηση",
+      etos: 2025,
+      seira: 2,
+      topothesies: [
+        { topothesia: "Βαρδούσια", start: new Date("2025-08-15"), end: new Date("2025-08-20") }
+      ]
+    },
+    {
+      id_sxolis: 14,
+      timi: 520,
+      epipedo: "Προχωρημένος",
+      klados: "Ορειβασία",
+      etos: 2026,
+      seira: 1,
+      topothesies: [
+        { topothesia: "Τύμφη", start: new Date("2026-01-10"), end: new Date("2026-01-15") }
+      ]
+    },
+    {
+      id_sxolis: 15,
+      timi: 350,
+      epipedo: "Αρχάριος",
+      klados: "Αναρρίχηση",
+      etos: 2026,
+      seira: 1,
+      topothesies: [
+        { topothesia: "Περιστέρι", start: new Date("2026-02-01"), end: new Date("2026-02-06") }
+      ]
+    }
+  ]
+});
 
   // 8. Δημιουργία Επαφών 
-  await prisma.epafes.createMany({     
+ await prisma.epafes.createMany({     
     data: [
-      { onoma: "Θαλασσινή", epitheto: "Σπανουδάκης", email: "1@example.com", tilefono: 6932110806n, idiotita: null },
-      { onoma: "Κρινιώ", epitheto: "Καλιάμπος", email: "2@example.com", tilefono: 6935599000n, idiotita: null },
-      { onoma: "Αγησίλαος", epitheto: "Μπίλλας", email: "3@example.com", tilefono: 6945255740n, idiotita: null },
-      { onoma: "Χριστόφορος", epitheto: "Λουπασάκης", email: "4@example.com", tilefono: 6988218424n, idiotita: null },
-      { onoma: "Ναταλίνα", epitheto: "Δουκίδου", email: "5@example.com", tilefono: 6993633798n, idiotita: null },
-      { onoma: "Αχιλλεία", epitheto: "Γερόπουλος", email: "6@example.com", tilefono: 6939012114n, idiotita: null },
-      { onoma: "Γραμματική", epitheto: "Γουργουλής", email: "7@example.com", tilefono: 6912468829n, idiotita: null },
-      { onoma: "Ράλλης", epitheto: "Τρεντσίου", email: "8@example.com", tilefono: 6937188098n, idiotita: null },
-      { onoma: "Ασπασία", epitheto: "Παπαθωμά", email: "9@example.com", tilefono: 6967672202n, idiotita: null },
-      { onoma: "Μακάριος", epitheto: "Λεντζίου", email: "10@example.com", tilefono: 6908532091n, idiotita: null },
-      { onoma: "Λυδία", epitheto: "Παππάς", email: "11@example.com", tilefono: 6973793298n, idiotita: null },
-      { onoma: "Φίλιππος", epitheto: "Ρέντας", email: "12@example.com", tilefono: 6964654323n, idiotita: null },
-      { onoma: "Ανάργυρη", epitheto: "Αντωνάκη", email: "13@example.com", tilefono: 6923509708n, idiotita: null },
-      { onoma: "Κλήμης", epitheto: "Προύβα", email: "14@example.com", tilefono: 6998652554n, idiotita: null },
-      { onoma: "Πολυχρονία", epitheto: "Κουτσούρας", email: "15@example.com", tilefono: 6929367736n, idiotita: null },
-      { onoma: "Θεοδότη", epitheto: "Καταραχιάς", email: "16@example.com", tilefono: 6937254292n, idiotita: null },
-      { onoma: "Ροδόκλεια", epitheto: "Μαντζώρος", email: "17@example.com", tilefono: 6994432929n, idiotita: null },
-      { onoma: "Βαλάντης", epitheto: "Χαντζή", email: "18@example.com", tilefono: 6914457804n, idiotita: null },
-      { onoma: "Γαρυφαλλιά", epitheto: "Δαρσακλή", email: "19@example.com", tilefono: 6949452746n, idiotita: null },
-      { onoma: "Ποθητή", epitheto: "Παπαευαγγελίου", email: "20@example.com", tilefono: 6947892070n, idiotita: null },
-      { onoma: "Ευδοξία", epitheto: "Μπαλτζής", email: "21@example.com", tilefono: 6972195869n, idiotita: null },
-      { onoma: "Σωτήριος", epitheto: "Νικητόπουλος", email: "22@example.com", tilefono: 6923836986n, idiotita: null },
-      { onoma: "Βάιος", epitheto: "Τσαμοπούλου", email: "23@example.com", tilefono: 6968862231n, idiotita: null },
-      { onoma: "Φρύνη", epitheto: "Φούσκας", email: "24@example.com", tilefono: 6967572078n, idiotita: null },
-      { onoma: "Αλέξανδρος", epitheto: "Κατσιγιάννης", email: "25@example.com", tilefono: 6929133040n, idiotita: null },
-      { onoma: "Ηράκλεια", epitheto: "Μοσχοβάκη", email: "26@example.com", tilefono: 6913849614n, idiotita: null },
-      { onoma: "Σελήνη", epitheto: "Χουρζαμάνη", email: "27@example.com", tilefono: 6989034479n, idiotita: null },
-      { onoma: "Αθηνά", epitheto: "Τσώνης", email: "28@example.com", tilefono: 6912849805n, idiotita: null },
-      { onoma: "Χρυσοβαλάντου", epitheto: "Κουζουλά", email: "29@example.com", tilefono: 6918373514n, idiotita: null },
-      { onoma: "Ιωάννης", epitheto: "Βαλασίδης", email: "30@example.com", tilefono: 6976818556n, idiotita: null },
-      { onoma: "Ασημίνα", epitheto: "Λουπασάκης", email: "31@example.com", tilefono: 6961507464n, idiotita: null },
-      { onoma: "Φοίβος", epitheto: "Κουλαουσάρη", email: "32@example.com", tilefono: 6955383512n, idiotita: null },
-      { onoma: "Σταυρούλα", epitheto: "Χατζηγρηγοράκης", email: "33@example.com", tilefono: 6946816222n, idiotita: null },
-      { onoma: "Διαλεκτή", epitheto: "Χατζηγεωργίου", email: "34@example.com", tilefono: 6927231312n, idiotita: null },
-      { onoma: "Νικολίτσα", epitheto: "Τζιόβα", email: "35@example.com", tilefono: 6936110077n, idiotita: null },
-      { onoma: "Ιάκωβος", epitheto: "Σκρέκας", email: "36@example.com", tilefono: 6943223277n, idiotita: null },
-      { onoma: "Ιουλιανή", epitheto: "Ασλανίδου", email: "37@example.com", tilefono: 6942425292n, idiotita: null },
-      { onoma: "Ιωσήφ", epitheto: "Περράκης", email: "38@example.com", tilefono: 6951396138n, idiotita: null },
-      { onoma: "Αστέρω", epitheto: "Σωτηροπούλου", email: "39@example.com", tilefono: 6909446925n, idiotita: null },
-      { onoma: "Παρασκευή", epitheto: "Αντωνόπουλος", email: "40@example.com", tilefono: 6925120035n, idiotita: null },
-      { onoma: "Δανάη", epitheto: "Ξανθοπούλου", email: "41@example.com", tilefono: 6908970082n, idiotita: null },
-      { onoma: "Γκίκας", epitheto: "Τσιαμίτας", email: "42@example.com", tilefono: 6947169269n, idiotita: null },
-      { onoma: "Μαυροειδής", epitheto: "Σκόρδος", email: "43@example.com", tilefono: 6984533437n, idiotita: null },
-      { onoma: "Γερασιμούλα", epitheto: "Κουκλατζής", email: "44@example.com", tilefono: 6935043339n, idiotita: null },
-      { onoma: "Αλκμήνη", epitheto: "Δουβρόπουλος", email: "45@example.com", tilefono: 6982608873n, idiotita: null },
-      { onoma: "Ταξιαρχία", epitheto: "Χορτάτου", email: "46@example.com", tilefono: 6943714755n, idiotita: "Χορηγός" },
-      { onoma: "Ίρις", epitheto: "Γεωργαρά", email: "47@example.com", tilefono: 6988106028n, idiotita: "Γονέας" },
-      { onoma: "Ευτέρπη", epitheto: "Τσικνιάς", email: "48@example.com", tilefono: 6965002470n, idiotita: "Ομιλητής" },
-      { onoma: "Πωλίνα", epitheto: "Δρακουλή", email: "49@example.com", tilefono: 6930006969n, idiotita: "Γονέας" },
-      { onoma: "Χρυσαφένια", epitheto: "Καλογιάννη", email: "50@example.com", tilefono: 6989152638n, idiotita: "Ομιλητής" }
+      { onoma: "Μαρία", epitheto: "Παπαδοπούλου", email: "mpapadopoulou@example.com", tilefono: 6932110806n, idiotita: null },
+      { onoma: "Γιάννης", epitheto: "Ιωαννίδης", email: "giannis.ioannidis@example.com", tilefono: 6935599000n, idiotita: null },
+      { onoma: "Ελένη", epitheto: "Κωνσταντίνου", email: "eleni.konstantinou@example.com", tilefono: 6945255740n, idiotita: null },
+      { onoma: "Δημήτρης", epitheto: "Παπαδόπουλος", email: "dimitris.papadopoulos@example.com", tilefono: 6988218424n, idiotita: null },
+      { onoma: "Ανθή", epitheto: "Αντωνίου", email: "anthi.antoniou@example.com", tilefono: 6993633798n, idiotita: null },
+      { onoma: "Νίκος", epitheto: "Γεωργίου", email: "nikos.georgiou@example.com", tilefono: 6939012114n, idiotita: null },
+      { onoma: "Σοφία", epitheto: "Δημητρίου", email: "sofia.dimitriou@example.com", tilefono: 6912468829n, idiotita: null },
+      { onoma: "Αντώνης", epitheto: "Νικολάου", email: "antonis.nikolaou@example.com", tilefono: 6937188098n, idiotita: null },
+      { onoma: "Κατερίνα", epitheto: "Παππά", email: "katerina.pappa@example.com", tilefono: 6967672202n, idiotita: null },
+      { onoma: "Παναγιώτης", epitheto: "Μιχαηλίδης", email: "panagiotis.michailidis@example.com", tilefono: 6908532091n, idiotita: null },
+      { onoma: "Αγγελική", epitheto: "Οικονόμου", email: "aggeliki.oikonomou@example.com", tilefono: 6973793298n, idiotita: null },
+      { onoma: "Σπύρος", epitheto: "Αθανασίου", email: "spyros.athanasiou@example.com", tilefono: 6964654323n, idiotita: null },
+      { onoma: "Αθηνά", epitheto: "Πετρόπουλος", email: "athina.petropoulou@example.com", tilefono: 6923509708n, idiotita: null },
+      { onoma: "Χρήστος", epitheto: "Στεφανίδης", email: "christos.stefanidis@example.com", tilefono: 6998652554n, idiotita: null },
+      { onoma: "Ειρήνη", epitheto: "Βασιλείου", email: "eirini.vasileiou@example.com", tilefono: 6929367736n, idiotita: null },
+      { onoma: "Θεόδωρος", epitheto: "Καραμανλής", email: "theodoros.karamanlis@example.com", tilefono: 6937254292n, idiotita: null },
+      { onoma: "Άννα", epitheto: "Αλεξάνδρου", email: "anna.alexandrou@example.com", tilefono: 6994432929n, idiotita: null },
+      { onoma: "Μιχάλης", epitheto: "Σωτηρίου", email: "michalis.sotiriou@example.com", tilefono: 6914457804n, idiotita: null },
+      { onoma: "Δέσποινα", epitheto: "Τριανταφύλλου", email: "despoina.triantafyllou@example.com", tilefono: 6949452746n, idiotita: null },
+      { onoma: "Αλέξης", epitheto: "Λάζαρος", email: "alexis.lazaros@example.com", tilefono: 6947892070n, idiotita: null },
+      { onoma: "Ευαγγελία", epitheto: "Μακρή", email: "evaggelia.makri@example.com", tilefono: 6972195869n, idiotita: null },
+      { onoma: "Σταύρος", epitheto: "Κυριακίδης", email: "stavros.kyriakidis@example.com", tilefono: 6923836986n, idiotita: null },
+      { onoma: "Βασιλική", epitheto: "Σαμαρά", email: "vasiliki.samara@example.com", tilefono: 6968862231n, idiotita: null },
+      { onoma: "Αριστείδης", epitheto: "Παυλίδης", email: "aristeidis.pavlidis@example.com", tilefono: 6967572078n, idiotita: null },
+      { onoma: "Ελευθερία", epitheto: "Ζαχαρίου", email: "eleutheria.zachariou@example.com", tilefono: 6929133040n, idiotita: null },
+      { onoma: "Λευτέρης", epitheto: "Παναγιωτόπουλος", email: "lefteris.panagiotopoulos@example.com", tilefono: 6913849614n, idiotita: null },
+      { onoma: "Ολυμπία", epitheto: "Ρούσσου", email: "olympia.roussou@example.com", tilefono: 6989034479n, idiotita: null },
+      { onoma: "Γιώργος", epitheto: "Δημόπουλος", email: "giorgos.dimopoulos@example.com", tilefono: 6912849805n, idiotita: null },
+      { onoma: "Αναστασία", epitheto: "Φωτοπούλου", email: "anastasia.fotopoulou@example.com", tilefono: 6918373514n, idiotita: null },
+      { onoma: "Αναστάσιος", epitheto: "Τσόχας", email: "anastasios.tsochas@example.com", tilefono: 6976818556n, idiotita: null },
+      { onoma: "Ελισάβετ", epitheto: "Καραμπέτη", email: "elisavet.karampeti@example.com", tilefono: 6961507464n, idiotita: null },
+      { onoma: "Πέτρος", epitheto: "Μαυρίδης", email: "petros.mavridis@example.com", tilefono: 6955383512n, idiotita: null },
+      { onoma: "Αργυρώ", epitheto: "Λαμπρόπουλος", email: "argyro.lampropoulou@example.com", tilefono: 6946816222n, idiotita: null },
+      { onoma: "Ηλίας", epitheto: "Καζαντζίδης", email: "ilias.kazantzidis@example.com", tilefono: 6927231312n, idiotita: null },
+      { onoma: "Κωνσταντίνα", epitheto: "Γεωργιάδου", email: "konstantina.georgiadou@example.com", tilefono: 6936110077n, idiotita: null },
+      { onoma: "Αλέκος", epitheto: "Μοσχόπουλος", email: "alekos.moschopoulos@example.com", tilefono: 6943223277n, idiotita: null },
+      { onoma: "Ευθυμία", epitheto: "Παυλίδου", email: "efthymia.pavlidou@example.com", tilefono: 6942425292n, idiotita: null },
+      { onoma: "Σωκράτης", epitheto: "Κολιόπουλος", email: "sokratis.koliopoulos@example.com", tilefono: 6951396138n, idiotita: null },
+      { onoma: "Χριστίνα", epitheto: "Σιδέρη", email: "christina.sideri@example.com", tilefono: 6909446925n, idiotita: null },
+      { onoma: "Αριστέα", epitheto: "Γαλάνης", email: "aristea.galanis@example.com", tilefono: 6925120035n, idiotita: null },
+      { onoma: "Ανδρέας", epitheto: "Πολίτης", email: "andreas.politis@example.com", tilefono: 6908970082n, idiotita: null },
+      { onoma: "Ευαγγελία", epitheto: "Αυγερινός", email: "evaggelia.averinos@example.com", tilefono: 6947169269n, idiotita: null },
+      { onoma: "Μαργαρίτα", epitheto: "Σπυρόπουλος", email: "margarita.spyropoulou@example.com", tilefono: 6984533437n, idiotita: null },
+      { onoma: "Παύλος", epitheto: "Καραθανάσης", email: "pavlos.karathanasis@example.com", tilefono: 6935043339n, idiotita: null },
+      { onoma: "Φωτεινή", epitheto: "Καραβιδόπουλος", email: "foteini.karavidopoulou@example.com", tilefono: 6982608873n, idiotita: null },
+      { onoma: "Αναστάσης", epitheto: "Χατζηκώστας", email: "anastasis.chatzikostas@example.com", tilefono: 6943714755n, idiotita: "Χορηγός" },
+      { onoma: "Ειρήνη", epitheto: "Γεωργοπούλου", email: "eirini.georgopoulou@example.com", tilefono: 6988106028n, idiotita: "Γονέας" },
+      { onoma: "Διονύσης", epitheto: "Τσιτσάνης", email: "dionysis.tsitsanis@example.com", tilefono: 6965002470n, idiotita: "Ομιλητής" },
+      { onoma: "Ζωή", epitheto: "Δρακοπούλου", email: "zoe.drakopoulou@example.com", tilefono: 6930006969n, idiotita: "Γονέας" },
+      { onoma: "Χαράλαμπος", epitheto: "Παπαδάκης", email: "charalambos.papadakis@example.com", tilefono: 6989152638n, idiotita: "Ομιλητής" }
     ]
   });
-
   await prisma.melos.createMany({
     data: [
       // Εσωτερικά μέλη (id 1–30)
@@ -269,40 +401,42 @@ await prisma.eksoplismos.createMany({
   
   
   // 9. Δημιουργία Εσωτερικών Μελών
-  await prisma.esoteriko_melos.createMany({
-    data: [
-      { id_es_melous: 1, hmerominia_gennhshs: new Date("1990-09-14"), patronimo: "Γεώργιος", odos: "Οδός 1", tk: 26355, arithmos_mitroou: 1001 },
-      { id_es_melous: 2, hmerominia_gennhshs: new Date("1990-06-17"), patronimo: "Γεώργιος", odos: "Οδός 2", tk: 26929, arithmos_mitroou: 1002 },
-      { id_es_melous: 3, hmerominia_gennhshs: new Date("1993-06-18"), patronimo: "Γεώργιος", odos: "Οδός 3", tk: 26640, arithmos_mitroou: 1003 },
-      { id_es_melous: 4, hmerominia_gennhshs: new Date("1998-07-12"), patronimo: "Γεώργιος", odos: "Οδός 4", tk: 26743, arithmos_mitroou: 1004 },
-      { id_es_melous: 5, hmerominia_gennhshs: new Date("1990-09-17"), patronimo: "Γεώργιος", odos: "Οδός 5", tk: 26145, arithmos_mitroou: 1005 },
-      { id_es_melous: 6, hmerominia_gennhshs: new Date("1997-02-14"), patronimo: "Γεώργιος", odos: "Οδός 6", tk: 26501, arithmos_mitroou: 1006 },
-      { id_es_melous: 7, hmerominia_gennhshs: new Date("1993-06-17"), patronimo: "Γεώργιος", odos: "Οδός 7", tk: 26639, arithmos_mitroou: 1007 },
-      { id_es_melous: 8, hmerominia_gennhshs: new Date("1990-08-18"), patronimo: "Γεώργιος", odos: "Οδός 8", tk: 26445, arithmos_mitroou: 1008 },
-      { id_es_melous: 9, hmerominia_gennhshs: new Date("1995-05-18"), patronimo: "Γεώργιος", odos: "Οδός 9", tk: 26132, arithmos_mitroou: 1009 },
-      { id_es_melous: 10, hmerominia_gennhshs: new Date("1994-03-16"), patronimo: "Γεώργιος", odos: "Οδός 10", tk: 26448, arithmos_mitroou: 1010 },
-      { id_es_melous: 11, hmerominia_gennhshs: new Date("1998-07-15"), patronimo: "Γεώργιος", odos: "Οδός 11", tk: 26431, arithmos_mitroou: 1011 },
-      { id_es_melous: 12, hmerominia_gennhshs: new Date("1994-06-11"), patronimo: "Γεώργιος", odos: "Οδός 12", tk: 26484, arithmos_mitroou: 1012 },
-      { id_es_melous: 13, hmerominia_gennhshs: new Date("1992-08-17"), patronimo: "Γεώργιος", odos: "Οδός 13", tk: 26185, arithmos_mitroou: 1013 },
-      { id_es_melous: 14, hmerominia_gennhshs: new Date("1997-07-10"), patronimo: "Γεώργιος", odos: "Οδός 14", tk: 26859, arithmos_mitroou: 1014 },
-      { id_es_melous: 15, hmerominia_gennhshs: new Date("1997-04-18"), patronimo: "Γεώργιος", odos: "Οδός 15", tk: 26720, arithmos_mitroou: 1015 },
-      { id_es_melous: 16, hmerominia_gennhshs: new Date("1993-01-18"), patronimo: "Γεώργιος", odos: "Οδός 16", tk: 26112, arithmos_mitroou: 1016 },
-      { id_es_melous: 17, hmerominia_gennhshs: new Date("1992-06-13"), patronimo: "Γεώργιος", odos: "Οδός 17", tk: 26691, arithmos_mitroou: 1017 },
-      { id_es_melous: 18, hmerominia_gennhshs: new Date("1995-08-19"), patronimo: "Γεώργιος", odos: "Οδός 18", tk: 26775, arithmos_mitroou: 1018 },
-      { id_es_melous: 19, hmerominia_gennhshs: new Date("1998-03-10"), patronimo: "Γεώργιος", odos: "Οδός 19", tk: 26772, arithmos_mitroou: 1019 },
-      { id_es_melous: 20, hmerominia_gennhshs: new Date("1990-05-13"), patronimo: "Γεώργιος", odos: "Οδός 20", tk: 26393, arithmos_mitroou: 1020 },
-      { id_es_melous: 21, hmerominia_gennhshs: new Date("1996-05-13"), patronimo: "Γεώργιος", odos: "Οδός 21", tk: 26149, arithmos_mitroou: 1021 },
-      { id_es_melous: 22, hmerominia_gennhshs: new Date("1993-02-15"), patronimo: "Γεώργιος", odos: "Οδός 22", tk: 26708, arithmos_mitroou: 1022 },
-      { id_es_melous: 23, hmerominia_gennhshs: new Date("1990-06-17"), patronimo: "Γεώργιος", odos: "Οδός 23", tk: 26207, arithmos_mitroou: 1023 },
-      { id_es_melous: 24, hmerominia_gennhshs: new Date("1995-03-16"), patronimo: "Γεώργιος", odos: "Οδός 24", tk: 26516, arithmos_mitroou: 1024 },
-      { id_es_melous: 25, hmerominia_gennhshs: new Date("1997-02-15"), patronimo: "Γεώργιος", odos: "Οδός 25", tk: 26952, arithmos_mitroou: 1025 },
-      { id_es_melous: 26, hmerominia_gennhshs: new Date("1994-09-18"), patronimo: "Γεώργιος", odos: "Οδός 26", tk: 26128, arithmos_mitroou: 1026 },
-      { id_es_melous: 27, hmerominia_gennhshs: new Date("1998-04-15"), patronimo: "Γεώργιος", odos: "Οδός 27", tk: 26900, arithmos_mitroou: 1027 },
-      { id_es_melous: 28, hmerominia_gennhshs: new Date("1997-01-13"), patronimo: "Γεώργιος", odos: "Οδός 28", tk: 26613, arithmos_mitroou: 1028 },
-      { id_es_melous: 29, hmerominia_gennhshs: new Date("1992-08-17"), patronimo: "Γεώργιος", odos: "Οδός 29", tk: 26192, arithmos_mitroou: 1029 },
-      { id_es_melous: 30, hmerominia_gennhshs: new Date("1998-03-11"), patronimo: "Γεώργιος", odos: "Οδός 30", tk: 26347, arithmos_mitroou: 1030 }
-    ]
-  });
+ await prisma.esoteriko_melos.createMany({
+  data: [
+    { id_es_melous: 1, hmerominia_gennhshs: new Date("1990-09-14"), patronimo: "Δημήτριος", odos: "Κορίνθου", tk: 26355, arithmos_mitroou: 1001 },
+    { id_es_melous: 2, hmerominia_gennhshs: new Date("1990-06-17"), patronimo: "Αναστάσιος", odos: "Μαιζώνος", tk: 26929, arithmos_mitroou: 1002 },
+    { id_es_melous: 3, hmerominia_gennhshs: new Date("1993-06-18"), patronimo: "Ιωάννης", odos: "Αγίου Ανδρέου", tk: 26640, arithmos_mitroou: 1003 },
+    { id_es_melous: 4, hmerominia_gennhshs: new Date("1998-07-12"), patronimo: "Κωνσταντίνος", odos: "Νόρμαν", tk: 26743, arithmos_mitroou: 1004 },
+    { id_es_melous: 5, hmerominia_gennhshs: new Date("1990-09-17"), patronimo: "Νικόλαος", odos: "Ερμού", tk: 26145, arithmos_mitroou: 1005 },
+    { id_es_melous: 6, hmerominia_gennhshs: new Date("1997-02-14"), patronimo: "Χρήστος", odos: "Αμερικής", tk: 26501, arithmos_mitroou: 1006 },
+    { id_es_melous: 7, hmerominia_gennhshs: new Date("1993-06-17"), patronimo: "Παναγιώτης", odos: "Κανακάρη", tk: 26639, arithmos_mitroou: 1007 },
+    { id_es_melous: 8, hmerominia_gennhshs: new Date("1990-08-18"), patronimo: "Δημήτριος", odos: "Ρήγα Φεραίου", tk: 26445, arithmos_mitroou: 1008 },
+    { id_es_melous: 9, hmerominia_gennhshs: new Date("1995-05-18"), patronimo: "Ανδρέας", odos: "Ιωάννη Βλάχου", tk: 26132, arithmos_mitroou: 1009 },
+    { id_es_melous: 10, hmerominia_gennhshs: new Date("1994-03-16"), patronimo: "Ιωάννης", odos: "Καλαβρύτων", tk: 26448, arithmos_mitroou: 1010 },
+    { id_es_melous: 11, hmerominia_gennhshs: new Date("1998-07-15"), patronimo: "Γεράσιμος", odos: "Ακρωτηρίου", tk: 26431, arithmos_mitroou: 1011 },
+    { id_es_melous: 12, hmerominia_gennhshs: new Date("1994-06-11"), patronimo: "Αθανάσιος", odos: "Καναδά", tk: 26484, arithmos_mitroou: 1012 },
+    { id_es_melous: 13, hmerominia_gennhshs: new Date("1992-08-17"), patronimo: "Αλέξανδρος", odos: "Αλεξάνδρου Υψηλάντου", tk: 26185, arithmos_mitroou: 1013 },
+    { id_es_melous: 14, hmerominia_gennhshs: new Date("1997-07-10"), patronimo: "Νεκτάριος", odos: "Πανεπιστημίου", tk: 26859, arithmos_mitroou: 1014 },
+    { id_es_melous: 15, hmerominia_gennhshs: new Date("1997-04-18"), patronimo: "Λεωνίδας", odos: "Ελευθερίου Βενιζέλου", tk: 26720, arithmos_mitroou: 1015 },
+    { id_es_melous: 16, hmerominia_gennhshs: new Date("1993-01-18"), patronimo: "Αναστάσιος", odos: "Ακτής Δυμαίων", tk: 26112, arithmos_mitroou: 1016 },
+    { id_es_melous: 17, hmerominia_gennhshs: new Date("1992-06-13"), patronimo: "Πέτρος", odos: "Αθανασίου Διάκου", tk: 26691, arithmos_mitroou: 1017 },
+    { id_es_melous: 18, hmerominia_gennhshs: new Date("1995-08-19"), patronimo: "Σπυρίδων", odos: "Ζαΐμη", tk: 26775, arithmos_mitroou: 1018 },
+    { id_es_melous: 19, hmerominia_gennhshs: new Date("1998-03-10"), patronimo: "Χρήστος", odos: "Καραϊσκάκη", tk: 26772, arithmos_mitroou: 1019 },
+    { id_es_melous: 20, hmerominia_gennhshs: new Date("1990-05-13"), patronimo: "Στέφανος", odos: "Κιλκίς", tk: 26393, arithmos_mitroou: 1020 },
+    { id_es_melous: 21, hmerominia_gennhshs: new Date("1996-05-13"), patronimo: "Νικόλαος", odos: "Αρεθούσης", tk: 26149, arithmos_mitroou: 1021 },
+    { id_es_melous: 22, hmerominia_gennhshs: new Date("1993-02-15"), patronimo: "Ιωάννης", odos: "Σατωβριάνδου", tk: 26708, arithmos_mitroou: 1022 },
+    { id_es_melous: 23, hmerominia_gennhshs: new Date("1990-06-17"), patronimo: "Αλέξανδρος", odos: "Αλεξάνδρας", tk: 26207, arithmos_mitroou: 1023 },
+    { id_es_melous: 24, hmerominia_gennhshs: new Date("1995-03-16"), patronimo: "Παναγιώτης", odos: "Οθωνος Αμαλίας", tk: 26516, arithmos_mitroou: 1024 },
+    { id_es_melous: 25, hmerominia_gennhshs: new Date("1997-02-15"), patronimo: "Λεωνίδας", odos: "Πατρέως", tk: 26952, arithmos_mitroou: 1025 },
+    { id_es_melous: 26, hmerominia_gennhshs: new Date("1994-09-18"), patronimo: "Κωνσταντίνος", odos: "Ελλησπόντου", tk: 26128, arithmos_mitroou: 1026 },
+    { id_es_melous: 27, hmerominia_gennhshs: new Date("1998-04-15"), patronimo: "Αναστάσιος", odos: "Παντανάσσης", tk: 26900, arithmos_mitroou: 1027 },
+    { id_es_melous: 28, hmerominia_gennhshs: new Date("1997-01-13"), patronimo: "Χρήστος", odos: "Νόρμαν", tk: 26613, arithmos_mitroou: 1028 },
+    { id_es_melous: 29, hmerominia_gennhshs: new Date("1992-08-17"), patronimo: "Σπυρίδων", odos: "Βορείου Ηπείρου", tk: 26192, arithmos_mitroou: 1029 },
+    { id_es_melous: 30, hmerominia_gennhshs: new Date("1998-03-11"), patronimo: "Δημήτριος", odos: "Φιλοποίμενος", tk: 26347, arithmos_mitroou: 1030 }
+  ]
+});
+
+
 
   // 10. Δημιουργία Συνδρομητών
   await prisma.sindromitis.createMany({
@@ -385,35 +519,128 @@ await prisma.ekpaideutis.createMany({
   ]
 });
 
-// First create the eksormisi entries WITHOUT the id_ypefthynou field
 await prisma.eksormisi.createMany({
   data: [
+    // Αρχικές εγγραφές (διορθωμένες)
     {
       id_eksormisis: 1,
       proorismos: "Ζαγοροχώρια",
       timi: 150,
-      hmerominia_anaxorisis: new Date("2023-11-01"),
-      hmerominia_afiksis: new Date("2023-11-05"),
+      hmerominia_afiksis: new Date("2023-11-01"),
+      hmerominia_anaxorisis: new Date("2023-11-05"),
       titlos: "Παραδοσιακά Χωριά",
     },
     {
       id_eksormisis: 2,
       proorismos: "Πίνδος",
       timi: 200,
-      hmerominia_anaxorisis: new Date("2025-12-01"),
-      hmerominia_afiksis: new Date("2025-12-05"),
+      hmerominia_afiksis: new Date("2025-12-01"),
+      hmerominia_anaxorisis: new Date("2025-12-05"),
       titlos: "Ορειβασία στην Πίνδο",
     },
     {
       id_eksormisis: 3,
       proorismos: "Όλυμπος",
       timi: 250,
-      hmerominia_anaxorisis: new Date("2025-05-01"),
-      hmerominia_afiksis: new Date("2025-05-07"),
+      hmerominia_afiksis: new Date("2025-05-01"),
+      hmerominia_anaxorisis: new Date("2025-05-07"),
       titlos: "Αναρρίχηση στον Όλυμπο",
+    },
+
+    // Νέες μελλοντικές (σωστά διορθωμένες)
+    {
+      id_eksormisis: 4,
+      proorismos: "Καλάβρυτα",
+      timi: 130,
+      hmerominia_afiksis: new Date("2025-07-10"),
+      hmerominia_anaxorisis: new Date("2025-07-12"),
+      titlos: "Καλοκαιρινή Απόδραση στα Καλάβρυτα",
+    },
+    {
+      id_eksormisis: 5,
+      proorismos: "Λίμνη Πλαστήρα",
+      timi: 180,
+      hmerominia_afiksis: new Date("2025-08-05"),
+      hmerominia_anaxorisis: new Date("2025-08-09"),
+      titlos: "Πεζοπορία και Φύση",
+    },
+    {
+      id_eksormisis: 6,
+      proorismos: "Ταΰγετος",
+      timi: 210,
+      hmerominia_afiksis: new Date("2025-08-20"),
+      hmerominia_anaxorisis: new Date("2025-08-23"),
+      titlos: "Ορεινή Εξερεύνηση στον Ταΰγετο",
+    },
+    {
+      id_eksormisis: 7,
+      proorismos: "Πήλιο",
+      timi: 160,
+      hmerominia_afiksis: new Date("2025-07-30"),
+      hmerominia_anaxorisis: new Date("2025-08-02"),
+      titlos: "Παραθαλάσσιες Διαδρομές",
+    },
+    {
+      id_eksormisis: 8,
+      proorismos: "Μετέωρα",
+      timi: 190,
+      hmerominia_afiksis: new Date("2025-09-05"),
+      hmerominia_anaxorisis: new Date("2025-09-07"),
+      titlos: "Μοναστήρια και Πεζοπορία",
+    },
+    {
+      id_eksormisis: 9,
+      proorismos: "Βίκος",
+      timi: 220,
+      hmerominia_afiksis: new Date("2025-09-10"),
+      hmerominia_anaxorisis: new Date("2025-09-14"),
+      titlos: "Φαράγγι και Καταρράκτες",
+    },
+    {
+      id_eksormisis: 10,
+      proorismos: "Ορεινή Ναυπακτία",
+      timi: 175,
+      hmerominia_afiksis: new Date("2025-08-15"),
+      hmerominia_anaxorisis: new Date("2025-08-18"),
+      titlos: "Καλοκαιρινή Εξερεύνηση",
+    },
+
+    // Νέες παλιές (σωστά διορθωμένες)
+    {
+      id_eksormisis: 11,
+      proorismos: "Ερύμανθος",
+      timi: 140,
+      hmerominia_afiksis: new Date("2024-10-20"),
+      hmerominia_anaxorisis: new Date("2024-10-22"),
+      titlos: "Ορεινή Δραστηριότητα Ερύμανθου",
+    },
+    {
+      id_eksormisis: 12,
+      proorismos: "Χελμός",
+      timi: 160,
+      hmerominia_afiksis: new Date("2025-03-12"),
+      hmerominia_anaxorisis: new Date("2025-03-15"),
+      titlos: "Σκι και Πεζοπορία στον Χελμό",
+    },
+    {
+      id_eksormisis: 13,
+      proorismos: "Βαρδούσια",
+      timi: 200,
+      hmerominia_afiksis: new Date("2025-04-10"),
+      hmerominia_anaxorisis: new Date("2025-04-14"),
+      titlos: "Ορειβασία στα Βαρδούσια",
+    },
+    {
+      id_eksormisis: 14,
+      proorismos: "Παρανεστί",
+      timi: 170,
+      hmerominia_afiksis: new Date("2025-05-20"),
+      hmerominia_anaxorisis: new Date("2025-05-23"),
+      titlos: "Δραστηριότητες στον Νέστο",
     }
   ]
 });
+
 
 // Then create the relationships in the junction table
 await prisma.ypefthynoi_eksormisis.createMany({
@@ -430,317 +657,582 @@ await prisma.ypefthynoi_eksormisis.createMany({
       id_eksormisis: 3,
       id_ypefthynou: 3
     }
+    ,
+    {
+      id_eksormisis: 4,
+      id_ypefthynou: 4
+    },
+    {
+      id_eksormisis: 5,
+      id_ypefthynou: 5
+    },
+    {
+      id_eksormisis: 6,
+      id_ypefthynou: 6
+    },
+    {
+      id_eksormisis: 7,
+      id_ypefthynou: 7
+    },
+    {
+      id_eksormisis: 8,
+      id_ypefthynou: 8
+    }
   ]
 });
 
   // 16. Δημιουργία Δραστηριοτήτων
+
 await prisma.drastiriotita.createMany({
   data: [
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 2, 
-      ores_poreias: 3, 
-      titlos: "Διαδρομή με GPS", 
-      diafora_ipsous: 110, 
-      hmerominia: new Date("2023-11-01"), 
-      megisto_ipsometro: 815 
+    {
+      "id_eksormisis": 1,
+      "id_vathmou_diskolias": 2,
+      "ores_poreias": 3,
+      "titlos": "Πεζοπορία",
+      "diafora_ipsous": 110,
+      "hmerominia": new Date("2023-11-01"),
+      "megisto_ipsometro": 815
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 3, 
-      ores_poreias: 4, 
-      titlos: "Αναρρίχηση", 
-      diafora_ipsous: 120, 
-      hmerominia: new Date("2023-11-01"), 
-      megisto_ipsometro: 830 
+    {
+      "id_eksormisis": 1,
+      "id_vathmou_diskolias": 3,
+      "ores_poreias": 4,
+      "titlos": "Αναρρίχηση",
+      "diafora_ipsous": 120,
+      "hmerominia": new Date("2023-11-02"),
+      "megisto_ipsometro": 830
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 4, 
-      ores_poreias: 5, 
-      titlos: "Χαλαρή Πορεία", 
-      diafora_ipsous: 130, 
-      hmerominia: new Date("2023-11-02"), 
-      megisto_ipsometro: 845 
+    {
+      "id_eksormisis": 1,
+      "id_vathmou_diskolias": 4,
+      "ores_poreias": 5,
+      "titlos": "Χαλαρή Πορεία",
+      "diafora_ipsous": 130,
+      "hmerominia": new Date("2023-11-03"),
+      "megisto_ipsometro": 845
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 5, 
-      ores_poreias: 6, 
-      titlos: "Νυχτερινή Διαδρομή", 
-      diafora_ipsous: 140, 
-      hmerominia: new Date("2023-11-02"), 
-      megisto_ipsometro: 860 
+    {
+      "id_eksormisis": 1,
+      "id_vathmou_diskolias": 5,
+      "ores_poreias": 6,
+      "titlos": "Ορεινή Πεζοπορία",
+      "diafora_ipsous": 140,
+      "hmerominia": new Date("2023-11-04"),
+      "megisto_ipsometro": 860
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 6, 
-      ores_poreias: 7, 
-      titlos: "Σπήλαια και Φαράγγια", 
-      diafora_ipsous: 150, 
-      hmerominia: new Date("2023-11-03"), 
-      megisto_ipsometro: 875 
+    {
+      "id_eksormisis": 1,
+      "id_vathmou_diskolias": 6,
+      "ores_poreias": 7,
+      "titlos": "Καταρρίχηση",
+      "diafora_ipsous": 150,
+      "hmerominia": new Date("2023-11-05"),
+      "megisto_ipsometro": 875
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 7, 
-      ores_poreias: 2, 
-      titlos: "Πορεία Αντοχής", 
-      diafora_ipsous: 160, 
-      hmerominia: new Date("2023-11-03"), 
-      megisto_ipsometro: 890 
+    {
+      "id_eksormisis": 2,
+      "id_vathmou_diskolias": 7,
+      "ores_poreias": 2,
+      "titlos": "Διαδρομή GPS",
+      "diafora_ipsous": 160,
+      "hmerominia": new Date("2025-12-01"),
+      "megisto_ipsometro": 890
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 8, 
-      ores_poreias: 3, 
-      titlos: "Οικολογική Ενημέρωση", 
-      diafora_ipsous: 170, 
-      hmerominia: new Date("2023-11-04"), 
-      megisto_ipsometro: 905 
+    {
+      "id_eksormisis": 2,
+      "id_vathmou_diskolias": 8,
+      "ores_poreias": 3,
+      "titlos": "Οικολογική Ενημέρωση",
+      "diafora_ipsous": 170,
+      "hmerominia": new Date("2025-12-02"),
+      "megisto_ipsometro": 905
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 1, 
-      ores_poreias: 4, 
-      titlos: "Ανάβαση", 
-      diafora_ipsous: 180, 
-      hmerominia: new Date("2023-11-04"), 
-      megisto_ipsometro: 920 
+    {
+      "id_eksormisis": 2,
+      "id_vathmou_diskolias": 1,
+      "ores_poreias": 4,
+      "titlos": "Σπήλαιο",
+      "diafora_ipsous": 180,
+      "hmerominia": new Date("2025-12-03"),
+      "megisto_ipsometro": 920
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 2, 
-      ores_poreias: 5, 
-      titlos: "Καταρρίχηση", 
-      diafora_ipsous: 190, 
-      hmerominia: new Date("2023-11-05"), 
-      megisto_ipsometro: 935 
+    {
+      "id_eksormisis": 2,
+      "id_vathmou_diskolias": 2,
+      "ores_poreias": 5,
+      "titlos": "Πορεία Αντοχής",
+      "diafora_ipsous": 190,
+      "hmerominia": new Date("2025-12-04"),
+      "megisto_ipsometro": 935
     },
-    { 
-      id_eksormisis: 1, 
-      id_vathmou_diskolias: 3, 
-      ores_poreias: 6, 
-      titlos: "Ορεινή Πεζοπορία", 
-      diafora_ipsous: 200, 
-      hmerominia: new Date("2023-11-05"), 
-      megisto_ipsometro: 950 
+    {
+      "id_eksormisis": 2,
+      "id_vathmou_diskolias": 3,
+      "ores_poreias": 6,
+      "titlos": "Πεζοπορία",
+      "diafora_ipsous": 200,
+      "hmerominia": new Date("2025-12-05"),
+      "megisto_ipsometro": 950
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 4, 
-      ores_poreias: 7, 
-      titlos: "Διαδρομή με GPS", 
-      diafora_ipsous: 210, 
-      hmerominia: new Date("2025-12-01"), 
-      megisto_ipsometro: 965 
+    {
+      "id_eksormisis": 3,
+      "id_vathmou_diskolias": 4,
+      "ores_poreias": 7,
+      "titlos": "Αναρρίχηση",
+      "diafora_ipsous": 210,
+      "hmerominia": new Date("2025-05-01"),
+      "megisto_ipsometro": 965
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 5, 
-      ores_poreias: 2, 
-      titlos: "Αναρρίχηση", 
-      diafora_ipsous: 220, 
-      hmerominia: new Date("2025-12-01"), 
-      megisto_ipsometro: 980 
+    {
+      "id_eksormisis": 3,
+      "id_vathmou_diskolias": 5,
+      "ores_poreias": 2,
+      "titlos": "Χαλαρή Πορεία",
+      "diafora_ipsous": 220,
+      "hmerominia": new Date("2025-05-02"),
+      "megisto_ipsometro": 980
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 6, 
-      ores_poreias: 3, 
-      titlos: "Χαλαρή Πορεία", 
-      diafora_ipsous: 230, 
-      hmerominia: new Date("2025-12-02"), 
-      megisto_ipsometro: 995 
+    {
+      "id_eksormisis": 3,
+      "id_vathmou_diskolias": 6,
+      "ores_poreias": 3,
+      "titlos": "Ορεινή Πεζοπορία",
+      "diafora_ipsous": 230,
+      "hmerominia": new Date("2025-05-03"),
+      "megisto_ipsometro": 995
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 7, 
-      ores_poreias: 4, 
-      titlos: "Νυχτερινή Διαδρομή", 
-      diafora_ipsous: 240, 
-      hmerominia: new Date("2025-12-02"), 
-      megisto_ipsometro: 1010 
+    {
+      "id_eksormisis": 3,
+      "id_vathmou_diskolias": 7,
+      "ores_poreias": 4,
+      "titlos": "Καταρρίχηση",
+      "diafora_ipsous": 240,
+      "hmerominia": new Date("2025-05-04"),
+      "megisto_ipsometro": 1010
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 8, 
-      ores_poreias: 5, 
-      titlos: "Σπήλαια και Φαράγγια", 
-      diafora_ipsous: 250, 
-      hmerominia: new Date("2025-12-03"), 
-      megisto_ipsometro: 1025 
+    {
+      "id_eksormisis": 3,
+      "id_vathmou_diskolias": 8,
+      "ores_poreias": 5,
+      "titlos": "Διαδρομή GPS",
+      "diafora_ipsous": 250,
+      "hmerominia": new Date("2025-05-05"),
+      "megisto_ipsometro": 1025
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 1, 
-      ores_poreias: 6, 
-      titlos: "Πορεία Αντοχής", 
-      diafora_ipsous: 260, 
-      hmerominia: new Date("2025-12-03"), 
-      megisto_ipsometro: 1040 
+    {
+      "id_eksormisis": 3,
+      "id_vathmou_diskolias": 1,
+      "ores_poreias": 6,
+      "titlos": "Οικολογική Ενημέρωση",
+      "diafora_ipsous": 260,
+      "hmerominia": new Date("2025-05-06"),
+      "megisto_ipsometro": 1040
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 2, 
-      ores_poreias: 7, 
-      titlos: "Οικολογική Ενημέρωση", 
-      diafora_ipsous: 270, 
-      hmerominia: new Date("2025-12-04"), 
-      megisto_ipsometro: 1055 
+    {
+      "id_eksormisis": 3,
+      "id_vathmou_diskolias": 2,
+      "ores_poreias": 7,
+      "titlos": "Σπήλαιο",
+      "diafora_ipsous": 270,
+      "hmerominia": new Date("2025-05-07"),
+      "megisto_ipsometro": 1055
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 3, 
-      ores_poreias: 2, 
-      titlos: "Ανάβαση", 
-      diafora_ipsous: 280, 
-      hmerominia: new Date("2025-12-04"), 
-      megisto_ipsometro: 1070 
+    {
+      "id_eksormisis": 4,
+      "id_vathmou_diskolias": 3,
+      "ores_poreias": 2,
+      "titlos": "Πορεία Αντοχής",
+      "diafora_ipsous": 280,
+      "hmerominia": new Date("2025-07-10"),
+      "megisto_ipsometro": 1070
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 4, 
-      ores_poreias: 3, 
-      titlos: "Καταρρίχηση", 
-      diafora_ipsous: 290, 
-      hmerominia: new Date("2025-12-05"), 
-      megisto_ipsometro: 1085 
+    {
+      "id_eksormisis": 4,
+      "id_vathmou_diskolias": 4,
+      "ores_poreias": 3,
+      "titlos": "Πεζοπορία",
+      "diafora_ipsous": 290,
+      "hmerominia": new Date("2025-07-11"),
+      "megisto_ipsometro": 1085
     },
-    { 
-      id_eksormisis: 2, 
-      id_vathmou_diskolias: 5, 
-      ores_poreias: 4, 
-      titlos: "Ορεινή Πεζοπορία", 
-      diafora_ipsous: 300, 
-      hmerominia: new Date("2025-12-05"), 
-      megisto_ipsometro: 1100 
+    {
+      "id_eksormisis": 4,
+      "id_vathmou_diskolias": 5,
+      "ores_poreias": 4,
+      "titlos": "Αναρρίχηση",
+      "diafora_ipsous": 300,
+      "hmerominia": new Date("2025-07-12"),
+      "megisto_ipsometro": 1100
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 6, 
-      ores_poreias: 5, 
-      titlos: "Διαδρομή με GPS", 
-      diafora_ipsous: 310, 
-      hmerominia: new Date("2025-05-01"), 
-      megisto_ipsometro: 1115 
+    {
+      "id_eksormisis": 5,
+      "id_vathmou_diskolias": 6,
+      "ores_poreias": 5,
+      "titlos": "Χαλαρή Πορεία",
+      "diafora_ipsous": 310,
+      "hmerominia": new Date("2025-08-05"),
+      "megisto_ipsometro": 1115
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 7, 
-      ores_poreias: 6, 
-      titlos: "Αναρρίχηση", 
-      diafora_ipsous: 320, 
-      hmerominia: new Date("2025-05-01"), 
-      megisto_ipsometro: 1130 
+    {
+      "id_eksormisis": 5,
+      "id_vathmou_diskolias": 7,
+      "ores_poreias": 6,
+      "titlos": "Ορεινή Πεζοπορία",
+      "diafora_ipsous": 320,
+      "hmerominia": new Date("2025-08-06"),
+      "megisto_ipsometro": 1130
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 8, 
-      ores_poreias: 7, 
-      titlos: "Χαλαρή Πορεία", 
-      diafora_ipsous: 330, 
-      hmerominia: new Date("2025-05-02"), 
-      megisto_ipsometro: 1145 
+    {
+      "id_eksormisis": 5,
+      "id_vathmou_diskolias": 8,
+      "ores_poreias": 7,
+      "titlos": "Καταρρίχηση",
+      "diafora_ipsous": 330,
+      "hmerominia": new Date("2025-08-07"),
+      "megisto_ipsometro": 1145
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 1, 
-      ores_poreias: 2, 
-      titlos: "Νυχτερινή Διαδρομή", 
-      diafora_ipsous: 340, 
-      hmerominia: new Date("2025-05-02"), 
-      megisto_ipsometro: 1160 
+    {
+      "id_eksormisis": 5,
+      "id_vathmou_diskolias": 1,
+      "ores_poreias": 2,
+      "titlos": "Διαδρομή GPS",
+      "diafora_ipsous": 340,
+      "hmerominia": new Date("2025-08-08"),
+      "megisto_ipsometro": 1160
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 2, 
-      ores_poreias: 3, 
-      titlos: "Σπήλαια και Φαράγγια", 
-      diafora_ipsous: 350, 
-      hmerominia: new Date("2025-05-03"), 
-      megisto_ipsometro: 1175 
+    {
+      "id_eksormisis": 5,
+      "id_vathmou_diskolias": 2,
+      "ores_poreias": 3,
+      "titlos": "Οικολογική Ενημέρωση",
+      "diafora_ipsous": 350,
+      "hmerominia": new Date("2025-08-09"),
+      "megisto_ipsometro": 1175
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 3, 
-      ores_poreias: 4, 
-      titlos: "Πορεία Αντοχής", 
-      diafora_ipsous: 360, 
-      hmerominia: new Date("2025-05-03"), 
-      megisto_ipsometro: 1190 
+    {
+      "id_eksormisis": 6,
+      "id_vathmou_diskolias": 3,
+      "ores_poreias": 4,
+      "titlos": "Σπήλαιο",
+      "diafora_ipsous": 360,
+      "hmerominia": new Date("2025-08-20"),
+      "megisto_ipsometro": 1190
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 4, 
-      ores_poreias: 5, 
-      titlos: "Οικολογική Ενημέρωση", 
-      diafora_ipsous: 370, 
-      hmerominia: new Date("2025-05-04"), 
-      megisto_ipsometro: 1205 
+    {
+      "id_eksormisis": 6,
+      "id_vathmou_diskolias": 4,
+      "ores_poreias": 5,
+      "titlos": "Πορεία Αντοχής",
+      "diafora_ipsous": 370,
+      "hmerominia": new Date("2025-08-21"),
+      "megisto_ipsometro": 1205
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 5, 
-      ores_poreias: 6, 
-      titlos: "Ανάβαση", 
-      diafora_ipsous: 380, 
-      hmerominia: new Date("2025-05-04"), 
-      megisto_ipsometro: 1220 
+    {
+      "id_eksormisis": 6,
+      "id_vathmou_diskolias": 5,
+      "ores_poreias": 6,
+      "titlos": "Πεζοπορία",
+      "diafora_ipsous": 380,
+      "hmerominia": new Date("2025-08-22"),
+      "megisto_ipsometro": 1220
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 6, 
-      ores_poreias: 7, 
-      titlos: "Καταρρίχηση", 
-      diafora_ipsous: 390, 
-      hmerominia: new Date("2025-05-05"), 
-      megisto_ipsometro: 1235 
+    {
+      "id_eksormisis": 6,
+      "id_vathmou_diskolias": 6,
+      "ores_poreias": 7,
+      "titlos": "Αναρρίχηση",
+      "diafora_ipsous": 390,
+      "hmerominia": new Date("2025-08-23"),
+      "megisto_ipsometro": 1235
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 7, 
-      ores_poreias: 2, 
-      titlos: "Ορεινή Πεζοπορία", 
-      diafora_ipsous: 400, 
-      hmerominia: new Date("2025-05-05"), 
-      megisto_ipsometro: 1250 
+    {
+      "id_eksormisis": 7,
+      "id_vathmou_diskolias": 7,
+      "ores_poreias": 2,
+      "titlos": "Χαλαρή Πορεία",
+      "diafora_ipsous": 400,
+      "hmerominia": new Date("2025-07-30"),
+      "megisto_ipsometro": 1250
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 8, 
-      ores_poreias: 3, 
-      titlos: "Διαδρομή με GPS", 
-      diafora_ipsous: 410, 
-      hmerominia: new Date("2025-05-06"), 
-      megisto_ipsometro: 1265 
+    {
+      "id_eksormisis": 7,
+      "id_vathmou_diskolias": 8,
+      "ores_poreias": 3,
+      "titlos": "Ορεινή Πεζοπορία",
+      "diafora_ipsous": 410,
+      "hmerominia": new Date("2025-07-31"),
+      "megisto_ipsometro": 1265
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 1, 
-      ores_poreias: 4, 
-      titlos: "Αναρρίχηση", 
-      diafora_ipsous: 420, 
-      hmerominia: new Date("2025-05-06"), 
-      megisto_ipsometro: 1280 
+    {
+      "id_eksormisis": 7,
+      "id_vathmou_diskolias": 1,
+      "ores_poreias": 4,
+      "titlos": "Καταρρίχηση",
+      "diafora_ipsous": 420,
+      "hmerominia": new Date("2025-08-01"),
+      "megisto_ipsometro": 1280
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 2, 
-      ores_poreias: 5, 
-      titlos: "Χαλαρή Πορεία", 
-      diafora_ipsous: 430, 
-      hmerominia: new Date("2025-05-07"), 
-      megisto_ipsometro: 1295 
+    {
+      "id_eksormisis": 7,
+      "id_vathmou_diskolias": 2,
+      "ores_poreias": 5,
+      "titlos": "Διαδρομή GPS",
+      "diafora_ipsous": 430,
+      "hmerominia": new Date("2025-08-02"),
+      "megisto_ipsometro": 1295
     },
-    { 
-      id_eksormisis: 3, 
-      id_vathmou_diskolias: 3, 
-      ores_poreias: 6, 
-      titlos: "Νυχτερινή Διαδρομή", 
-      diafora_ipsous: 440, 
-      hmerominia: new Date("2025-05-07"), 
-      megisto_ipsometro: 1310 
+    {
+      "id_eksormisis": 8,
+      "id_vathmou_diskolias": 3,
+      "ores_poreias": 6,
+      "titlos": "Οικολογική Ενημέρωση",
+      "diafora_ipsous": 440,
+      "hmerominia": new Date("2025-09-05"),
+      "megisto_ipsometro": 1310
+    },
+    {
+      "id_eksormisis": 8,
+      "id_vathmou_diskolias": 4,
+      "ores_poreias": 7,
+      "titlos": "Σπήλαιο",
+      "diafora_ipsous": 450,
+      "hmerominia": new Date("2025-09-06"),
+      "megisto_ipsometro": 1325
+    },
+    {
+      "id_eksormisis": 8,
+      "id_vathmou_diskolias": 5,
+      "ores_poreias": 2,
+      "titlos": "Πορεία Αντοχής",
+      "diafora_ipsous": 460,
+      "hmerominia": new Date("2025-09-07"),
+      "megisto_ipsometro": 1340
+    },
+    {
+      "id_eksormisis": 9,
+      "id_vathmou_diskolias": 6,
+      "ores_poreias": 3,
+      "titlos": "Πεζοπορία",
+      "diafora_ipsous": 470,
+      "hmerominia": new Date("2025-09-10"),
+      "megisto_ipsometro": 1355
+    },
+    {
+      "id_eksormisis": 9,
+      "id_vathmou_diskolias": 7,
+      "ores_poreias": 4,
+      "titlos": "Αναρρίχηση",
+      "diafora_ipsous": 480,
+      "hmerominia": new Date("2025-09-11"),
+      "megisto_ipsometro": 1370
+    },
+    {
+      "id_eksormisis": 9,
+      "id_vathmou_diskolias": 8,
+      "ores_poreias": 5,
+      "titlos": "Χαλαρή Πορεία",
+      "diafora_ipsous": 490,
+      "hmerominia": new Date("2025-09-12"),
+      "megisto_ipsometro": 1385
+    },
+    {
+      "id_eksormisis": 9,
+      "id_vathmou_diskolias": 1,
+      "ores_poreias": 6,
+      "titlos": "Ορεινή Πεζοπορία",
+      "diafora_ipsous": 500,
+      "hmerominia": new Date("2025-09-13"),
+      "megisto_ipsometro": 1400
+    },
+    {
+      "id_eksormisis": 9,
+      "id_vathmou_diskolias": 2,
+      "ores_poreias": 7,
+      "titlos": "Καταρρίχηση",
+      "diafora_ipsous": 510,
+      "hmerominia": new Date("2025-09-14"),
+      "megisto_ipsometro": 1415
+    },
+    {
+      "id_eksormisis": 10,
+      "id_vathmou_diskolias": 3,
+      "ores_poreias": 2,
+      "titlos": "Διαδρομή GPS",
+      "diafora_ipsous": 520,
+      "hmerominia": new Date("2025-08-15"),
+      "megisto_ipsometro": 1430
+    },
+    {
+      "id_eksormisis": 10,
+      "id_vathmou_diskolias": 4,
+      "ores_poreias": 3,
+      "titlos": "Οικολογική Ενημέρωση",
+      "diafora_ipsous": 530,
+      "hmerominia": new Date("2025-08-16"),
+      "megisto_ipsometro": 1445
+    },
+    {
+      "id_eksormisis": 10,
+      "id_vathmou_diskolias": 5,
+      "ores_poreias": 4,
+      "titlos": "Σπήλαιο",
+      "diafora_ipsous": 540,
+      "hmerominia": new Date("2025-08-17"),
+      "megisto_ipsometro": 1460
+    },
+    {
+      "id_eksormisis": 10,
+      "id_vathmou_diskolias": 6,
+      "ores_poreias": 5,
+      "titlos": "Πορεία Αντοχής",
+      "diafora_ipsous": 550,
+      "hmerominia": new Date("2025-08-18"),
+      "megisto_ipsometro": 1475
+    },
+    {
+      "id_eksormisis": 11,
+      "id_vathmou_diskolias": 7,
+      "ores_poreias": 6,
+      "titlos": "Πεζοπορία",
+      "diafora_ipsous": 560,
+      "hmerominia": new Date("2024-10-20"),
+      "megisto_ipsometro": 1490
+    },
+    {
+      "id_eksormisis": 11,
+      "id_vathmou_diskolias": 8,
+      "ores_poreias": 7,
+      "titlos": "Αναρρίχηση",
+      "diafora_ipsous": 570,
+      "hmerominia": new Date("2024-10-21"),
+      "megisto_ipsometro": 1505
+    },
+    {
+      "id_eksormisis": 11,
+      "id_vathmou_diskolias": 1,
+      "ores_poreias": 2,
+      "titlos": "Χαλαρή Πορεία",
+      "diafora_ipsous": 580,
+      "hmerominia": new Date("2024-10-22"),
+      "megisto_ipsometro": 1520
+    },
+    {
+      "id_eksormisis": 12,
+      "id_vathmou_diskolias": 2,
+      "ores_poreias": 3,
+      "titlos": "Ορεινή Πεζοπορία",
+      "diafora_ipsous": 590,
+      "hmerominia": new Date("2025-03-12"),
+      "megisto_ipsometro": 1535
+    },
+    {
+      "id_eksormisis": 12,
+      "id_vathmou_diskolias": 3,
+      "ores_poreias": 4,
+      "titlos": "Καταρρίχηση",
+      "diafora_ipsous": 600,
+      "hmerominia": new Date("2025-03-13"),
+      "megisto_ipsometro": 1550
+    },
+    {
+      "id_eksormisis": 12,
+      "id_vathmou_diskolias": 4,
+      "ores_poreias": 5,
+      "titlos": "Διαδρομή GPS",
+      "diafora_ipsous": 610,
+      "hmerominia": new Date("2025-03-14"),
+      "megisto_ipsometro": 1565
+    },
+    {
+      "id_eksormisis": 12,
+      "id_vathmou_diskolias": 5,
+      "ores_poreias": 6,
+      "titlos": "Οικολογική Ενημέρωση",
+      "diafora_ipsous": 620,
+      "hmerominia": new Date("2025-03-15"),
+      "megisto_ipsometro": 1580
+    },
+    {
+      "id_eksormisis": 13,
+      "id_vathmou_diskolias": 6,
+      "ores_poreias": 7,
+      "titlos": "Σπήλαιο",
+      "diafora_ipsous": 630,
+      "hmerominia": new Date("2025-04-10"),
+      "megisto_ipsometro": 1595
+    },
+    {
+      "id_eksormisis": 13,
+      "id_vathmou_diskolias": 7,
+      "ores_poreias": 2,
+      "titlos": "Πορεία Αντοχής",
+      "diafora_ipsous": 640,
+      "hmerominia": new Date("2025-04-11"),
+      "megisto_ipsometro": 1610
+    },
+    {
+      "id_eksormisis": 13,
+      "id_vathmou_diskolias": 8,
+      "ores_poreias": 3,
+      "titlos": "Πεζοπορία",
+      "diafora_ipsous": 650,
+      "hmerominia": new Date("2025-04-12"),
+      "megisto_ipsometro": 1625
+    },
+    {
+      "id_eksormisis": 13,
+      "id_vathmou_diskolias": 1,
+      "ores_poreias": 4,
+      "titlos": "Αναρρίχηση",
+      "diafora_ipsous": 660,
+      "hmerominia": new Date("2025-04-13"),
+      "megisto_ipsometro": 1640
+    },
+    {
+      "id_eksormisis": 13,
+      "id_vathmou_diskolias": 2,
+      "ores_poreias": 5,
+      "titlos": "Χαλαρή Πορεία",
+      "diafora_ipsous": 670,
+      "hmerominia": new Date("2025-04-14"),
+      "megisto_ipsometro": 1655
+    },
+    {
+      "id_eksormisis": 14,
+      "id_vathmou_diskolias": 3,
+      "ores_poreias": 6,
+      "titlos": "Ορεινή Πεζοπορία",
+      "diafora_ipsous": 680,
+      "hmerominia": new Date("2025-05-20"),
+      "megisto_ipsometro": 1670
+    },
+    {
+      "id_eksormisis": 14,
+      "id_vathmou_diskolias": 4,
+      "ores_poreias": 7,
+      "titlos": "Καταρρίχηση",
+      "diafora_ipsous": 690,
+      "hmerominia": new Date("2025-05-21"),
+      "megisto_ipsometro": 1685
+    },
+    {
+      "id_eksormisis": 14,
+      "id_vathmou_diskolias": 5,
+      "ores_poreias": 2,
+      "titlos": "Διαδρομή GPS",
+      "diafora_ipsous": 700,
+      "hmerominia": new Date("2025-05-22"),
+      "megisto_ipsometro": 1700
+    },
+    {
+      "id_eksormisis": 14,
+      "id_vathmou_diskolias": 6,
+      "ores_poreias": 3,
+      "titlos": "Οικολογική Ενημέρωση",
+      "diafora_ipsous": 710,
+      "hmerominia": new Date("2025-05-23"),
+      "megisto_ipsometro": 1715
     }
   ]
 });
@@ -779,16 +1271,36 @@ await prisma.drastiriotita.createMany({
   // 2. Κρατήσεις Καταφυγίου
   await prisma.kratisi_katafigiou.createMany({
     data: [
-      { id_epafis: 1, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-12T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-15T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 10, arithmos_mi_melwn: 6, atoma: 16, imeres: 3, sinoliki_timh: 1320, eksoterikos_xoros: "Αίθουσα 2", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-02T15:18:05.218Z") },
-      { id_epafis: 2, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-24T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-28T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 0, arithmos_mi_melwn: 10, atoma: 10, imeres: 4, sinoliki_timh: 1600, eksoterikos_xoros: "Αίθουσα 1", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-14T15:18:05.218Z") },
-      { id_epafis: 3, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-18T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-22T15:18:05.218Z"), ypoloipo: 913, arithmos_melwn: 10, arithmos_mi_melwn: 3, atoma: 13, imeres: 4, sinoliki_timh: 1280, eksoterikos_xoros: "Αίθουσα 1", hmerominia_akirosis: new Date("2025-03-16T15:18:05.218Z"), poso_epistrofis: 1280, hmerominia_kratisis: new Date("2025-03-08T15:18:05.218Z") },
-      { id_epafis: 4, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-15T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-20T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 6, arithmos_mi_melwn: 10, atoma: 16, imeres: 5, sinoliki_timh: 2600, eksoterikos_xoros: "Αίθουσα 1", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-05T15:18:05.218Z") },
-      { id_epafis: 5, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-18T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-22T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 8, arithmos_mi_melwn: 9, atoma: 17, imeres: 4, sinoliki_timh: 2080, eksoterikos_xoros: "Αίθουσα 2", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-08T15:18:05.218Z") },
-      { id_epafis: 6, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-06-03T15:18:05.218Z"), ypoloipo: 355, arithmos_melwn: 1, arithmos_mi_melwn: 2, atoma: 3, imeres: 5, sinoliki_timh: 500, eksoterikos_xoros: "Αίθουσα 3", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
-      { id_epafis: 7, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-06-02T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 10, arithmos_mi_melwn: 6, atoma: 16, imeres: 4, sinoliki_timh: 1760, eksoterikos_xoros: "Αίθουσα 1", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
-      { id_epafis: 8, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-06-02T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 6, arithmos_mi_melwn: 8, atoma: 14, imeres: 4, sinoliki_timh: 1760, eksoterikos_xoros: "Αίθουσα 2", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
-      { id_epafis: 9, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-06-01T15:18:05.218Z"), ypoloipo: 889, arithmos_melwn: 4, arithmos_mi_melwn: 10, atoma: 14, imeres: 3, sinoliki_timh: 1440, eksoterikos_xoros: "Αίθουσα 2", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
-      { id_epafis: 10, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-05-30T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 10, arithmos_mi_melwn: 3, atoma: 13, imeres: 1, sinoliki_timh: 320, eksoterikos_xoros: "Αίθουσα 1", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") }
+      { id_epafis: 1, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-12T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-15T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 10, arithmos_mi_melwn: 6, atoma: 16, imeres: 3, sinoliki_timh: 1320, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-02T15:18:05.218Z") },
+      { id_epafis: 2, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-24T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-28T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 0, arithmos_mi_melwn: 10, atoma: 10, imeres: 4, sinoliki_timh: 1600, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-14T15:18:05.218Z") },
+      { id_epafis: 3, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-18T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-22T15:18:05.218Z"), ypoloipo: 913, arithmos_melwn: 10, arithmos_mi_melwn: 3, atoma: 13, imeres: 4, sinoliki_timh: 1280, eksoterikos_xoros: "Ναι", hmerominia_akirosis: new Date("2025-03-16T15:18:05.218Z"), poso_epistrofis: 1280, hmerominia_kratisis: new Date("2025-03-08T15:18:05.218Z") },
+      { id_epafis: 4, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-15T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-20T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 6, arithmos_mi_melwn: 10, atoma: 16, imeres: 5, sinoliki_timh: 2600, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-05T15:18:05.218Z") },
+      { id_epafis: 5, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-18T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-03-22T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 8, arithmos_mi_melwn: 9, atoma: 17, imeres: 4, sinoliki_timh: 2080, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-08T15:18:05.218Z") },
+      { id_epafis: 6, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-06-03T15:18:05.218Z"), ypoloipo: 355, arithmos_melwn: 1, arithmos_mi_melwn: 2, atoma: 3, imeres: 5, sinoliki_timh: 500, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
+      { id_epafis: 7, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-06-02T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 10, arithmos_mi_melwn: 6, atoma: 16, imeres: 4, sinoliki_timh: 1760, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
+      { id_epafis: 8, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-06-02T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 6, arithmos_mi_melwn: 8, atoma: 14, imeres: 4, sinoliki_timh: 1760, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
+      { id_epafis: 9, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-06-01T15:18:05.218Z"), ypoloipo: 889, arithmos_melwn: 4, arithmos_mi_melwn: 10, atoma: 14, imeres: 3, sinoliki_timh: 1440, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
+      { id_epafis: 10, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-05-29T15:18:05.218Z"), hmerominia_epistrofis: new Date("2025-05-30T15:18:05.218Z"), ypoloipo: 0, arithmos_melwn: 10, arithmos_mi_melwn: 3, atoma: 13, imeres: 1, sinoliki_timh: 320, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-05-19T15:18:05.218Z") },
+          { id_epafis: 11, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-07-01T14:00:00.000Z"), hmerominia_epistrofis: new Date("2025-07-03T14:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 5, arithmos_mi_melwn: 2, atoma: 7, imeres: 2, sinoliki_timh: 560, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-06-20T10:00:00.000Z") },
+    { id_epafis: 12, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-07-15T12:00:00.000Z"), hmerominia_epistrofis: new Date("2025-07-20T12:00:00.000Z"), ypoloipo: 200, arithmos_melwn: 4, arithmos_mi_melwn: 4, atoma: 8, imeres: 5, sinoliki_timh: 800, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-06-25T08:00:00.000Z") },
+    { id_epafis: 13, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-08-10T16:00:00.000Z"), hmerominia_epistrofis: new Date("2025-08-12T16:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 3, arithmos_mi_melwn: 0, atoma: 3, imeres: 2, sinoliki_timh: 240, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-07-01T14:00:00.000Z") },
+    { id_epafis: 14, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-09-05T09:00:00.000Z"), hmerominia_epistrofis: new Date("2025-09-10T09:00:00.000Z"), ypoloipo: 100, arithmos_melwn: 6, arithmos_mi_melwn: 3, atoma: 9, imeres: 5, sinoliki_timh: 900, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-08-20T09:00:00.000Z") },
+    { id_epafis: 15, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-07-08T10:00:00.000Z"), hmerominia_epistrofis: new Date("2025-07-11T10:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 8, arithmos_mi_melwn: 2, atoma: 10, imeres: 3, sinoliki_timh: 900, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-06-26T10:00:00.000Z") },
+    { id_epafis: 16, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-08-20T12:00:00.000Z"), hmerominia_epistrofis: new Date("2025-08-22T12:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 4, arithmos_mi_melwn: 4, atoma: 8, imeres: 2, sinoliki_timh: 640, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-07-10T12:00:00.000Z") },
+    { id_epafis: 17, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-07-25T10:00:00.000Z"), hmerominia_epistrofis: new Date("2025-07-27T10:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 2, arithmos_mi_melwn: 6, atoma: 8, imeres: 2, sinoliki_timh: 560, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-06-30T10:00:00.000Z") },
+    { id_epafis: 18, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-07-18T13:00:00.000Z"), hmerominia_epistrofis: new Date("2025-07-19T13:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 6, arithmos_mi_melwn: 1, atoma: 7, imeres: 1, sinoliki_timh: 280, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-06-26T13:00:00.000Z") },
+    { id_epafis: 19, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-08-01T14:00:00.000Z"), hmerominia_epistrofis: new Date("2025-08-06T14:00:00.000Z"), ypoloipo: 320, arithmos_melwn: 5, arithmos_mi_melwn: 5, atoma: 10, imeres: 5, sinoliki_timh: 1000, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-07-01T14:00:00.000Z") },
+    { id_epafis: 20, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-09-01T10:00:00.000Z"), hmerominia_epistrofis: new Date("2025-09-03T10:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 7, arithmos_mi_melwn: 0, atoma: 7, imeres: 2, sinoliki_timh: 560, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-08-15T10:00:00.000Z") },
+    { id_epafis: 21, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-01T12:00:00.000Z"), hmerominia_epistrofis: new Date("2025-03-03T12:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 4, arithmos_mi_melwn: 2, atoma: 6, imeres: 2, sinoliki_timh: 480, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-02-20T12:00:00.000Z") },
+    { id_epafis: 22, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-02-10T15:00:00.000Z"), hmerominia_epistrofis: new Date("2025-02-14T15:00:00.000Z"), ypoloipo: 100, arithmos_melwn: 3, arithmos_mi_melwn: 4, atoma: 7, imeres: 4, sinoliki_timh: 700, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-02-01T15:00:00.000Z") },
+    { id_epafis: 23, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-01-20T10:00:00.000Z"), hmerominia_epistrofis: new Date("2025-01-23T10:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 2, arithmos_mi_melwn: 3, atoma: 5, imeres: 3, sinoliki_timh: 450, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-01-10T10:00:00.000Z") },
+    { id_epafis: 24, id_katafigiou: 1, hmerominia_afiksis: new Date("2024-12-05T09:00:00.000Z"), hmerominia_epistrofis: new Date("2024-12-07T09:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 6, arithmos_mi_melwn: 1, atoma: 7, imeres: 2, sinoliki_timh: 560, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2024-11-25T09:00:00.000Z") },
+    { id_epafis: 25, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-04-01T14:00:00.000Z"), hmerominia_epistrofis: new Date("2025-04-06T14:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 8, arithmos_mi_melwn: 4, atoma: 12, imeres: 5, sinoliki_timh: 1200, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-15T14:00:00.000Z") },
+    { id_epafis: 26, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-02-28T08:00:00.000Z"), hmerominia_epistrofis: new Date("2025-03-02T08:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 5, arithmos_mi_melwn: 0, atoma: 5, imeres: 2, sinoliki_timh: 400, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-02-18T08:00:00.000Z") },
+    { id_epafis: 27, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-01-15T11:00:00.000Z"), hmerominia_epistrofis: new Date("2025-01-17T11:00:00.000Z"), ypoloipo: 50, arithmos_melwn: 4, arithmos_mi_melwn: 1, atoma: 5, imeres: 2, sinoliki_timh: 400, eksoterikos_xoros: "Όχι", hmerominia_akirosis: new Date("2025-01-13T11:00:00.000Z"), poso_epistrofis: 400, hmerominia_kratisis: new Date("2025-01-01T11:00:00.000Z") },
+    { id_epafis: 28, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-04-18T13:00:00.000Z"), hmerominia_epistrofis: new Date("2025-04-20T13:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 7, arithmos_mi_melwn: 2, atoma: 9, imeres: 2, sinoliki_timh: 720, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-04-05T13:00:00.000Z") },
+    { id_epafis: 29, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-03-11T10:00:00.000Z"), hmerominia_epistrofis: new Date("2025-03-13T10:00:00.000Z"), ypoloipo: 0, arithmos_melwn: 6, arithmos_mi_melwn: 2, atoma: 8, imeres: 2, sinoliki_timh: 640, eksoterikos_xoros: "Όχι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-03-01T10:00:00.000Z") },
+    { id_epafis: 30, id_katafigiou: 1, hmerominia_afiksis: new Date("2025-04-25T15:00:00.000Z"), hmerominia_epistrofis: new Date("2025-04-28T15:00:00.000Z"), ypoloipo: 150, arithmos_melwn: 4, arithmos_mi_melwn: 3, atoma: 7, imeres: 3, sinoliki_timh: 600, eksoterikos_xoros: "Ναι", hmerominia_akirosis: null, poso_epistrofis: 0, hmerominia_kratisis: new Date("2025-04-10T15:00:00.000Z") }
     ]
   });
 
@@ -988,48 +1500,49 @@ await prisma.plironei.createMany({
   // 8. Σχέσεις Συνδρομών
   await prisma.exei.createMany({
     data: [
-      { id_sindromiti: 1, id_sindromis: 1, hmerominia_pliromis: new Date("2023-06-04") },
-      { id_sindromiti: 2, id_sindromis: 2, hmerominia_pliromis: new Date("2023-03-10") },
-      { id_sindromiti: 3, id_sindromis: 3, hmerominia_pliromis: new Date("2023-10-29") },
-      { id_sindromiti: 4, id_sindromis: 4, hmerominia_pliromis: new Date("2023-08-26") },
-      { id_sindromiti: 5, id_sindromis: 5, hmerominia_pliromis: new Date("2023-05-11") },
-      { id_sindromiti: 6, id_sindromis: 6, hmerominia_pliromis: new Date("2023-12-07") },
-      { id_sindromiti: 7, id_sindromis: 7, hmerominia_pliromis: new Date("2023-10-10") },
-      { id_sindromiti: 8, id_sindromis: 8, hmerominia_pliromis: new Date("2023-03-21") },
+      { id_sindromiti: 1, id_sindromis: 1, hmerominia_pliromis: new Date("2025-06-04") },
+      { id_sindromiti: 2, id_sindromis: 2, hmerominia_pliromis: new Date("2025-06-10") },
+      { id_sindromiti: 3, id_sindromis: 3, hmerominia_pliromis: new Date("2024-10-29") },
+      { id_sindromiti: 4, id_sindromis: 4, hmerominia_pliromis: new Date("2024-08-26") },
+      { id_sindromiti: 5, id_sindromis: 5, hmerominia_pliromis: new Date("2024-05-11") },
+      { id_sindromiti: 6, id_sindromis: 6, hmerominia_pliromis: new Date("2025-06-07") },
+      { id_sindromiti: 7, id_sindromis: 7, hmerominia_pliromis: new Date("2025-06-10") },
+      { id_sindromiti: 8, id_sindromis: 8, hmerominia_pliromis: new Date("2022-06-21") },
       { id_sindromiti: 9, id_sindromis: 9, hmerominia_pliromis: new Date("2023-04-03") },
-      { id_sindromiti: 10, id_sindromis: 10, hmerominia_pliromis: new Date("2023-02-15") },
-      { id_sindromiti: 11, id_sindromis: 11, hmerominia_pliromis: new Date("2023-12-15") },
-      { id_sindromiti: 12, id_sindromis: 12, hmerominia_pliromis: new Date("2023-05-13") },
-      { id_sindromiti: 13, id_sindromis: 13, hmerominia_pliromis: new Date("2023-04-07") },
-      { id_sindromiti: 14, id_sindromis: 14, hmerominia_pliromis: new Date("2023-08-24") },
-      { id_sindromiti: 15, id_sindromis: 15, hmerominia_pliromis: new Date("2023-04-15") },
-      { id_sindromiti: 16, id_sindromis: 16, hmerominia_pliromis: new Date("2023-07-06") },
-      { id_sindromiti: 17, id_sindromis: 17, hmerominia_pliromis: new Date("2023-07-29") },
-      { id_sindromiti: 18, id_sindromis: 18, hmerominia_pliromis: new Date("2023-02-18") },
-      { id_sindromiti: 19, id_sindromis: 19, hmerominia_pliromis: new Date("2023-10-11") },
-      { id_sindromiti: 20, id_sindromis: 20, hmerominia_pliromis: new Date("2023-04-17") },
-      { id_sindromiti: 21, id_sindromis: 21, hmerominia_pliromis: new Date("2023-02-22") },
-      { id_sindromiti: 22, id_sindromis: 22, hmerominia_pliromis: new Date("2023-05-26") },
-      { id_sindromiti: 23, id_sindromis: 23, hmerominia_pliromis: new Date("2023-09-13") },
-      { id_sindromiti: 24, id_sindromis: 24, hmerominia_pliromis: new Date("2023-12-09") },
-      { id_sindromiti: 25, id_sindromis: 25, hmerominia_pliromis: new Date("2023-07-23") }
+      { id_sindromiti: 10, id_sindromis: 10, hmerominia_pliromis: new Date("2024-02-15") },
+      { id_sindromiti: 11, id_sindromis: 11, hmerominia_pliromis: new Date("2025-03-15") },
+      { id_sindromiti: 12, id_sindromis: 12, hmerominia_pliromis: new Date("2024-05-13") },
+      { id_sindromiti: 13, id_sindromis: 13, hmerominia_pliromis: new Date("2025-04-07") },
+      { id_sindromiti: 14, id_sindromis: 14, hmerominia_pliromis: new Date("2024-08-24") },
+      { id_sindromiti: 15, id_sindromis: 15, hmerominia_pliromis: new Date("2024-04-15") },
+      { id_sindromiti: 16, id_sindromis: 16, hmerominia_pliromis: new Date("2025-04-06") },
+      { id_sindromiti: 17, id_sindromis: 17, hmerominia_pliromis: new Date("2025-05-29") },
+      { id_sindromiti: 18, id_sindromis: 18, hmerominia_pliromis: new Date("2025-06-18") },
+      { id_sindromiti: 19, id_sindromis: 19, hmerominia_pliromis: new Date("2025-04-11") },
+      { id_sindromiti: 20, id_sindromis: 20, hmerominia_pliromis: new Date("2025-04-17") },
+      { id_sindromiti: 21, id_sindromis: 21, hmerominia_pliromis: new Date("2025-02-22") },
+      { id_sindromiti: 22, id_sindromis: 22, hmerominia_pliromis: new Date("2025-05-26") },
+      { id_sindromiti: 23, id_sindromis: 23, hmerominia_pliromis: new Date("2025-04-13") },
+      { id_sindromiti: 24, id_sindromis: 24, hmerominia_pliromis: new Date("2025-01-09") },
+      { id_sindromiti: 25, id_sindromis: 25, hmerominia_pliromis: new Date("2025-01-23") }
     ]
   });
 
-  await prisma.agones.createMany({
-    data: [
-      { id_athlimatos: 1, onoma: "Αγώνας 1 (Ορειβασία)", perigrafi: "Περιγραφή αγώνα 1", hmerominia: new Date("2023-01-01") },
-      { id_athlimatos: 2, onoma: "Αγώνας 2 (Αναρρίχηση)", perigrafi: "Περιγραφή αγώνα 2", hmerominia: new Date("2023-01-31") },
-      { id_athlimatos: 2, onoma: "Αγώνας 3 (Αναρρίχηση)", perigrafi: "Περιγραφή αγώνα 3", hmerominia: new Date("2023-03-02") },
-      { id_athlimatos: 3, onoma: "Αγώνας 4 (Σκι)", perigrafi: "Περιγραφή αγώνα 4", hmerominia: new Date("2023-04-01") },
-      { id_athlimatos: 2, onoma: "Αγώνας 5 (Αναρρίχηση)", perigrafi: "Περιγραφή αγώνα 5", hmerominia: new Date("2023-05-01") },
-      { id_athlimatos: 1, onoma: "Αγώνας 6 (Ορειβασία)", perigrafi: "Περιγραφή αγώνα 6", hmerominia: new Date("2023-05-31") },
-      { id_athlimatos: 1, onoma: "Αγώνας 7 (Ορειβασία)", perigrafi: "Περιγραφή αγώνα 7", hmerominia: new Date("2023-06-30") },
-      { id_athlimatos: 2, onoma: "Αγώνας 8 (Αναρρίχηση)", perigrafi: "Περιγραφή αγώνα 8", hmerominia: new Date("2023-07-30") },
-      { id_athlimatos: 1, onoma: "Αγώνας 9 (Ορειβασία)", perigrafi: "Περιγραφή αγώνα 9", hmerominia: new Date("2023-08-29") },
-      { id_athlimatos: 2, onoma: "Αγώνας 10 (Αναρρίχηση)", perigrafi: "Περιγραφή αγώνα 10", hmerominia: new Date("2023-09-28") },
-    ]
-  });
+ await prisma.agones.createMany({
+  data: [
+    { id_athlimatos: 1, onoma: "Ορειβατικός Αγώνας Βουνού", perigrafi: "Ορειβατικός αγώνας σε ορεινό μονοπάτι", hmerominia: new Date("2023-01-01") },
+    { id_athlimatos: 2, onoma: "Αναρρίχηση Βράχου", perigrafi: "Αναρρίχηση σε φυσικό βράχο μεσαίας δυσκολίας", hmerominia: new Date("2023-01-31") },
+    { id_athlimatos: 2, onoma: "Τεχνική Αναρρίχηση", perigrafi: "Διαγωνισμός τεχνικής αναρρίχησης με σχοινιά", hmerominia: new Date("2023-03-02") },
+    { id_athlimatos: 3, onoma: "Αγώνας Κατάβασης Σκι", perigrafi: "Αγώνας κατάβασης σε χιονισμένη πίστα", hmerominia: new Date("2023-04-01") },
+    { id_athlimatos: 2, onoma: "Αναρρίχηση με Χρονόμετρο", perigrafi: "Αναρριχητικός αγώνας με χρονικό όριο", hmerominia: new Date("2023-05-01") },
+    { id_athlimatos: 1, onoma: "Ορεινή Ανάβαση Αντοχής", perigrafi: "Ορειβασία με διαδρομή μεγάλης απόστασης", hmerominia: new Date("2023-05-31") },
+    { id_athlimatos: 1, onoma: "Ανάβαση Κορυφής", perigrafi: "Αγώνας ανάβασης σε υψηλή κορυφή", hmerominia: new Date("2023-06-30") },
+    { id_athlimatos: 2, onoma: "Bouldering Challenge", perigrafi: "Αγώνας bouldering με τεχνικές προκλήσεις", hmerominia: new Date("2023-07-30") },
+    { id_athlimatos: 1, onoma: "Αγώνας Ορεινής Πεζοπορίας", perigrafi: "Πεζοπορικός αγώνας αντοχής", hmerominia: new Date("2023-08-29") },
+    { id_athlimatos: 2, onoma: "Αναρρίχηση σε Τεχνητή Πίστα", perigrafi: "Διαγωνισμός αναρρίχησης σε τεχνηλή πίστα", hmerominia: new Date("2023-09-28") }
+  ]
+});
+
 
   // Create Agonizetai (participations)
   await prisma.agonizetai.createMany({

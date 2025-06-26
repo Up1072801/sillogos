@@ -1485,7 +1485,7 @@ const calculateBalance = (participant) => {
                 status = "Αθλητής";
               } else if (member.sindromitis) {
                 memberType = "Εσωτερικό Μέλος - Συνδρομητής";
-                status = member.sindromitis.katastasi_sindromης || "Ενεργή";
+                status = member.sindromitis.katastasi_sindromis || "Ενεργή";
               } else {
                 memberType = "Εσωτερικό Μέλος";
                 status = "Εσωτερικό Μέλος";

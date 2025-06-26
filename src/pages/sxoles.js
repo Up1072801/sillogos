@@ -2259,7 +2259,7 @@ additionalButtons={
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell padding="checkbox">Επιλογή</TableCell>
+            <TableCell padding="checkbox"></TableCell>
             <TableCell>Ονοματεπώνυμο</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Τηλέφωνο</TableCell>
