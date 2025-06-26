@@ -318,54 +318,66 @@ const handleOpenAddParticipantDialog = () => {
   });
 };
    
-// Move this function outside of fetchData and define it at the same level as other component functions
 const fetchAvailableMembers = async () => {
   try {
     // Get all members (both internal and external)
     const membersResponse = await api.get("/melitousillogou/all");
     
+    if (!Array.isArray(membersResponse.data)) {
+      console.error("Expected array from /melitousillogou/all endpoint, received:", typeof membersResponse.data);
+      setAvailableMembers([]);
+      return;
+    }
+    
     // Create a Set containing all possible IDs of existing participants
     const existingMemberIds = new Set();
     
-    // Make sure we have the latest participants data
-    const participantsResponse = await api.get(`/eksormiseis/${id}/simmetexontes`);
-    const currentParticipants = participantsResponse.data || [];
-    
-    // Process all participants and collect their IDs in every possible format
-    currentParticipants.forEach(p => {
-      // Convert all IDs to string for consistent comparison
-      if (p.id_melous) existingMemberIds.add(String(p.id_melous));
-      if (p.melos?.id_melous) existingMemberIds.add(String(p.melos.id_melous));
-      if (p.melos?.id_es_melous) existingMemberIds.add(String(p.melos.id_es_melous));
-      if (p.melos?.id_ekso_melous) existingMemberIds.add(String(p.melos.id_ekso_melous));
-      if (p.id_es_melous) existingMemberIds.add(String(p.id_es_melous));
-      if (p.id_ekso_melous) existingMemberIds.add(String(p.id_ekso_melous));
-      if (p.id) existingMemberIds.add(String(p.id));
-    });
-    
-    console.log("Excluded participant IDs:", Array.from(existingMemberIds));
+    try {
+      // Make sure we have the latest participants data
+      const participantsResponse = await api.get(`/eksormiseis/${id}/simmetexontes`);
+      const currentParticipants = Array.isArray(participantsResponse.data) ? participantsResponse.data : [];
+      
+      // Process all participants and collect their IDs in every possible format
+      currentParticipants.forEach(p => {
+        if (!p) return;
+        // Convert all IDs to string for consistent comparison
+        if (p.id_melous) existingMemberIds.add(String(p.id_melous));
+        if (p.melos?.id_melous) existingMemberIds.add(String(p.melos.id_melous));
+        if (p.melos?.id_es_melous) existingMemberIds.add(String(p.melos.id_es_melous));
+        if (p.melos?.id_ekso_melous) existingMemberIds.add(String(p.melos.id_ekso_melous));
+        if (p.id_es_melous) existingMemberIds.add(String(p.id_es_melous));
+        if (p.id_ekso_melous) existingMemberIds.add(String(p.id_ekso_melous));
+        if (p.id) existingMemberIds.add(String(p.id));
+      });
+    } catch (error) {
+      console.error("Error fetching participants:", error);
+      // Continue with empty set rather than failing completely
+    }
     
     // Filter members to only include those NOT already participating
     const filteredMembers = membersResponse.data.filter(member => {
-      // Get all possible IDs from this member
-      const possibleIds = [
-        member.id_melous,
-        member.id_es_melous, 
-        member.id_ekso_melous,
-        member.id,
-        member.melos?.id_melous,
-        member.melos?.id_es_melous,
-        member.melos?.id_ekso_melous
-      ].filter(Boolean).map(String);
+      if (!member) return false;
       
-      // Check if ANY of the possible IDs exist in our excluded set
-      const isAlreadyParticipating = possibleIds.some(id => existingMemberIds.has(id));
-      
-      // Return true only for members NOT already participating
-      return !isAlreadyParticipating;
+      try {
+        // Get all possible IDs from this member
+        const possibleIds = [
+          member.id_melous,
+          member.id_es_melous, 
+          member.id_ekso_melous,
+          member.id,
+          member.melos?.id_melous,
+          member.melos?.id_es_melous,
+          member.melos?.id_ekso_melous
+        ].filter(Boolean).map(String);
+        
+        // Check if ANY of the possible IDs exist in our excluded set
+        return !possibleIds.some(id => existingMemberIds.has(id));
+      } catch (error) {
+        console.error("Error processing member:", member, error);
+        return false; // Skip problematic members
+      }
     });
     
-    console.log(`Filtered from ${membersResponse.data.length} to ${filteredMembers.length} available members`);
     setAvailableMembers(filteredMembers);
   } catch (err) {
     console.error("Error loading available members:", err);
