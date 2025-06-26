@@ -17,16 +17,26 @@ const api = axios.create({
   baseURL: baseURL,
 });
 
-// Προσθήκη interceptor για εύκολη αποσφαλμάτωση
+// Προσθήκη interceptor για εύκολη αποσφαλμάτωση και διαχείριση API prefix
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
   
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    
-    // Εμφάνιση μόνο των πρώτων χαρακτήρων του token για λόγους ασφάλειας
-    const tokenPreview = token.substring(0, 10) + '...';
-  } else {
+  }
+  
+  // Handle API prefix for different environments
+  if (process.env.NODE_ENV === 'production' && !config.url.startsWith('/api/')) {
+    // Check if this is an API call (not fetching static assets, etc.)
+    if (!config.url.includes('.') && !config.url.startsWith('/auth/')) {
+      // Preserve any query params by splitting the URL
+      const urlParts = config.url.split('?');
+      const baseEndpoint = urlParts[0];
+      const queryParams = urlParts.length > 1 ? `?${urlParts[1]}` : '';
+      
+      // Apply the /api prefix to the base endpoint
+      config.url = `/api${baseEndpoint}${queryParams}`;
+    }
   }
   
   return config;
