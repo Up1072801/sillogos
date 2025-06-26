@@ -1,0 +1,10 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    ports:
+      - "80:80"
+    env:
+      - DATABASE_URL=postgresql://sillogos_user:QUrDp0S5DOPlTJi4qZnxHFZKcV9NqOE4@dpg-d0vmn3emcj7s73fpbp5g-a.frankfurt-postgres.render.com/sillogos
+      - NODE_ENV=production

@@ -1,0 +1,29 @@
+services:
+  # Nginx για το frontend και ως reverse proxy
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  # Backend (Node.js με Express)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://sillogosbase_0ss9_user:T0QddYyleriq2YeaU80dmZ1aHPEnqGrV@dpg-d0mba43uibrs73eidmjg-a.oregon-postgres.render.com/sillogosbase_0ss9
+      - NODE_ENV=development
+    ports:
+      - "10000:10000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

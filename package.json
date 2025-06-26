@@ -1,0 +1,81 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon backend/server.js",
+    "client": "react-scripts start",
+    "build": "react-scripts build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
+    "start:prod": "node backend/server.js"
+  },
+  "prisma": {
+    "schema": "backend/prisma/schema.prisma",
+    "seed": "node backend/prisma/seed.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@faker-js/faker": "^9.6.0",
+    "@mui/icons-material": "^6.4.6",
+    "@mui/material": "^6.4.6",
+    "@mui/x-data-grid": "^7.28.3",
+    "@mui/x-date-pickers": "^7.27.3",
+    "@prisma/client": "^6.5.0",
+    "@tanstack/react-query": "^5.67.1",
+    "axios": "^1.8.4",
+    "concurrently": "^9.1.2",
+    "cors": "^2.8.5",
+    "date-fns": "^2.30.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "file-saver": "^2.0.5",
+    "formik": "^2.4.6",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "material-react-table": "^3.2.1",
+    "node-cron": "^3.0.3",
+    "pdfmake": "^0.2.20",
+    "pg": "^8.13.3",
+    "react": "^19.0.0",
+    "react-calendar": "^5.1.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.3.0",
+    "react-scripts": "^5.0.1",
+    "xlsx": "^0.18.5",
+    "yup": "^1.6.1"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-async-generator-functions": "^7.26.8",
+    "@babel/plugin-transform-class-properties": "^7.25.9",
+    "@babel/plugin-transform-dynamic-import": "^7.25.9",
+    "@babel/plugin-transform-json-strings": "^7.25.9",
+    "@babel/plugin-transform-nullish-coalescing-operator": "^7.26.6",
+    "@babel/plugin-transform-numeric-separator": "^7.25.9",
+    "@babel/plugin-transform-object-rest-spread": "^7.25.9",
+    "@babel/plugin-transform-optional-catch-binding": "^7.25.9",
+    "@babel/plugin-transform-private-methods": "^7.25.9",
+    "@babel/plugin-transform-unicode-property-regex": "^7.25.9",
+    "gh-pages": "^6.3.0",
+    "typescript": "^5.1.0"
+  }
+}
