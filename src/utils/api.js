@@ -25,17 +25,25 @@ api.interceptors.request.use(config => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // Handle API prefix for different environments
-  if (process.env.NODE_ENV === 'production' && !config.url.startsWith('/api/')) {
-    // Check if this is an API call (not fetching static assets, etc.)
-    if (!config.url.includes('.') && !config.url.startsWith('/auth/')) {
-      // Preserve any query params by splitting the URL
-      const urlParts = config.url.split('?');
-      const baseEndpoint = urlParts[0];
-      const queryParams = urlParts.length > 1 ? `?${urlParts[1]}` : '';
-      
-      // Apply the /api prefix to the base endpoint
-      config.url = `/api${baseEndpoint}${queryParams}`;
+  // IMPROVED PREFIX HANDLING: Consistently checks if the URL needs API prefix in production
+  if (process.env.NODE_ENV === 'production') {
+    // Check if this is already prefixed
+    if (!config.url.startsWith('/api/')) {
+      // Skip prefixing only for auth endpoints and static assets
+      if (!config.url.includes('.') && !config.url.startsWith('/auth/')) {
+        // Preserve any query params by splitting the URL
+        const urlParts = config.url.split('?');
+        const baseEndpoint = urlParts[0];
+        const queryParams = urlParts.length > 1 ? `?${urlParts[1]}` : '';
+        
+        // Make sure we have a leading slash
+        const normalizedEndpoint = baseEndpoint.startsWith('/') ? baseEndpoint : `/${baseEndpoint}`;
+        
+        // Apply the /api prefix to the base endpoint
+        config.url = `/api${normalizedEndpoint}${queryParams}`;
+        
+        console.log(`[API] Prefixed URL: ${config.url}`);
+      }
     }
   }
   
