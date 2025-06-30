@@ -309,7 +309,15 @@ const detailPanelConfig = {
           }
         });
         
-        return activities;
+        // Pre-sort activities by date (newest first)
+        return activities.sort((a, b) => {
+          const dateA = new Date(a.drastiriotita?.hmerominia || 0);
+          const dateB = new Date(b.drastiriotita?.hmerominia || 0);
+          return dateB - dateA; // For descending order (newest first)
+        });
+      },
+      initialState: {
+        sorting: [{ id: "drastiriotita.hmerominia", desc: true }]
       },
       noRowHover: true,
       noRowClick: true
@@ -377,18 +385,22 @@ const detailPanelConfig = {
           accessor: "eksormisi.proorismos", 
           header: "Προορισμός" 
         },
-        {
-          accessor: "eksormisi.hmerominia_anaxorisis",
-          header: "Ημερομηνία Αναχώρησης",
-          Cell: ({ row }) => formatDate(row.original.eksormisi?.hmerominia_anaxorisis)
-        },
+  
         {
           accessor: "eksormisi.hmerominia_afiksis",
           header: "Ημερομηνία Άφιξης",
           Cell: ({ row }) => formatDate(row.original.eksormisi?.hmerominia_afiksis)
+        },
+              {
+          accessor: "eksormisi.hmerominia_anaxorisis",
+          header: "Ημερομηνία Αναχώρησης",
+          Cell: ({ row }) => formatDate(row.original.eksormisi?.hmerominia_anaxorisis)
         }
       ],
       getData: (row) => row.ypefthinos_se || [],
+      initialState: {
+        sorting: [{ id: "eksormisi.hmerominia_afiksis", desc: false }]
+      },
       noRowHover: true,
       noRowClick: true
     },
@@ -1243,6 +1255,7 @@ const handleEditSave = async (updatedRow) => {
       // Make sure sxolia is included here
       melos: {
         sxolia: commentsValue
+        
       },
       
       // Subscription fields - include when they're a subscriber, regardless of athlete status
@@ -1271,12 +1284,14 @@ const handleEditSave = async (updatedRow) => {
             hmerominia_egrafis: formattedStartDate, 
             hmerominia_enarksis: formattedStartDate,
             hmerominia_pliromis: formattedPaymentDate,
-            // Explicitly set the melos object with updated comments
+            // Explicitly set the melos object with updated comments AND preserve relationships
             melos: {
               ...(baseObj.melos || {}),
               sxolia: commentsValue, // Use the saved comments value directly
               epafes: baseObj.melos?.epafes || item.melos?.epafes,
-              vathmos_diskolias: baseObj.melos?.vathmos_diskolias || item.melos?.vathmos_diskolias
+              vathmos_diskolias: baseObj.melos?.vathmos_diskolias || item.melos?.vathmos_diskolias,
+              simmetoxi: item.melos?.simmetoxi || [], // Preserve activities
+              parakolouthisi: item.melos?.parakolouthisi || [] // Preserve schools
             },
             sindromitis: {
               ...(baseObj.sindromitis || {}),
@@ -1810,7 +1825,8 @@ const AthleteToSubscriberDialog = () => {
   const [filterText, setFilterText] = useState('');
   
   // Filter athletes based on search text
-const filteredAthletes = eligibleAthletes.filter(athlete => 
+
+  const filteredAthletes = eligibleAthletes.filter(athlete => 
   athlete.name.toLowerCase().includes(filterText.toLowerCase()) || 
   String(athlete.athleteNumber).toLowerCase().includes(filterText.toLowerCase())
 );

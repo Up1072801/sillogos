@@ -775,7 +775,7 @@ const handleEditParticipant = async (updatedParticipant) => {
   }
 };
 
-  // Handle removing participant with local state update
+ // Handle removing participant with local state update
 const handleRemoveParticipant = async (participantOrId) => {
   try {
     // Εξαγωγή ID συμμετέχοντα είτε από αντικείμενο είτε απευθείας
@@ -787,13 +787,41 @@ const handleRemoveParticipant = async (participantOrId) => {
       throw new Error("Δεν ήταν δυνατή η εύρεση ID συμμετέχοντα");
     }
     
+    // First, get the full participant data before deletion
+    const participantToRemove = participants.find(
+      p => p.id_parakolouthisis === participantId || p.id === participantId
+    );
+    
+    if (!participantToRemove) {
+      throw new Error("Δεν βρέθηκε ο συμμετέχοντας για αφαίρεση");
+    }
+    
+    // Get the member ID to add back to available members
+    const memberId = participantToRemove.id_melous;
+    
+    // Make API call to delete
     await api.delete(`/sxoles/${id}/parakolouthisi/${participantId}`);
     
+    // Update participants state to remove the deleted participant
     setParticipants(prevParticipants => 
       prevParticipants.filter(p => p.id_parakolouthisis !== participantId)
     );
     
-    // Success alert removed
+    // Add the member back to available members
+    if (memberId && participantToRemove.melos) {
+      const memberToAdd = {
+        id_melous: memberId,
+        melos: participantToRemove.melos,
+        tipo_melous: participantToRemove.melos.tipo_melous || 
+                    (participantToRemove.melos.esoteriko_melos ? "esoteriko" : 
+                     participantToRemove.melos.eksoteriko_melos ? "eksoteriko" : ""),
+        athlitis: participantToRemove.melos.esoteriko_melos?.athlitis,
+        sindromitis: participantToRemove.melos.esoteriko_melos?.sindromitis
+      };
+      
+      setAvailableMembers(prev => [...prev, memberToAdd]);
+    }
+    
   } catch (error) {
     console.error("Σφάλμα κατά την αφαίρεση συμμετέχοντα:", error);
     alert("Σφάλμα: " + error.message);
@@ -1060,6 +1088,7 @@ const handleRemovePayment = async (paymentId, participantId) => {
 // Update the participantDetailPanel to properly place payment elements above the table
 const participantDetailPanel = {
   mainDetails: [
+    // Only include the specific fields you want
     { 
       accessor: "melos.epafes.onoma", 
       header: "Όνομα",
@@ -1085,11 +1114,6 @@ const participantDetailPanel = {
       header: "Τιμή", 
       value: (row) => `${row.timi || 0}€`
     },
-    { 
-      accessor: "hmerominia_dilosis", 
-      header: "Ημερομηνία Δήλωσης",
-      format: (value) => formatDate(value)
-    }
   ],
   tables: [
     {
@@ -1165,7 +1189,8 @@ onEdit: (payment) => {
       emptyMessage: "Δεν υπάρχουν καταχωρημένες πληρωμές",
       enableEdit: true // Enable the edit button in DataTable
     }
-  ]
+  ],
+    customSections: []
 };
 
   // Αντικατάσταση της συνάρτησης formatDate για μορφή ημερομηνίας ΗΗ/ΜΜ/ΕΕΕΕ

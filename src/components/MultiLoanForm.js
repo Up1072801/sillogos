@@ -20,6 +20,7 @@ import {
   InputAdornment,
   TablePagination,
   Checkbox,
+  Radio, // Προσθήκη του Radio
   Dialog,
   DialogTitle,
   DialogContent,
@@ -338,12 +339,12 @@ const MultiLoanForm = ({
               </Typography>
             </Box>
           ) : (
-            // When in create mode, show the full contact selection UI
+            // When in create mode, show the full contact selection UI with tableSelect style
             <>
               <TextField
                 fullWidth
                 placeholder="Αναζήτηση επαφής..."
-                value={searchText}
+                value={searchText || ""}
                 onChange={(e) => setSearchText(e.target.value)}
                 margin="normal"
                 InputProps={{
@@ -353,11 +354,21 @@ const MultiLoanForm = ({
                     </InputAdornment>
                   )
                 }}
+                sx={{ mb: 2 }}
               />
               
-              <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
+              <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
                 <Table stickyHeader size="small">
-                  <TableHead>
+                  <TableHead 
+                    sx={{ 
+                      bgcolor: 'grey.100',
+                      '& .MuiTableCell-root': {
+                        fontWeight: 'bold',
+                        color: 'rgba(0, 0, 0, 0.87)',
+                        borderBottom: '2px solid rgba(224, 224, 224, 1)'
+                      }
+                    }}
+                  >
                     <TableRow>
                       <TableCell padding="checkbox" width="5%"></TableCell>
                       <TableCell width="40%">Ονοματεπώνυμο</TableCell>
@@ -375,9 +386,10 @@ const MultiLoanForm = ({
                             hover 
                             onClick={() => handleSelectContact(contact)}
                             sx={{ cursor: 'pointer' }}
+                            selected={contactId === contact.id_epafis.toString()}
                           >
                             <TableCell padding="checkbox">
-                              <Checkbox 
+                              <Radio 
                                 checked={contactId === contact.id_epafis.toString()}
                                 onChange={(e) => {
                                   e.stopPropagation();
@@ -410,7 +422,7 @@ const MultiLoanForm = ({
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
                 labelRowsPerPage="Ανά σελίδα:"
-                labelDisplayedRows={({ from, to, count }) => `${from}-${to} από ${count}`}
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} από ${count !== -1 ? count : `πάνω από ${to}`}`}
               />
               
               {!contactId && (

@@ -2256,26 +2256,60 @@ useEffect(() => {
         }
       />
 
-      <SelectionDialog
-        open={openAthleteSelectionDialog}
-        onClose={() => {
-          setOpenAthleteSelectionDialog(false);
-          if (selectedCompetitionId) setSelectedCompetitionId(null);
-        }}
-        data={athletesBySport}
-        selectedIds={selectedAthletes}
-        onChange={(ids) => setSelectedAthletes(ids)}
-        onConfirm={selectedCompetitionId ? handleCompetitionAthleteSelection : ids => {
-          setSelectedAthletes(ids);
-          setOpenAthleteSelectionDialog(false);
-        }}
-        title={selectedCompetitionId ? "Προσθήκη Αθλητών στον Αγώνα" : `Επιλογή Αθλητών για τον Αγώνα (${athletesBySport.length} διαθέσιμοι)`}
-        columns={athleteSelectionColumns}
-        idField="id"
-        searchFields={["name", "athleteNumber", "firstName", "lastName"]}
-        noDataMessage="Δεν υπάρχουν διαθέσιμοι αθλητές για αυτό το άθλημα"
-      />
+     // Αντικαταστήστε το SelectionDialog (γραμμές ~2247-2272) με αυτό:
 
+<AddDialog
+  open={openAthleteSelectionDialog}
+  onClose={() => {
+    setOpenAthleteSelectionDialog(false);
+    if (selectedCompetitionId) setSelectedCompetitionId(null);
+  }}
+  handleAddSave={(values) => {
+    if (values && values.athleteIds) {
+      // Μετατροπή σε array αν χρειάζεται
+      const selectedIds = Array.isArray(values.athleteIds) 
+        ? values.athleteIds 
+        : [values.athleteIds];
+      
+      if (selectedCompetitionId) {
+        // Αν έχουμε ανοίξει από υπάρχοντα αγώνα
+        handleCompetitionAthleteSelection(selectedIds);
+      } else {
+        // Αν έχουμε ανοίξει από τη δημιουργία νέου αγώνα
+        setSelectedAthletes(selectedIds);
+        setOpenAthleteSelectionDialog(false);
+      }
+    }
+  }}
+  title={selectedCompetitionId ? "Προσθήκη Αθλητών στον Αγώνα" : `Επιλογή Αθλητών για τον Αγώνα`}
+  fields={[
+    {
+      accessorKey: "athleteIds",
+      header: "Επιλογή Αθλητών",
+      type: "tableSelect",
+      dataKey: "athletesList",
+      singleSelect: false, // Επιτρέπει πολλαπλή επιλογή
+      pageSize: 5,
+      columns: [
+        { field: "fullName", header: "Ονοματεπώνυμο" },
+        { field: "arithmosdeltiou", header: "Αριθμός Δελτίου" },
+      ],
+      searchFields: ["fullName", "arithmosdeltiou", "athlima"],
+      noDataMessage: "Δεν υπάρχουν διαθέσιμοι αθλητές για αυτό το άθλημα"
+    }
+  ]}
+  resourceData={{
+    athletesList: athletesBySport.map(athlete => ({
+      id: athlete.id || athlete.id_athliti,
+      fullName: athlete.fullName || `${athlete.lastName || ""} ${athlete.firstName || ""}`.trim(),
+      arithmosdeltiou: athlete.arithmosdeltiou || "-",
+      athlima: athlete.athlima || "-"
+    }))
+  }}
+  initialValues={{
+    athleteIds: selectedAthletes || []
+  }}
+/>
       {/* Προσθέστε το EditDialog για αθλητές */}
       <EditDialog
         open={openEditAthleteDialog}

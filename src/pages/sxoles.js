@@ -1619,87 +1619,7 @@ const handleDeleteEkpaideutis = async (rowOrId) => {
 };
 
   // Dialog για επιλογή εκπαιδευτών
-  const TeacherSelectionDialog = ({ open, onClose, onSave, availableTeachers, selectedTeachers, setSelectedTeachers }) => {
-    const handleToggleSelection = (teacherId) => {
-      if (selectedTeachers.includes(teacherId)) {
-        setSelectedTeachers(selectedTeachers.filter(id => id !== teacherId));
-      } else {
-        setSelectedTeachers([...selectedTeachers, teacherId]);
-      }
-    };
-    
-    return (
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle>Επιλογή Εκπαιδευτών</DialogTitle>
-        <DialogContent>
-          <Box sx={{ p: 1 }}>
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell padding="checkbox">
-                      <Checkbox 
-                        indeterminate={selectedTeachers.length > 0 && selectedTeachers.length < availableTeachers.length}
-                        checked={availableTeachers.length > 0 && selectedTeachers.length === availableTeachers.length}
-                        onChange={() => {
-                          if (selectedTeachers.length === availableTeachers.length) {
-                            setSelectedTeachers([]);
-                          } else {
-                            // Fix: Use consistent ID property
-                            setSelectedTeachers(availableTeachers.map(t => t.id_ekpaideuti));
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>Ονοματεπώνυμο</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Τηλέφωνο</TableCell>
-                    <TableCell>Επίπεδο</TableCell>
-                    <TableCell>Κλάδος</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {availableTeachers.map((teacher) => (
-                    <TableRow 
-                      key={teacher.id_ekpaideuti || teacher.id}
-                      hover
-                      onClick={() => handleToggleSelection(teacher.id_ekpaideuti)}
-                      selected={selectedTeachers.includes(teacher.id_ekpaideuti)}
-                    >
-                      <TableCell padding="checkbox">
-                        <Checkbox 
-                          // Fix: Make sure we use the right ID property consistently
-                          checked={selectedTeachers.includes(teacher.id_ekpaideuti)} 
-                          onChange={() => handleToggleSelection(teacher.id_ekpaideutis)}
-                        />
-                      </TableCell>
-                      <TableCell>{`${teacher.onoma || ""} ${teacher.epitheto || ""}`}</TableCell>
-                      <TableCell>{teacher.email}</TableCell>
-                      <TableCell>{teacher.tilefono}</TableCell>
-                      <TableCell>{teacher.epipedo}</TableCell>
-                      <TableCell>{teacher.klados}</TableCell>
-                    </TableRow>
-                  ))}
-
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose}>Άκυρο</Button>
-          <Button 
-            onClick={onSave} 
-            variant="contained" 
-            color="primary"
-            disabled={selectedTeachers.length === 0}
-          >
-            Προσθήκη {selectedTeachers.length > 0 && `(${selectedTeachers.length})`}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    );
-  };
+  
 
   // Προσθήκη κοντά στα άλλα useEffect περίπου στη γραμμή 500
   useEffect(() => {
@@ -2100,15 +2020,53 @@ additionalButtons={
           fields={ekpaideutisFormFields}
         />
 
-        {/* Dialog για επιλογή εκπαιδευτών */}
-        <TeacherSelectionDialog
-          open={teacherSelectionDialogOpen}
-          onClose={() => setTeacherSelectionDialogOpen(false)}
-          onSave={handleAddSelectedTeachers}
-          availableTeachers={availableTeachers}
-          selectedTeachers={selectedTeachers}
-          setSelectedTeachers={setSelectedTeachers}
-        />
+{/* Dialog για επιλογή εκπαιδευτών */}
+<AddDialog
+  open={teacherSelectionDialogOpen}
+  onClose={() => setTeacherSelectionDialogOpen(false)}
+  handleAddSave={(selection) => {
+    if (selection && selection.id_ekpaideuti) {
+      const selectedIds = Array.isArray(selection.id_ekpaideuti) 
+        ? selection.id_ekpaideuti 
+        : [selection.id_ekpaideuti];
+      setSelectedTeachers(selectedIds);
+      handleAddSelectedTeachers();
+    }
+  }}
+  title="Προσθήκη Εκπαιδευτών"
+  fields={[
+    { 
+      accessorKey: "id_ekpaideuti", 
+      header: "Εκπαιδευτές", 
+      type: "tableSelect",
+      dataKey: "teachersList",
+      singleSelect: false,
+      pageSize: 5,
+      columns: [
+        { field: "fullName", header: "Ονοματεπώνυμο" },
+        { field: "email", header: "Email" },
+        { field: "phone", header: "Τηλέφωνο" },
+        { field: "epipedo", header: "Επίπεδο" },
+        { field: "klados", header: "Κλάδος" }
+      ],
+      searchFields: ["fullName", "email", "phone", "epipedo", "klados"],
+      noDataMessage: "Δεν βρέθηκαν διαθέσιμοι εκπαιδευτές"
+    }
+  ]}
+  resourceData={{
+    teachersList: availableTeachers.map(teacher => ({
+      id: teacher.id_ekpaideuti || teacher.id_epafis || teacher.id,
+      fullName: `${teacher.onoma || ""} ${teacher.epitheto || ""}`.trim(),
+      email: teacher.email || "",
+      phone: teacher.tilefono || "",
+      epipedo: teacher.epipedo || "",
+      klados: teacher.klados || ""
+    }))
+  }}
+  initialValues={{
+    id_ekpaideuti: []
+  }}
+/>
 
         {/* Διάλογος επιβεβαίωσης διαγραφής τοποθεσίας */}
         <Dialog
