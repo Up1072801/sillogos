@@ -32,6 +32,17 @@ app.use(bodyParser.json());
 // Αυτό επιτρέπει στο Node.js να σερβίρει το frontend αν το Render στέλνει τα requests εδώ
 app.use(express.static('/usr/share/nginx/html'));
 
+// Fix for double API prefix issue
+app.use((req, res, next) => {
+  // Check if the URL has a double api prefix
+  if (req.path.startsWith('/api/api/')) {
+    // Rewrite the URL to use just one /api/ prefix
+    req.url = req.url.replace('/api/api/', '/api/');
+    console.log(`[Server] Fixed double API prefix: ${req.url}`);
+  }
+  next();
+});
+
 // API endpoints
 // Health check endpoint
 app.get("/health", (_req, res) => {
