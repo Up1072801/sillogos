@@ -22,6 +22,8 @@ const columns = [
    { 
     accessorKey: "hmerominia_kataskeuis", 
     header: "Ημερομηνία Κατασκευής", 
+          type: "date",
+
     enableHiding: true,
     Cell: ({ cell }) => {
       const value = cell.getValue();
@@ -200,6 +202,8 @@ const equipmentFormFields = [
 { 
   accessorKey: "hmerominia_kataskeuis", 
   header: "Ημερομηνία Κατασκευής", 
+        type: "date",
+
   enableHiding: true,  // Βεβαιωθείτε ότι υπάρχει αυτή η γραμμή
   Cell: ({ cell }) => {
     const value = cell.getValue();
@@ -245,8 +249,6 @@ const loanFormFields = [
   accessorKey: "hmerominia_daneismou", 
   header: "Ημερομηνία Δανεισμού", 
   type: "date",
-  defaultValue: new Date().toISOString().split('T')[0],
-  // Set maxDate to be the return date if it exists
   maxDateField: "hmerominia_epistrofis",
   validation: yup.date().required("Παρακαλώ επιλέξτε ημερομηνία δανεισμού")
 },

@@ -13,6 +13,8 @@ import LocationEditor from "../../components/LocationEditor"; // Προσαρμ�
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { el } from 'date-fns/locale';
+// Add this to your imports at the top of the file
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "";
@@ -233,9 +235,11 @@ const EditDialog = ({
                   formik.setFieldValue(field.accessorKey, "");
                   formik.setFieldTouched(field.accessorKey, true, true);
                 }
-                formik.validateForm(); // Still keep this
+                formik.validateForm();
               }}
               format="dd/MM/yyyy" // Display in Greek format
+              openTo="day"
+              views={["year", "month", "day"]} // Allow switching between year, month and day views
               slotProps={{
                 textField: {
                   fullWidth: true,
@@ -244,8 +248,21 @@ const EditDialog = ({
                   helperText: formik.touched[field.accessorKey] ? formik.errors[field.accessorKey] : "",
                   // Add onBlur to mark field as touched
                   onBlur: () => formik.setFieldTouched(field.accessorKey, true, true)
+                },
+                popper: {
+                  sx: {
+                    zIndex: 1500,
+                    "& .MuiPaper-root": {
+                      boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
+                      borderRadius: "8px",
+                      width: "auto",
+                      maxWidth: "325px" // Ensure a reasonable max-width
+                    }
+                  }
                 }
               }}
+              closeOnSelect={true}
+              desktopModeMediaQuery="(min-width: 0px)" // Force desktop mode
               // Add these lines for dynamic date constraints
               minDate={field.minDateField 
                 ? new Date(formik.values[field.minDateField]) 

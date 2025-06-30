@@ -27,8 +27,8 @@ const defaultEksormisiValues = {
   titlos: "",
   proorismos: "",
   timi: "",
-  hmerominia_anaxorisis: new Date().toISOString().split('T')[0],
-  hmerominia_afiksis: new Date().toISOString().split('T')[0]
+  hmerominia_anaxorisis: "",
+  hmerominia_afiksis: ""
 };
 
 export default function Eksormiseis() {

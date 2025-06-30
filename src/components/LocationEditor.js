@@ -244,9 +244,22 @@ const LocationEditor = ({ value, onChange }) => {
                         },
                         field: {
                           clearable: true
+                        },
+                        popper: {
+                          sx: {
+                            zIndex: 1500,
+                            "& .MuiPaper-root": {
+                              boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
+                              borderRadius: "8px",
+                              width: "auto",
+                              maxWidth: "325px"
+                            }
+                          }
                         }
                       }}
                       maxDate={parseDate(loc.end) || undefined}
+                      closeOnSelect={true}
+                      desktopModeMediaQuery="(min-width: 0px)" // Force desktop mode
                     />
                   </TableCell>
                   <TableCell>
@@ -278,9 +291,22 @@ const LocationEditor = ({ value, onChange }) => {
                         },
                         field: {
                           clearable: true
+                        },
+                        popper: {
+                          sx: {
+                            zIndex: 1500,
+                            "& .MuiPaper-root": {
+                              boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
+                              borderRadius: "8px",
+                              width: "auto",
+                              maxWidth: "325px"
+                            }
+                          }
                         }
                       }}
                       minDate={parseDate(loc.start) || undefined}
+                      closeOnSelect={true}
+                      desktopModeMediaQuery="(min-width: 0px)" // Force desktop mode
                     />
                   </TableCell>
                   <TableCell align="center">
@@ -363,9 +389,23 @@ const LocationEditor = ({ value, onChange }) => {
               },
               field: {
                 clearable: true
+              },
+              popper: {
+                sx: {
+                  zIndex: 1500,
+                  "& .MuiPaper-root": {
+                    boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
+                    borderRadius: "8px",
+                    width: "auto",
+                    maxWidth: "325px"
+                  }
+                }
               }
             }}
             maxDate={parseDate(newLocation.end) || undefined}
+            closeOnSelect={true}
+            desktopModeMediaQuery="(min-width: 0px)" // Force desktop mode
+            views={["year", "month", "day"]}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -403,9 +443,23 @@ const LocationEditor = ({ value, onChange }) => {
               },
               field: {
                 clearable: true
+              },
+              popper: {
+                sx: {
+                  zIndex: 1500,
+                  "& .MuiPaper-root": {
+                    boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
+                    borderRadius: "8px",
+                    width: "auto",
+                    maxWidth: "325px"
+                  }
+                }
               }
             }}
             minDate={parseDate(newLocation.start) || undefined}
+            closeOnSelect={true}
+            desktopModeMediaQuery="(min-width: 0px)" // Force desktop mode
+            views={["year", "month", "day"]}
           />
         </Grid>
         <Grid item xs={12} md={2}>

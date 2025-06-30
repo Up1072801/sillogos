@@ -14,6 +14,8 @@ import { format, parseISO } from 'date-fns';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import LocationEditor from "../LocationEditor";
+// Add this to your imports at the top of the file
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "";
@@ -260,26 +262,23 @@ const AddDialog = ({
               value={
                 formik.values[field.accessorKey]
                   ? (() => {
+                      // Same conversion logic as before
                       const v = formik.values[field.accessorKey];
                       
-                      // For ISO strings (YYYY-MM-DDT...)
                       if (typeof v === "string" && v.includes("T")) {
                         return new Date(v);
                       }
                       
-                      // For YYYY-MM-DD format
                       if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
                         const [y, m, d] = v.split("-");
                         return new Date(Number(y), Number(m) - 1, Number(d));
                       }
                       
-                      // For DD/MM/YYYY format (Greek)
                       if (typeof v === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(v)) {
                         const [d, m, y] = v.split("/");
                         return new Date(Number(y), Number(m) - 1, Number(d));
                       }
                       
-                      // If it's already a Date object
                       if (v instanceof Date) return v;
                       
                       return null;
@@ -288,7 +287,6 @@ const AddDialog = ({
               }
               onChange={(date) => {
                 if (date instanceof Date && !isNaN(date.getTime())) {
-                  // Create YYYY-MM-DD string without timezone issues
                   const year = date.getFullYear();
                   const month = String(date.getMonth() + 1).padStart(2, '0');
                   const day = String(date.getDate()).padStart(2, '0');
@@ -297,28 +295,39 @@ const AddDialog = ({
                 } else {
                   formik.setFieldValue(field.accessorKey, "");
                 }
-                // Mark field as touched when changed
                 formik.setFieldTouched(field.accessorKey, true, true);
               }}
-              format="dd/MM/yyyy" // Display in Greek format
+              format="dd/MM/yyyy"
+              openTo="day"
+              views={["year", "month", "day"]} // Allow switching between year, month and day views
               slotProps={{
                 textField: {
                   fullWidth: true,
-                  id: field.accessorKey, // Add id for focusing
+                  id: field.accessorKey,
                   error: formik.touched[field.accessorKey] && Boolean(formik.errors[field.accessorKey]),
                   helperText: formik.touched[field.accessorKey] ? formik.errors[field.accessorKey] : "",
-                  // Add onBlur to mark field as touched
-                  onBlur: () => formik.setFieldTouched(field.accessorKey, true, true)
+                  onBlur: () => formik.setFieldTouched(field.accessorKey, true, true),
+                },
+                popper: {
+                  sx: {
+                    zIndex: 1500,
+                    "& .MuiPaper-root": {
+                      boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
+                      borderRadius: "8px",
+                      width: "auto",
+                      maxWidth: "325px" // Ensure a reasonable max-width
+                    }
+                  }
                 }
               }}
-              // Add these lines for dynamic date constraints
+              closeOnSelect={true}
+              desktopModeMediaQuery="(min-width: 0px)" // Force desktop mode
               minDate={field.minDateField 
                 ? new Date(formik.values[field.minDateField]) 
                 : (field.minDate ? new Date(field.minDate) : undefined)}
               maxDate={field.maxDateField 
                 ? new Date(formik.values[field.maxDateField]) 
                 : (field.maxDate ? new Date(field.maxDate) : undefined)}
-              // For disabling past dates if needed
               disablePast={field.disablePast === true}
             />
           </LocalizationProvider>

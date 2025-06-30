@@ -10,6 +10,9 @@ import EditDialog from "../components/DataTable/EditDialog";
 import * as yup from "yup";
 import * as XLSX from 'xlsx';
 import SportsMartialArtsIcon from '@mui/icons-material/SportsMartialArts';
+import { Button, Box, Typography, TextField, IconButton } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
 import TransformIcon from '@mui/icons-material/Transform';
 import AddIcon from '@mui/icons-material/Add';
 import SelectionDialog from '../components/SelectionDialog';
@@ -416,95 +419,7 @@ const detailPanelConfig = {
   ]
 };
 
-// Add this component to melitousillogou.js
-import { Button, Box, Typography, TextField, IconButton } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import SaveIcon from '@mui/icons-material/Save';
 
-
-const InlineCommentsEditor = ({ comments, onSave }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [commentText, setCommentText] = useState(comments || "");
-  
-  const handleSave = () => {
-    onSave(commentText);
-    setIsEditing(false);
-  };
-  
-  return (
-    <Box sx={{ mt: 2, mb: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <Typography variant="h6" component="h3">Σχόλια</Typography>
-        {!isEditing ? (
-          <IconButton 
-            size="small" 
-            onClick={() => setIsEditing(true)} 
-            sx={{ ml: 1 }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-        ) : (
-          <IconButton 
-            size="small" 
-            color="primary"
-            onClick={handleSave} 
-            sx={{ ml: 1 }}
-          >
-            <SaveIcon fontSize="small" />
-          </IconButton>
-        )}
-      </Box>
-      
-      {isEditing ? (
-        <TextField
-          fullWidth
-          multiline
-          minRows={3}
-          maxRows={10}
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          variant="outlined"
-          placeholder="Εισάγετε σχόλια..."
-          autoFocus
-          sx={{ backgroundColor: '#f9f9f9' }}
-        />
-      ) : (
-        <Box 
-          sx={{ 
-            p: 2, 
-            border: '1px solid #e0e0e0', 
-            borderRadius: '4px', 
-            backgroundColor: '#f5f5f5',
-            minHeight: '60px',
-            whiteSpace: 'pre-wrap'
-          }}
-        >
-          {commentText || "Δεν υπάρχουν σχόλια"}
-        </Box>
-      )}
-    </Box>
-  );
-};
-
-// Move this function inside the component
-const handleSaveComments = async (memberId, newComments) => {
-  try {
-    // Make API call to update comments
-    await api.put(`/melitousillogou/${memberId}`, {
-      melos: {
-        sxolia: newComments
-      }
-    });
-    
-    // Now setData is accessible
-    setData(prevData => prevData.map(member => 
-      member.id_es_melous === memberId 
-        ? { ...member, melos: { ...member.melos, sxolia: newComments } }
-        : member
-    ));
-  } catch (error) {
-  }
-};
 
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
 // Βελτιωμένος υπολογισμός ημερομηνίας λήξης που ελέγχει για null τιμές
@@ -784,6 +699,30 @@ useEffect(() => {
   setEligibleAthletes(athletes);
 }, [data]);
 
+ const handleSaveComments = async (memberId, newComments) => {
+    try {
+      // Make API call to update comments
+      await api.put(`/melitousillogou/${memberId}`, {
+        melos: {
+          sxolia: newComments
+        }
+      });
+      
+      // Now setData is accessible within the component
+      setData(prevData => prevData.map(member => 
+        member.id_es_melous === memberId 
+          ? { ...member, melos: { ...member.melos, sxolia: newComments } }
+          : member
+      ));
+      
+      // Show success message or indication
+      return true;
+    } catch (error) {
+      console.error("Error saving comments:", error);
+      return false;
+    }
+  };
+  
 // Function to update the eligible athletes list after any changes
 const refreshEligibleAthletes = useCallback(() => {
   // Filter only athletes who are not subscribers
@@ -1280,6 +1219,9 @@ const handleEditSave = async (updatedRow) => {
     // Υπολογισμός κατάστασης - only for subscribers
     const newStatus = isSubscriber ? calculatedStatus : undefined;
     
+    // Save the comments value from the form - THIS IS IMPORTANT
+    const commentsValue = updatedRow.sxolia || "";
+    
     // API Request
     const requestData = {
       // Personal info
@@ -1297,80 +1239,75 @@ const handleEditSave = async (updatedRow) => {
       
       // Other fields
       epipedo: updatedRow.epipedo,
-      sxolia: updatedRow.sxolia || "",
+      
+      // Make sure sxolia is included here
+      melos: {
+        sxolia: commentsValue
+      },
       
       // Subscription fields - include when they're a subscriber, regardless of athlete status
-      katastasi_sindromis: isSubscriber ? updatedRow.katastasi_sindromis : undefined, // Change from !isAthlete to isSubscriber
+      katastasi_sindromis: isSubscriber ? updatedRow.katastasi_sindromis : undefined,
       hmerominia_enarksis: formattedStartDate, 
       hmerominia_egrafis: formattedStartDate,   
       hmerominia_pliromis: formattedPaymentDate,
-      eidosSindromis: isSubscriber ? updatedRow.eidoSindromis : undefined // Change from !isAthlete to isSubscriber
+      eidosSindromis: isSubscriber ? updatedRow.eidoSindromis : undefined
     };
       
-      const response = await api.put(`/melitousillogou/${id}`, requestData);
+    const response = await api.put(`/melitousillogou/${id}`, requestData);
       
-      // Update local state with consistent date structure
-      setData(prevData => 
-        prevData.map(item => {
-          if (item.id === id || item.id_es_melous === id) {
-            console.log("Updating member data:", {
-              regDate: formattedStartDate,
-              payDate: formattedPaymentDate
-            });
-            
-            // First create a base object without the dates
-            const baseObj = {
-              ...item,
-              ...response.data,
-            };
-            
-            // Then explicitly set the dates AFTER spreading response.data
-            return {
-              ...baseObj,
-              // Explicitly set these dates at top level to ensure they're never overwritten
-        hmerominia_egrafis: formattedStartDate, 
-        hmerominia_enarksis: formattedStartDate,
-        hmerominia_pliromis: formattedPaymentDate,
-              // Make sure we preserve the comments field
-              melos: {
-                ...(baseObj.melos || {}),
-                sxolia: updatedRow.sxolia || baseObj.melos?.sxolia || item.melos?.sxolia || "",
-                // Preserve other melos fields
-                epafes: baseObj.melos?.epafes || item.melos?.epafes,
-                vathmos_diskolias: baseObj.melos?.vathmos_diskolias || item.melos?.vathmos_diskolias
-              },
-              // Update nested structure
-   sindromitis: {
-          ...(baseObj.sindromitis || {}),
-          katastasi_sindromis: newStatus,
-                exei: [{
-                  hmerominia_pliromis: formattedPaymentDate,
-                  sindromi: {
-                    hmerominia_enarksis: formattedStartDate,
-                    eidos_sindromis: {
-                      titlos: updatedRow.eidosSindromis
-                    }
+    // Update local state with consistent date structure and preserve comments
+    setData(prevData => 
+      prevData.map(item => {
+        if (item.id === id || item.id_es_melous === id) {
+          // Create a base object
+          const baseObj = {
+            ...item,
+            ...response.data,
+          };
+          
+          // Then explicitly update with the form values, prioritizing them
+          return {
+            ...baseObj,
+            hmerominia_egrafis: formattedStartDate, 
+            hmerominia_enarksis: formattedStartDate,
+            hmerominia_pliromis: formattedPaymentDate,
+            // Explicitly set the melos object with updated comments
+            melos: {
+              ...(baseObj.melos || {}),
+              sxolia: commentsValue, // Use the saved comments value directly
+              epafes: baseObj.melos?.epafes || item.melos?.epafes,
+              vathmos_diskolias: baseObj.melos?.vathmos_diskolias || item.melos?.vathmos_diskolias
+            },
+            sindromitis: {
+              ...(baseObj.sindromitis || {}),
+              katastasi_sindromis: newStatus,
+              exei: [{
+                hmerominia_pliromis: formattedPaymentDate,
+                sindromi: {
+                  hmerominia_enarksis: formattedStartDate,
+                  eidos_sindromis: {
+                    titlos: updatedRow.eidosSindromis
                   }
-                }]
-              },
-              // Recalculate subscription end date
-              subscriptionEndDate: calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate)
-            };
-          }
-          return item;
-        })
-      );
-      
-      setOpenEditDialog(false);
-    } catch (error) {
-      console.error("Σφάλμα ενημέρωσης:", error);
-      if (error.response?.data) {
-        alert(`Σφάλμα: ${JSON.stringify(error.response.data)}`);
-      } else {
-        alert("Σφάλμα κατά την ενημέρωση του μέλους.");
-      }
+                }
+              }]
+            },
+            subscriptionEndDate: calculateSubscriptionEndDate(formattedStartDate, formattedPaymentDate)
+          };
+        }
+        return item;
+      })
+    );
+    
+    setOpenEditDialog(false);
+  } catch (error) {
+    console.error("Σφάλμα ενημέρωσης:", error);
+    if (error.response?.data) {
+      alert(`Σφάλμα: ${JSON.stringify(error.response.data)}`);
+    } else {
+      alert("Σφάλμα κατά την ενημέρωση του μέλους.");
     }
-  };
+  }
+};
 
 // Add this helper function to parse Greek-formatted dates "DD/MM/YYYY"
 const parseDateFromString = (dateStr) => {

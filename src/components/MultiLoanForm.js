@@ -44,7 +44,7 @@ const MultiLoanForm = ({
 }) => {
   // State for form values with initialization from editData if available
   const [contactId, setContactId] = useState(editData ? String(editData.id_epafis) : '');
-  const [loanDate, setLoanDate] = useState(editData?.hmerominia_daneismou ? new Date(editData.hmerominia_daneismou) : new Date());
+  const [loanDate, setLoanDate] = useState(editData?.hmerominia_daneismou ? new Date(editData.hmerominia_daneismou) : null);
   const [returnDate, setReturnDate] = useState(editData?.hmerominia_epistrofis ? new Date(editData.hmerominia_epistrofis) : null);
   const [status, setStatus] = useState(editData?.katastasi_daneismou || 'Σε εκκρεμότητα');
   
@@ -72,6 +72,9 @@ const MultiLoanForm = ({
   // New state variables for delete confirmation dialog
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [itemToDeleteIndex, setItemToDeleteIndex] = useState(null);
+  
+  // Add a new state variable to track field touches
+  const [loanDateTouched, setLoanDateTouched] = useState(false);
   
   // Effect to filter contacts based on search text
   useEffect(() => {
@@ -421,17 +424,109 @@ const MultiLoanForm = ({
           <DatePicker
             label="Ημερομηνία Δανεισμού"
             value={loanDate}
-            onChange={(newValue) => setLoanDate(newValue)}
+            onChange={(newValue) => {
+              if (newValue instanceof Date && !isNaN(newValue.getTime())) {
+                setLoanDate(newValue);
+              }
+              setLoanDateTouched(true); // Mark as touched when changed
+            }}
             maxDate={returnDate || undefined}
-            slotProps={{ textField: { fullWidth: true } }}
+            format="dd/MM/yyyy"
+            closeOnSelect={true}
+            desktopModeMediaQuery="(min-width: 0px)"
+            views={["year", "month", "day"]}
+            slotProps={{
+              textField: { 
+                fullWidth: true,
+                error: loanDateTouched && !loanDate, // Only show error if touched and empty
+                helperText: (loanDateTouched && !loanDate) ? "Η ημερομηνία δανεισμού είναι υποχρεωτική" : "",
+                onBlur: () => setLoanDateTouched(true), // Mark as touched on blur
+                sx: { 
+                  '.MuiInputBase-root': {
+                    paddingRight: 1
+                  },
+                  '.MuiInputBase-input': { 
+                    paddingRight: 0,
+                    fontSize: '1rem'
+                  },
+                  '.MuiInputAdornment-root': {
+                    marginLeft: 0,
+                    height: '100%'
+                  },
+                  '.MuiSvgIcon-root': {
+                    fontSize: '1.25rem',
+                    color: '#757575'
+                  }
+                }
+              },
+              field: {
+                clearable: true
+              },
+              popper: {
+                sx: {
+                  zIndex: 1500,
+                  "& .MuiPaper-root": {
+                    boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
+                    borderRadius: "8px",
+                    width: "auto",
+                    maxWidth: "325px"
+                  }
+                }
+              }
+            }}
           />
           
           <DatePicker
             label="Ημερομηνία Επιστροφής"
             value={returnDate}
-            onChange={(newValue) => setReturnDate(newValue)}
+            onChange={(newValue) => {
+              if (!newValue) {
+                setReturnDate(null);
+              } else if (newValue instanceof Date && !isNaN(newValue.getTime())) {
+                setReturnDate(newValue);
+              }
+            }}
             minDate={loanDate || undefined}
-            slotProps={{ textField: { fullWidth: true } }}
+            format="dd/MM/yyyy"
+            closeOnSelect={true}
+            desktopModeMediaQuery="(min-width: 0px)"
+            views={["year", "month", "day"]}
+            slotProps={{
+              textField: { 
+                fullWidth: true,
+                sx: { 
+                  '.MuiInputBase-root': {
+                    paddingRight: 1
+                  },
+                  '.MuiInputBase-input': { 
+                    paddingRight: 0,
+                    fontSize: '1rem'
+                  },
+                  '.MuiInputAdornment-root': {
+                    marginLeft: 0,
+                    height: '100%'
+                  },
+                  '.MuiSvgIcon-root': {
+                    fontSize: '1.25rem',
+                    color: '#757575'
+                  }
+                }
+              },
+              field: {
+                clearable: true
+              },
+              popper: {
+                sx: {
+                  zIndex: 1500,
+                  "& .MuiPaper-root": {
+                    boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
+                    borderRadius: "8px",
+                    width: "auto",
+                    maxWidth: "325px"
+                  }
+                }
+              }
+            }}
           />
           
           <FormControl sx={{ minWidth: 200 }}>
